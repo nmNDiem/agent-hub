@@ -5,10 +5,15 @@
   "packageManager": "pnpm@10.33.0",
   "engines": { "node": ">=24.0.0" },
   "scripts": {
+    "dev": "concurrently -k --names api,web --prefix-colors cyan,magenta \"pnpm dev:api\" \"pnpm dev:web\"",
+    "dev:api": ".\\.venv\\Scripts\\python.exe -m uvicorn agent_hub_api.main:app --app-dir apps/api/src --host 127.0.0.1 --port 8000",
     "dev:web": "pnpm --filter @agent-hub/web dev",
     "build": "pnpm -r --if-present run build",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
     "typecheck": "pnpm -r --if-present run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.5"
   }
 }

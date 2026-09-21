@@ -47,26 +47,13 @@ Không điền secret thật vào file được commit. `AGENT_HUB_DATABASE_URL`
 
 ## Chạy local
 
-Terminal API:
-
 ```powershell
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn agent_hub_api.main:app --app-dir apps\api\src --host 127.0.0.1 --port 8000
+pnpm dev
 ```
 
-Kiểm tra liveness:
+Mở `http://127.0.0.1:3000`. Nhấn `Ctrl+C` để dừng cả API và web. Thẻ FastAPI trên dashboard chỉ báo “Đang hoạt động” khi lấy được phản hồi thật từ API.
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-```
-
-Terminal web:
-
-```powershell
-pnpm dev:web
-```
-
-Mở `http://127.0.0.1:3000`. Thẻ FastAPI trên dashboard chỉ báo “Đang hoạt động” khi lấy được phản hồi thật từ API.
+Để chạy riêng từng service, dùng `pnpm dev:api` hoặc `pnpm dev:web`.
 
 ## Quality gates
 
