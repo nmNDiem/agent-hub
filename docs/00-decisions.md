@@ -15,8 +15,10 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Frontend | Next.js + TypeScript | CONFIRMED | Dashboard; widget packaging separate design question |
 | ID strategy | UUIDv7 selectively + BIGINT IDENTITY for internal rows | CONFIRMED | UUIDv7 for users/workspaces and required public IDs, **not** every PK; see `architecture/identifiers.md` |
 | Domain naming | `workspace` tenant; `agent` domain entity, presented as shop/chatbot in UI | PROPOSED | Keep original API/schema vocabulary; no parallel `shops`/`bots` tables |
-| UI components | Tailwind CSS + shadcn/ui | PROPOSED DESIGN DEFAULT | Chosen for reference design handoff; owner has not separately confirmed framework |
-| ORM / migrations | SQLAlchemy 2 + Alembic | PROPOSED | FastAPI-friendly approach |
+| UI components | Tailwind CSS + shadcn/ui conventions | CONFIRMED | Approved for F0; add only the component primitives each phase actually uses |
+| ORM / migrations | SQLAlchemy 2 async + Alembic | CONFIRMED | Approved for F0; PostgreSQL driver is asyncpg |
+| Foundation runtimes | Python 3.12, Node.js 24, pnpm workspace | CONFIRMED | Approved for F0 and pinned in repository configuration |
+| Widget foundation | Independent TypeScript/Vite package scaffold | CONFIRMED | F0 package boundary only; functional embed/chat remains F4 |
 | Retrieval | pgvector in Supabase; Postgres structured search | PROPOSED | Verify vector dimension per embedding model |
 | LLM provider | OpenAI | CONFIRMED | Server-side calls from FastAPI; exact model IDs are configurable |
 | OpenAI model IDs | Chat/vision/embeddings chosen by capability, price and testing | PROPOSED | Record deployed model IDs; no shop-owner choice in MVP |

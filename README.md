@@ -1,15 +1,15 @@
 # AgentHub
 
-**Multi-tenant, omnichannel AI-agent platform. First deliverable: fashion-shop AI sales assistant, embedded on a shop website.**
+AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-This archive is the **merged master documentation and Codex-guidance package, not an implemented app**. It contains the full target-product blueprint and a phased development plan; only the explicitly scoped phase is authorized for implementation.
+Repository hiện ở **F0 Foundation**: FastAPI, Next.js dashboard, widget package scaffold, migration harness và CI. F0 chưa có authentication, tenant data, catalog, RAG, OpenAI integration hoặc widget chat hoạt động.
 
-## Owner-confirmed technology and environments
+## Công nghệ và môi trường
 
 | Layer | Decision |
 |---|---|
-| Frontend | Next.js + TypeScript |
-| Backend | FastAPI + Python |
+| Frontend | Next.js 16 + TypeScript strict, Tailwind semantic tokens |
+| Backend | Python 3.12 + FastAPI, SQLAlchemy async + Alembic |
 | Database | Supabase PostgreSQL |
 | File storage | Supabase Storage |
 | Authentication | FastAPI-managed email + password, **not** Supabase Auth |
@@ -18,7 +18,86 @@ This archive is the **merged master documentation and Codex-guidance package, no
 | Future runtime | Docker containers on a VPS; Supabase remains hosted DB/Storage |
 | Initial channel/use case | Embedded website chat for fashion shops |
 | IDs | UUIDv7 selectively + BIGINT IDENTITY internally; see `docs/architecture/identifiers.md` |
+| Package manager | pnpm 10.33.0, Node.js 24 |
 | UI reference | Three mockups + design system under `docs/design/` and `assets/reference/` |
+
+## Cấu trúc F0
+
+```text
+apps/
+  api/       FastAPI, tests và Alembic
+  web/       Next.js admin scaffold
+  widget/    TypeScript package scaffold, chưa có chat runtime
+docs/        Product, architecture và design source of truth
+assets/      Reference images, không phải production catalog assets
+```
+
+## Cài đặt
+
+```powershell
+pnpm install --frozen-lockfile
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".\apps\api[dev]"
+Copy-Item .env.example .env
+Copy-Item apps\web\.env.example apps\web\.env.local
+```
+
+Không điền secret thật vào file được commit. `AGENT_HUB_DATABASE_URL`, Supabase keys, OpenAI key và JWT key đều là server-only.
+
+## Chạy local
+
+Terminal API:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn agent_hub_api.main:app --app-dir apps\api\src --host 127.0.0.1 --port 8000
+```
+
+Kiểm tra liveness:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+Terminal web:
+
+```powershell
+pnpm dev:web
+```
+
+Mở `http://127.0.0.1:3000`. Thẻ FastAPI trên dashboard chỉ báo “Đang hoạt động” khi lấy được phản hồi thật từ API.
+
+## Quality gates
+
+Frontend và widget:
+
+```powershell
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Backend:
+
+```powershell
+Set-Location apps\api
+ruff check .
+mypy
+pytest
+alembic upgrade head --sql
+```
+
+Lệnh Alembic trên là offline dry-run và không cần database. Online migration yêu cầu `AGENT_HUB_DATABASE_URL` trong environment:
+
+```powershell
+Set-Location apps\api
+$env:AGENT_HUB_DATABASE_URL = "postgresql+asyncpg://..."
+alembic upgrade head
+```
+
+Baseline F0 cố ý không tạo domain table. Schema identity/tenant chỉ được tạo trong F1 sau khi phase đó được phê duyệt.
 
 ## Where to read first
 
