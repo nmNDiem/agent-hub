@@ -1,0 +1,37 @@
+# 07 — UX flows (fashion shop MVP)
+
+## Shop-owner first run
+`Landing -> Register/email verify -> Create workspace/shop -> Enter shop details -> Import catalog or add products -> Enter policy/FAQ and size guidance -> Create/configure agent -> Configure widget branding + allowed website origin -> Preview with test questions/images -> Publish -> Copy embed snippet -> See conversations/leads/usage`.
+
+### Owner dashboard navigation
+- Overview: agent status, conversation volume and recent leads.
+- Catalog: list/search/filter products; detail with variants, images and stock; manual edit; CSV import report.
+- Knowledge: shop profile, FAQ/policy, PDF/TXT uploads, indexing states and error recovery.
+- Agents: greeting, tone/instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first).
+- Channels > Web: branding, origin allowlist, embed snippet, preview and connection health.
+- Conversations: paginated threads with clearly labeled visitor-provided information.
+- Leads: consented contacts, callback status and safe CSV export (authorized roles only).
+- Settings: workspace, owner account/password, basic member configuration if enabled.
+
+## Visitor chat
+`Open widget -> Welcome + example prompts -> Anonymous message -> Streaming reply -> Optional product cards -> Open shop product URL -> Ask variant/size -> Optional photo -> Similar existing products -> Optional consented contact -> Human contact CTA`.
+
+### Empty/loading/error states
+- No catalog: owner sees import CTA; visitor hears assistant cannot verify products yet.
+- Pending knowledge ingestion: display indexing state and do not imply updated docs are searchable.
+- Model timeout: non-technical retry message and shop contact option; no fake answer.
+- Unknown stock: "Chưa có thông tin tồn kho chính xác; shop có thể xác nhận giúp bạn.".
+- Missing size chart: no invented recommendation; ask shop or offer general non-definitive advice.
+- Image mismatch: show tentative candidates or honest no-match.
+- Quota exceeded: user-friendly limit notice; owner gets usage visibility.
+
+## Widget UX checklist
+- Keyboard/mobile usable; minimize CSS collisions with host page; clear focus and accessible labels.
+- Theme color, avatar, corner position and greeting editable; not arbitrary executable HTML.
+- Anonymous session has visible privacy information; optional consent before saving a lead.
+- Do not make customers log in just to ask about clothing; retain/resume history only for same visitor session.
+- Product card: safe image, title, up-to-date price, availability qualifier and shop product link.
+- Support concise Vietnamese first; allow later localization without hard-coded Vietnamese-only DB columns.
+
+## MVP handoff
+Display configured shop contact CTA or collect a callback request. Do not label as a staffed live chat without staffing capability. Full agent inbox deferred.
