@@ -1,18 +1,39 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "./app-shell";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/app/fashion-shop/overview",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+const workspace = {
+  id: "01992f3c-4436-7000-8000-000000000001",
+  slug: "fashion-shop",
+  display_name: "Fashion Shop",
+  timezone: "Asia/Ho_Chi_Minh",
+  role: "owner" as const,
+  created_at: "2026-09-21T00:00:00Z",
+};
+
 describe("AppShell", () => {
-  it("exposes navigation and a main landmark without pretending future features work", () => {
+  it("renders the authorized workspace and marks future modules unavailable", () => {
     render(
-      <AppShell>
+      <AppShell
+        user={{
+          id: "01992f3c-4436-7000-8000-000000000002",
+          email: "owner@example.com",
+          email_verified: false,
+        }}
+        workspace={workspace}
+        workspaces={[workspace]}
+      >
         <h1>Tổng quan</h1>
       </AppShell>,
     );
-
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Tổng quan" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Chọn cửa hàng" })).toHaveValue("fashion-shop");
     expect(screen.getAllByText("Sắp triển khai")).not.toHaveLength(0);
     expect(screen.queryByText("Connected")).not.toBeInTheDocument();
   });

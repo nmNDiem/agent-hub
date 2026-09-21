@@ -10,7 +10,10 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic==1.20.0",
     "asyncpg==0.31.0",
+    "email-validator==2.3.0",
     "fastapi==0.141.1",
+    "pwdlib[argon2]==0.3.0",
+    "PyJWT==2.10.1",
     "pydantic-settings==2.15.0",
     "python-dotenv==1.2.3",
     "sqlalchemy[asyncio]==2.0.54",
@@ -20,6 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "aiosqlite==0.22.1",
     "httpx==0.28.1",
     "mypy==2.3.1",
     "pytest==9.1.1",

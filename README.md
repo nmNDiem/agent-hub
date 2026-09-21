@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository hiện ở **F0 Foundation**: FastAPI, Next.js dashboard, widget package scaffold, migration harness và CI. F0 chưa có authentication, tenant data, catalog, RAG, OpenAI integration hoặc widget chat hoạt động.
+Repository đã hoàn thành **F1 Identity & tenants**: FastAPI-owned email/password, rotating sessions, CSRF protection, workspace membership boundaries, login/register/onboarding và shop switcher. Catalog, RAG, OpenAI integration và widget chat vẫn thuộc các phase sau.
 
 ## Công nghệ và môi trường
 
@@ -21,12 +21,12 @@ Repository hiện ở **F0 Foundation**: FastAPI, Next.js dashboard, widget pack
 | Package manager | pnpm 10.33.0, Node.js 24 |
 | UI reference | Three mockups + design system under `docs/design/` and `assets/reference/` |
 
-## Cấu trúc F0
+## Cấu trúc hiện tại
 
 ```text
 apps/
-  api/       FastAPI, tests và Alembic
-  web/       Next.js admin scaffold
+  api/       FastAPI auth/workspace API, tests và Alembic
+  web/       Next.js login, onboarding và tenant-aware admin shell
   widget/    TypeScript package scaffold, chưa có chat runtime
 docs/        Product, architecture và design source of truth
 assets/      Reference images, không phải production catalog assets
@@ -43,7 +43,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `AGENT_HUB_DATABASE_URL`, Supabase keys, OpenAI key và JWT key đều là server-only.
+Không điền secret thật vào file được commit. `AGENT_HUB_DATABASE_URL`, Supabase keys, OpenAI key và `AGENT_HUB_JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `AGENT_HUB_EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật.
 
 ## Chạy local
 
@@ -84,7 +84,14 @@ $env:AGENT_HUB_DATABASE_URL = "postgresql+asyncpg://..."
 alembic upgrade head
 ```
 
-Baseline F0 cố ý không tạo domain table. Schema identity/tenant chỉ được tạo trong F1 sau khi phase đó được phê duyệt.
+Migration F1 tạo `users`, `workspaces`, `workspace_members`, `auth_sessions` và `email_tokens`. Chạy migration online trên development database trước khi thử đăng ký:
+
+```powershell
+Set-Location apps\api
+alembic upgrade head
+```
+
+Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage.
 
 ## Where to read first
 

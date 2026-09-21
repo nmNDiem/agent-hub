@@ -10,4 +10,4 @@ Server Components for shell/session and non-interactive initial data where pract
 Small independent bundle on stable `/widget/v1/loader.js` route, ideally iframe with isolated styles, strict `postMessage` checks, CSP and responsive full-screen mobile. Do not import whole admin dashboard into widget; no duplicate React runtime if using a lightweight isolated launcher. Keep widget under performance budget, async script must not block host shop. Widget CSS/theme separate from admin tokens except component-level foundation.
 
 ## Frontend quality gates
-TypeScript strict, ESLint, formatting, Vitest/RTL component tests, Playwright journey at 1440 and 390; axe or equivalent accessibility scan; visual snapshots checked after semantic behaviour. API type generation must fail CI on breaking contract drift.
+TypeScript strict, ESLint, formatting, Vitest/RTL component tests. API type generation must fail CI on breaking contract drift.

@@ -1,75 +1,103 @@
+"use client";
+
 import {
   Bot,
   Boxes,
   ChevronDown,
   CircleGauge,
+  LogOut,
   Menu,
   MessageSquareText,
   Settings,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import { useState } from "react";
+
+import { api, type CurrentUser, type Workspace } from "@/lib/api";
 
 const navigation = [
-  { label: "Tổng quan", icon: CircleGauge, active: true },
-  { label: "Hội thoại", icon: MessageSquareText },
-  { label: "Chatbot", icon: Bot },
-  { label: "Sản phẩm", icon: Boxes },
+  { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
+  { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
+  { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: false },
+  { label: "Sản phẩm", icon: Boxes, segment: "products", enabled: false },
 ];
 
-function Navigation() {
+function Navigation({ workspace }: { workspace: Workspace }) {
+  const pathname = usePathname();
   return (
     <nav aria-label="Điều hướng chính" className="navigation">
-      {navigation.map(({ label, icon: Icon, active }) => (
-        <span aria-current={active ? "page" : undefined} className="nav-item" key={label}>
-          <Icon aria-hidden="true" size={19} />
-          <span>{label}</span>
-          {!active && <small>Sắp triển khai</small>}
-        </span>
-      ))}
+      {navigation.map(({ label, icon: Icon, segment, enabled }) => {
+        const href = `/app/${encodeURIComponent(workspace.slug)}/${segment}`;
+        const active = pathname === href;
+        return enabled ? (
+          <Link aria-current={active ? "page" : undefined} className="nav-item" href={href} key={label}>
+            <Icon aria-hidden="true" size={19} /><span>{label}</span>
+          </Link>
+        ) : (
+          <span className="nav-item" key={label}>
+            <Icon aria-hidden="true" size={19} /><span>{label}</span><small>Sắp triển khai</small>
+          </span>
+        );
+      })}
     </nav>
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  user,
+  workspaces,
+  workspace,
+}: {
+  children: ReactNode;
+  user: CurrentUser;
+  workspaces: Workspace[];
+  workspace: Workspace;
+}) {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function logout() {
+    setLoggingOut(true);
+    try { await api.logout(); } finally { router.replace("/login"); router.refresh(); }
+  }
+
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        Đi tới nội dung chính
-      </a>
+      <a className="skip-link" href="#main-content">Đi tới nội dung chính</a>
       <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <Sparkles size={19} />
-          </span>
-          <span>
-            <strong>AgentHub</strong>
-            <small>AI cho cửa hàng thời trang</small>
-          </span>
-        </div>
-        <Navigation />
-        <div className="sidebar-footer">
-          <Settings aria-hidden="true" size={19} />
-          <span>Cài đặt</span>
-          <small>Sắp triển khai</small>
-        </div>
+        <Link className="brand" href={`/app/${workspace.slug}/overview`}>
+          <span className="brand-mark" aria-hidden="true"><Sparkles size={19} /></span>
+          <span><strong>AgentHub</strong><small>AI cho cửa hàng thời trang</small></span>
+        </Link>
+        <Navigation workspace={workspace} />
+        <div className="sidebar-footer"><Settings aria-hidden="true" size={19} /><span>Cài đặt</span><small>Sắp triển khai</small></div>
       </aside>
       <div className="workspace">
         <header className="topbar">
           <details className="mobile-navigation">
-            <summary aria-label="Mở điều hướng">
-              <Menu aria-hidden="true" size={22} />
-            </summary>
-            <div className="mobile-navigation-panel">
-              <Navigation />
-            </div>
+            <summary aria-label="Mở điều hướng"><Menu aria-hidden="true" size={22} /></summary>
+            <div className="mobile-navigation-panel"><Navigation workspace={workspace} /></div>
           </details>
-          <div className="shop-placeholder" aria-label="Ngữ cảnh cửa hàng chưa được cấu hình">
-            <span className="shop-icon" aria-hidden="true">A</span>
-            <span>Cửa hàng chưa thiết lập</span>
+          <label className="workspace-switcher">
+            <span className="sr-only">Chọn cửa hàng</span>
+            <span className="shop-icon" aria-hidden="true">{workspace.display_name.charAt(0).toUpperCase()}</span>
+            <select
+              aria-label="Chọn cửa hàng"
+              onChange={(event) => router.push(`/app/${encodeURIComponent(event.target.value)}/overview`)}
+              value={workspace.slug}
+            >
+              {workspaces.map((item) => <option key={item.id} value={item.slug}>{item.display_name}</option>)}
+            </select>
             <ChevronDown aria-hidden="true" size={17} />
+          </label>
+          <div className="account-menu">
+            <span><strong>{user.email}</strong><small>{workspace.role}</small></span>
+            <button aria-label="Đăng xuất" disabled={loggingOut} onClick={logout} type="button"><LogOut aria-hidden="true" size={18} /></button>
           </div>
-          <span className="phase-badge">F0 · Nền tảng</span>
         </header>
         <main id="main-content" className="content">{children}</main>
       </div>

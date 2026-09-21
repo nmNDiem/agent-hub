@@ -14,6 +14,12 @@ All paths are prefixed `/api/v1`. See `architecture/api-conventions.md` for payl
 | POST | `/auth/reset-password` | One-time expiring token; revoke sessions |
 | GET | `/me` | Signed-in profile + memberships |
 
+### F1 browser session contract
+
+F1 uses FastAPI-issued `agenthub_access` and `agenthub_refresh` HttpOnly cookies. The readable `agenthub_csrf` cookie must be echoed in `X-CSRF-Token` for authenticated unsafe requests. Access cookies last 15 minutes and refresh sessions last 14 days by default; both values are server configuration. Refresh rotation invalidates the previous token and replay revokes the remaining token family. The access token is never stored in browser storage.
+
+Registration creates the user and session but does not silently create a workspace. A user with no memberships creates the first workspace through `POST /workspaces`; the workspace and `owner` membership are committed atomically. Email verification/recovery routes exist only when a real delivery adapter is configured.
+
 ## Owner / workspace
 | Method | Path | Notes |
 |---|---|---|

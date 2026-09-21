@@ -23,7 +23,9 @@ body {
 }
 a { color: inherit; }
 button, summary, a { outline-offset: 3px; }
+button, input, select { font: inherit; }
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid hsl(221 83% 53% / 35%); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .skip-link { position: fixed; left: 16px; top: -60px; z-index: 100; background: var(--foreground); color: white; padding: 10px 14px; border-radius: 8px; }
 .skip-link:focus { top: 12px; }
 .app-shell { min-height: 100dvh; }
@@ -39,8 +41,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px soli
 .sidebar-footer { margin-top: auto; min-height: 44px; display: flex; align-items: center; gap: 11px; padding: 0 12px; color: hsl(218 25% 30%); }
 .workspace { min-height: 100dvh; margin-left: 248px; }
 .topbar { height: 64px; padding: 0 28px; display: flex; align-items: center; gap: 16px; background: hsl(0 0% 100% / 92%); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px); }
-.shop-placeholder { min-width: 240px; min-height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; color: hsl(218 25% 25%); background: var(--card); }
-.shop-placeholder svg { margin-left: auto; }
+.workspace-switcher { min-width: 240px; min-height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; color: hsl(218 25% 25%); background: var(--card); }
+.workspace-switcher select { min-width: 0; flex: 1; appearance: none; border: 0; outline: 0; background: transparent; font-weight: 650; }
 .shop-icon { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; background: hsl(37 70% 92%); font-size: 12px; font-weight: 700; }
 .phase-badge, .scaffold-label { margin-left: auto; border: 1px solid hsl(221 83% 53% / 18%); color: hsl(221 83% 43%); background: hsl(218 100% 97%); border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 650; }
 .mobile-navigation { display: none; }
@@ -73,6 +75,49 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .status-card small { padding-right: 8px; color: var(--muted-foreground); line-height: 1.4; }
 .status-dot { position: absolute; top: 20px; right: 20px; width: 8px; height: 8px; border-radius: 50%; background: hsl(215 16% 65%); }
 .status-dot.success { background: var(--success); box-shadow: 0 0 0 4px hsl(145 63% 34% / 10%); }
+.section-gap { margin-top: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.role-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 7px 11px; border-radius: 999px; color: var(--success); background: hsl(145 63% 94%); font-weight: 700; text-transform: capitalize; }
+.account-menu { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.account-menu span { text-align: right; }
+.account-menu strong, .account-menu small { display: block; }
+.account-menu small { margin-top: 2px; color: var(--muted-foreground); text-transform: capitalize; }
+.account-menu button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--muted-foreground); background: white; cursor: pointer; }
+.center-state { min-height: 100dvh; display: grid; place-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--muted-foreground); }
+.center-state button { padding: 10px 16px; border: 0; border-radius: 9px; color: white; background: var(--primary); cursor: pointer; }
+.auth-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(360px, .9fr) minmax(460px, 1.1fr); }
+.auth-brand { display: flex; flex-direction: column; justify-content: space-between; padding: clamp(32px, 6vw, 76px); color: white; background: radial-gradient(circle at 15% 15%, hsl(231 84% 62%), transparent 42%), linear-gradient(145deg, hsl(222 55% 15%), hsl(228 58% 25%)); }
+.brand-lockup { display: flex; align-items: center; gap: 12px; font-size: 21px; }
+.auth-brand > div:last-child { max-width: 560px; }
+.auth-brand .eyebrow { color: hsl(218 100% 83%); }
+.auth-brand h1 { font-size: clamp(38px, 5vw, 66px); line-height: 1.04; }
+.auth-brand p:last-child { max-width: 500px; color: hsl(218 30% 83%); font-size: 16px; line-height: 1.7; }
+.auth-panel { display: grid; place-items: center; padding: 32px; }
+.auth-card, .onboarding-card { width: min(100%, 460px); padding: clamp(26px, 5vw, 44px); border: 1px solid var(--border); border-radius: 18px; background: white; box-shadow: 0 22px 60px hsl(220 35% 30% / 9%); }
+.auth-card { display: grid; gap: 20px; }
+.auth-card h2 { font-size: 27px; }
+.auth-card > div > p:last-child, .onboarding-card > div > p:last-child { color: var(--muted-foreground); }
+.auth-card label, .onboarding-card label { display: grid; gap: 8px; color: hsl(218 25% 24%); font-weight: 650; }
+.auth-card input, .onboarding-card input { width: 100%; height: 46px; padding: 0 13px; border: 1px solid hsl(214 23% 82%); border-radius: 10px; background: white; }
+.auth-card input:focus, .onboarding-card input:focus { border-color: var(--primary); outline: 3px solid hsl(221 83% 53% / 12%); }
+.auth-card label small, .onboarding-card label small { color: var(--muted-foreground); font-weight: 400; line-height: 1.45; }
+.password-field { position: relative; display: block; }
+.password-field input { padding-right: 48px; }
+.password-field button { position: absolute; top: 3px; right: 3px; width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.primary-button { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; color: white; background: var(--primary); font-weight: 750; cursor: pointer; box-shadow: 0 10px 20px hsl(221 83% 53% / 18%); }
+.primary-button:disabled { opacity: .65; cursor: wait; }
+.form-error { margin: -4px 0 0; padding: 11px 12px; border-radius: 9px; color: hsl(0 65% 35%); background: hsl(0 80% 96%); line-height: 1.45; }
+.auth-switch { margin: 0; text-align: center; color: var(--muted-foreground); }
+.auth-switch a { color: hsl(221 83% 46%); font-weight: 700; }
+.spinner { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.onboarding-page { min-height: 100dvh; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at 50% 0, hsl(220 100% 94%), transparent 38%), var(--background); }
+.onboarding-card { width: min(100%, 560px); }
+.onboarding-card > .brand-mark { margin-bottom: 25px; }
+.onboarding-card h1 { font-size: 31px; }
+.onboarding-card form { display: grid; gap: 20px; margin-top: 28px; }
+.slug-field { display: flex; align-items: center; border: 1px solid hsl(214 23% 82%); border-radius: 10px; overflow: hidden; }
+.slug-field > span { padding-left: 13px; color: var(--muted-foreground); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.slug-field input { border: 0; border-radius: 0; padding-left: 2px; }
 
 @media (max-width: 1023px) {
   .sidebar { display: none; }
@@ -87,8 +132,8 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 
 @media (max-width: 767px) {
   .topbar { height: 60px; padding: 0 14px; }
-  .shop-placeholder { min-width: 0; flex: 1; }
-  .shop-placeholder span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace-switcher { min-width: 0; flex: 1; }
+  .account-menu span { display: none; }
   .phase-badge { display: none; }
   .content { padding: 24px 14px 40px; }
   .page-heading, .section-heading { display: block; }
@@ -98,8 +143,17 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
   .foundation-visual { min-height: 190px; }
   .section-heading > p { margin-top: 8px; text-align: left; }
   .status-grid { grid-template-columns: 1fr; }
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-brand { min-height: 250px; padding: 28px 22px; }
+  .auth-brand h1 { font-size: 34px; }
+  .auth-panel { padding: 20px 14px 36px; }
+  .auth-card { padding: 26px 21px; }
+  .onboarding-page { padding: 16px; }
+  .onboarding-card { padding: 26px 20px; }
+  .slug-field > span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .spinner { animation: none; }
 }
