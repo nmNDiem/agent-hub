@@ -17,5 +17,5 @@
 ## Implementation status
 
 - F0 scaffold: completed.
-- F1 identity/tenants: implemented locally with Argon2id credentials, HttpOnly access/refresh cookies, rotating refresh-token families, CSRF/origin checks, workspace membership enforcement, onboarding and tenant-negative tests.
+- F1 identity/tenants: implemented locally with Argon2id credentials, HttpOnly access/refresh cookies, rotating refresh-token families, CSRF/origin checks, workspace membership enforcement, onboarding and tenant-negative tests. The implementation is organized as `identity` and `workspaces` domain modules; services own transactions and repositories do not commit. Dashboard auth/workspace UI lives under `src/features/`.
 - Email verification and recovery routes are registered only when `AGENT_HUB_EMAIL_DELIVERY_ENABLED=true`; a real delivery provider remains required before enabling them outside tests.

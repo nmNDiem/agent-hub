@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import jwt
 from pwdlib import PasswordHash
 
-from agent_hub_api.config import Settings
+from agent_hub_api.core.config import Settings
 
 ACCESS_COOKIE = "agenthub_access"
 REFRESH_COOKIE = "agenthub_refresh"

@@ -1,6 +1,6 @@
 import pytest
 
-from agent_hub_api.config import normalize_database_url
+from agent_hub_api.core.config import normalize_database_url
 
 
 @pytest.mark.parametrize("scheme", ["postgresql://", "postgres://"])

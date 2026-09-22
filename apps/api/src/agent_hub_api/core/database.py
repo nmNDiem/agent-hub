@@ -1,12 +1,26 @@
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request, status
+from sqlalchemy import BigInteger, Integer
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import DeclarativeBase
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+BIGINT_PRIMARY_KEY = BigInteger().with_variant(Integer, "sqlite")
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:

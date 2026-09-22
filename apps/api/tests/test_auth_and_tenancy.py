@@ -6,7 +6,7 @@ from typing import Any, Protocol
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,10 +14,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from agent_hub_api.config import Settings
+from agent_hub_api.core.config import Settings
+from agent_hub_api.identity.security import CSRF_COOKIE, REFRESH_COOKIE
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base, User, Workspace, WorkspaceMember
-from agent_hub_api.security import CSRF_COOKIE, REFRESH_COOKIE
 
 PASSWORD = "secure-password-123"
 ORIGIN = "http://127.0.0.1:3000"
@@ -231,6 +231,37 @@ def test_workspace_reads_and_writes_are_tenant_scoped(app_factory: AppFactory) -
             headers=csrf_headers(owner_b),
         )
         assert forbidden_update.status_code == 403
+
+
+def test_duplicate_workspace_slug_rolls_back_the_whole_operation(
+    app_factory: AppFactory,
+) -> None:
+    app, session_factory, _ = app_factory()
+    with TestClient(app) as client:
+        register(client, "owner@example.com")
+        first = client.post(
+            "/api/v1/workspaces",
+            json={"display_name": "Shop A", "slug": "shared-slug"},
+            headers=csrf_headers(client),
+        )
+        duplicate = client.post(
+            "/api/v1/workspaces",
+            json={"display_name": "Shop B", "slug": "shared-slug"},
+            headers=csrf_headers(client),
+        )
+
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "WORKSPACE_SLUG_UNAVAILABLE"
+
+    async def count_tenant_records() -> tuple[int, int]:
+        async with session_factory() as session:
+            workspace_count = await session.scalar(select(func.count()).select_from(Workspace))
+            member_count = await session.scalar(select(func.count()).select_from(WorkspaceMember))
+            assert workspace_count is not None and member_count is not None
+            return workspace_count, member_count
+
+    assert asyncio.run(count_tenant_records()) == (1, 1)
 
 
 def test_reset_token_is_single_use_and_revokes_sessions(app_factory: AppFactory) -> None:

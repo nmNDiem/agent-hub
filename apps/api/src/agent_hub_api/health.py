@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from agent_hub_api.config import get_settings
+from agent_hub_api.core.config import get_settings
 
 router = APIRouter(tags=["operations"])
 

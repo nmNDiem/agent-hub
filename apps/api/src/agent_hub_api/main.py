@@ -7,15 +7,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from agent_hub_api.config import Settings, get_settings
-from agent_hub_api.database import create_database_engine, create_session_factory
-from agent_hub_api.dependencies import LoginRateLimiter
-from agent_hub_api.email_delivery import EmailDelivery
-from agent_hub_api.errors import ApiError, api_error_handler
+from agent_hub_api.core.config import Settings, get_settings
+from agent_hub_api.core.database import create_database_engine, create_session_factory
+from agent_hub_api.core.errors import ApiError, api_error_handler
 from agent_hub_api.health import router as health_router
-from agent_hub_api.routers.auth import email_router, profile_router
-from agent_hub_api.routers.auth import router as auth_router
-from agent_hub_api.routers.workspaces import router as workspaces_router
+from agent_hub_api.identity.dependencies import LoginRateLimiter
+from agent_hub_api.identity.email_delivery import EmailDelivery
+from agent_hub_api.identity.router import email_router
+from agent_hub_api.identity.router import router as auth_router
+from agent_hub_api.workspaces.router import profile_router
+from agent_hub_api.workspaces.router import router as workspaces_router
 
 
 def create_app(

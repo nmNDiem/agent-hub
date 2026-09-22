@@ -4,17 +4,27 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.database import get_db_session
-from agent_hub_api.dependencies import get_current_user, require_csrf
-from agent_hub_api.models import User
-from agent_hub_api.schemas import (
+from agent_hub_api.core.database import get_db_session
+from agent_hub_api.identity.dependencies import get_current_user, require_csrf
+from agent_hub_api.identity.models import User
+from agent_hub_api.workspaces.schemas import (
     CreateWorkspaceRequest,
+    MeResponse,
     UpdateWorkspaceRequest,
     WorkspaceResponse,
 )
-from agent_hub_api.services import WorkspaceService, workspace_response
+from agent_hub_api.workspaces.service import WorkspaceService, workspace_response
 
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
+profile_router = APIRouter(prefix="/api/v1", tags=["authentication"])
+
+
+@profile_router.get("/me", response_model=MeResponse)
+async def me(
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MeResponse:
+    return await WorkspaceService(session).me(user)
 
 
 @router.get("", response_model=list[WorkspaceResponse])

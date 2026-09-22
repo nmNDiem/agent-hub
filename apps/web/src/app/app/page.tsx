@@ -1,4 +1,4 @@
-import { AppEntry } from "@/components/app-entry";
+import { AppEntry } from "@/features/workspaces/app-entry";
 
 export default function AppPage() {
   return <AppEntry />;

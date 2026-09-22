@@ -8,19 +8,19 @@ import jwt
 from fastapi import Cookie, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.config import Settings
-from agent_hub_api.database import get_db_session
-from agent_hub_api.email_delivery import EmailDelivery, UnavailableEmailDelivery
-from agent_hub_api.errors import ApiError
-from agent_hub_api.models import User
-from agent_hub_api.security import (
+from agent_hub_api.core.config import Settings
+from agent_hub_api.core.database import get_db_session
+from agent_hub_api.core.errors import ApiError
+from agent_hub_api.identity.email_delivery import EmailDelivery, UnavailableEmailDelivery
+from agent_hub_api.identity.models import User
+from agent_hub_api.identity.security import (
     ACCESS_COOKIE,
     CSRF_COOKIE,
     CSRF_HEADER,
     decode_access_token,
     hash_rate_limit_key,
 )
-from agent_hub_api.services import AuthService
+from agent_hub_api.identity.service import AuthService
 
 
 def get_request_settings(request: Request) -> Settings:
@@ -69,7 +69,9 @@ def require_allowed_origin(request: Request) -> None:
     origin = request.headers.get("origin")
     settings = get_request_settings(request)
     if origin is not None and origin.rstrip("/") not in settings.allowed_origins:
-        raise ApiError(status.HTTP_403_FORBIDDEN, "ORIGIN_DENIED", "Nguồn yêu cầu không hợp lệ.")
+        raise ApiError(
+            status.HTTP_403_FORBIDDEN, "ORIGIN_DENIED", "Nguồn yêu cầu không hợp lệ."
+        )
 
 
 @dataclass

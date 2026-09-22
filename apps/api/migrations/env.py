@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from agent_hub_api.config import normalize_database_url
+from agent_hub_api.core.config import normalize_database_url
+from agent_hub_api.models import Base
 
 config = context.config
 repository_root = Path(__file__).resolve().parents[3]
@@ -18,7 +19,7 @@ load_dotenv(repository_root / ".env", override=False)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def get_database_url(*, allow_dialect_only: bool) -> str:

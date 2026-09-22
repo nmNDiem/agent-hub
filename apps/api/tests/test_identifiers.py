@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from agent_hub_api.identifiers import new_uuid_v7
+from agent_hub_api.core.identifiers import new_uuid_v7
 
 
 def test_new_uuid_v7_returns_unique_rfc_9562_values() -> None:

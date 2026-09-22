@@ -4,34 +4,30 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.config import Settings
-from agent_hub_api.database import get_db_session
-from agent_hub_api.dependencies import (
+from agent_hub_api.core.config import Settings
+from agent_hub_api.core.database import get_db_session
+from agent_hub_api.core.errors import ApiError
+from agent_hub_api.identity.dependencies import (
     LoginRateLimiter,
-    get_current_user,
     get_email_delivery,
     get_request_settings,
     require_allowed_origin,
     require_csrf,
 )
-from agent_hub_api.email_delivery import EmailDelivery
-from agent_hub_api.errors import ApiError
-from agent_hub_api.models import User
-from agent_hub_api.schemas import (
+from agent_hub_api.identity.email_delivery import EmailDelivery
+from agent_hub_api.identity.schemas import (
     ForgotPasswordRequest,
     LoginRequest,
-    MeResponse,
     MessageResponse,
     RegisterRequest,
     ResetPasswordRequest,
     SessionResponse,
     TokenRequest,
 )
-from agent_hub_api.security import ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, TokenPair
-from agent_hub_api.services import AuthService, WorkspaceService, user_response
+from agent_hub_api.identity.security import ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, TokenPair
+from agent_hub_api.identity.service import AuthService, user_response
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
-profile_router = APIRouter(prefix="/api/v1", tags=["authentication"])
 
 
 def _set_session_cookies(response: Response, tokens: TokenPair, settings: Settings) -> None:
@@ -170,14 +166,6 @@ async def logout(
 ) -> None:
     await AuthService(session, settings).logout(request.cookies.get(REFRESH_COOKIE))
     _clear_session_cookies(response, settings)
-
-
-@profile_router.get("/me", response_model=MeResponse)
-async def me(
-    user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> MeResponse:
-    return await WorkspaceService(session).me(user)
 
 
 email_router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])

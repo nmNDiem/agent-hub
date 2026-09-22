@@ -11,5 +11,13 @@ Next.js App Router renders admin and delivers static widget assets; FastAPI is t
 ## Dependency boundaries
 `UI -> typed API client -> FastAPI routers -> domain services -> repositories/providers`. Never let Next.js browser connect directly to privileged PostgreSQL/Supabase Storage or OpenAI. Domain services depend on OpenAI/Storage interfaces; channel adapters depend on core chat, not vice versa. Generated OpenAPI is backend-owned contract (with stable revision), frontend types regenerated on CI.
 
+The FastAPI package is a domain-oriented modular monolith. Current business modules are
+`agent_hub_api.identity` and `agent_hub_api.workspaces`; do not create future modules before their
+phase needs them. Within a domain, routers own the HTTP boundary, services own business rules,
+authorization and transaction orchestration, and repositories own persistence queries without
+committing. `agent_hub_api.core` contains shared infrastructure only. The root `models.py` is the
+central ORM registry imported by Alembic so every domain model contributes to `Base.metadata`;
+migrations remain in `apps/api/migrations`.
+
 ## Deployment principle
 No premature K8s, Celery, microservices or paid queue for MVP. Introduce a simple persisted job runner to avoid slow HTTP document ingestion; migrate to worker process/queue if scale requires. Avoid `BackgroundTasks` as only guarantee for important jobs that must survive restarts.
