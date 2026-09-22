@@ -1,17 +1,20 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Important:** This ZIP is design-only. These are instructions for future coding, not claims that features/tests already exist. Break tasks into reviewable PRs. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0 and F1 are implemented locally. F2 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
-## F0 — Repository scaffold
+## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
 - Propose frontend/ORM/runtime choices for owner sign-off; do not quietly replace confirmed backend/db/storage/auth.
 - Scaffold FastAPI app, frontend/widget skeleton if approved, env example, basic health endpoint, lint/format/type/test, migration harness and CI.
 - Add README local setup with **actual tested commands**; no real secrets.
 - Done: local health test passes, clean CI, one minimal migration dry run.
 
-## F1 — Auth + tenant base
+## F1 — Auth + tenant base (complete)
 - Build user/workspace/member/session tables/migrations; hashed passwords, verification/reset, access + refresh rotation, RBAC dependencies.
 - Implement per-resource workspace scoping and negative tests using two workspaces/users.
+- Organize the backend as `agent_hub_api.identity` and `agent_hub_api.workspaces` domain modules,
+  with shared infrastructure in `agent_hub_api.core`; services own transaction boundaries and
+  repositories do not commit. Keep the central ORM registry for Alembic.
 - Done: no cross-tenant read/write and no stale refresh token after rotation/logout.
 
 ## F2 — Fashion catalog

@@ -22,7 +22,7 @@ Detailed implementation companion to `../04-data-model.md`; if a table is missin
 ## Core columns and invariants
 - `users`: UUIDv7 id, email normalized/citext unique, password_hash Argon2id, status/timestamps; never store plaintext password.
 - `workspaces`: UUIDv7 id, slug unique, display_name, timezone default `Asia/Ho_Chi_Minh`, owner established via membership; do not use slug as authorization.
-- `workspace_members`: BIGINT id, workspace_id/user_id, role owner/member, composite unique. Ownership transfer/audit future.
+- `workspace_members`: BIGINT id, workspace_id/user_id, role `owner`/`admin`/`member`, composite unique. Owners and admins may update workspace settings; members have read access. Ownership transfer/audit remains future work.
 - `agents`: BIGINT id, UUIDv7 public_id, workspace_id, name, draft_config jsonb, published_revision_id nullable, state; publish only if config and knowledge validate.
 - `agent_revisions`: BIGINT id, agent_id, revision_no unique per bot, immutable config jsonb, published_at; immutable published snapshot.
 - `products`: BIGINT id, workspace_id, SKU optional, name, description, category, price_minor nullable, currency, url, status; variants have product_id, sku, size/color, stock nullable. `NULL` stock is **unknown**, not zero or unlimited.

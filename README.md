@@ -25,8 +25,8 @@ Repository đã hoàn thành **F1 Identity & tenants**: FastAPI-owned email/pass
 
 ```text
 apps/
-  api/       FastAPI auth/workspace API, tests và Alembic
-  web/       Next.js login, onboarding và tenant-aware admin shell
+  api/       FastAPI modular monolith: core, identity, workspaces, tests và Alembic
+  web/       Next.js app routes, shared UI/lib và auth/workspace feature modules
   widget/    TypeScript package scaffold, chưa có chat runtime
 docs/        Product, architecture và design source of truth
 assets/      Reference images, không phải production catalog assets
@@ -141,6 +141,6 @@ Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong
 - `docs/architecture/` — UUIDv7/BIGINT convention, detailed data and security, RAG, ingestion, frontend, SQL **reference**, testing/deployment.
 - `assets/reference/` — dashboard, playground, web widget reference images; no right to reuse sample product imagery.
 
-## First Codex instruction
+## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and `docs/10-codex-backlog.md`. Implement **F0 only** under `docs/10-codex-backlog.md` (scaffold only). Read `docs/design/README.md` and `docs/architecture/README.md`; use the reference images for styling the scaffold. Scaffold Next.js/TypeScript, FastAPI, local run scripts and secure env templates. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. F0 and F1 are complete; do not implement F2 or a later phase without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.

@@ -1,11 +1,11 @@
-# 05 — Proposed API contract (v1 draft)
+# 05 — API contract (v1)
 
-All paths are prefixed `/api/v1`. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Versioning, exact payload shapes and status codes to be locked in OpenAPI during implementation. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived agent/workspace-scoped widget session and abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
+All paths are prefixed `/api/v1`. The Identity and workspace endpoints documented for F1 are implemented; later-phase endpoint families remain proposed until their phase is approved and implemented. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived agent/workspace-scoped widget session and abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
 
 ## Identity
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/auth/register` | Email/password; create owner workspace or scoped invitation acceptance |
+| POST | `/auth/register` | Email/password; creates user and session only, never an implicit workspace |
 | POST | `/auth/login` | Issues short-lived access token + rotating refresh session |
 | POST | `/auth/refresh` | Rotation; detect reuse |
 | POST | `/auth/logout` | Revoke refresh session |

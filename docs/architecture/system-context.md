@@ -26,26 +26,63 @@ flowchart LR
  FUT[Future FB / Zalo webhooks] --> CHAT
 ```
 
-## Backend packages (illustrative)
+## Backend packages
+
+Current F1 implementation:
+
 ```text
-app/
-  main.py; core/{config,db,security,ids,errors}.py
-  api/v1/{auth,workspaces,agents,products,knowledge,conversations,chat,widget}.py
-  domain/{auth,workspaces,agents,catalog,knowledge,chat,channels}/
-  services/{retrieval,model_client,media,storage,publication}/
-  repositories/{users,workspaces,agents,products,documents,conversations}/
-  jobs/{runner,ingest_document,cleanup_assets}/
-  schemas/; models/; tests/
-alembic/versions/
+apps/api/
+  src/agent_hub_api/
+    main.py
+    models.py                 # central ORM registry for Alembic
+    health.py
+    core/                     # shared infrastructure only
+      config.py
+      database.py
+      errors.py
+      identifiers.py
+    identity/
+      models.py
+      schemas.py
+      repository.py
+      service.py
+      router.py
+      dependencies.py
+      security.py
+      email_delivery.py
+    workspaces/
+      models.py
+      schemas.py
+      repository.py
+      service.py
+      router.py
+  migrations/
+  tests/
 ```
 
-## Frontend packages (illustrative)
+Each domain follows `router -> service -> repository`: routers own HTTP concerns, services own
+business rules, authorization and transaction boundaries, and repositories own ORM queries without
+committing. `identity` does not depend on `workspaces`; workspace profile composition is owned by
+the workspace module. Future domains such as catalog, knowledge and conversations are added only
+when their approved phase requires them, following the same dependency direction.
+
+## Frontend packages
+
+Current F1 implementation:
+
 ```text
-src/app/{(auth),app/[shopSlug],widget-preview}/
-src/components/{ui,layout,dashboard,agents,chat,products,knowledge,widget}/
-src/features/{auth,workspaces,agents,conversations,products,knowledge}/
-src/lib/{api,query,format,auth}; src/styles/
+apps/web/src/
+  app/                       # routes, layout and Next.js conventions
+  features/
+    auth/
+    workspaces/
+  components/                # shared UI
+  lib/                       # shared API client and utilities
+apps/widget/                  # independent widget package
 ```
+
+Do not pre-create feature folders for later phases. The widget remains independent and must not
+import the dashboard feature tree.
 
 ## Boundaries and failures
 - OpenAI/network failure does not corrupt conversation; store failed status and allow retry.
