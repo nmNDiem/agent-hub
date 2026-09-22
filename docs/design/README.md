@@ -1,4 +1,4 @@
-# Design documentation — Agent Hub
+# Design documentation
 
 ## Reference images and precedence
 1. `../../assets/reference/01-admin-dashboard.png`: overarching admin visual language.
@@ -18,4 +18,4 @@ Precedence on conflicts: **product decisions → documented UX/behaviour/accessi
 - `qa.md` — checklists with verifiable acceptance conditions.
 
 ## Design language
-Agent Hub = premium, approachable SaaS control panel. Use neutral/light foundation, restrained blue emphasis, clear text, subtle hairlines, tasteful surfaces and fashion imagery only where it adds content. Admin UI **not** a luxury storefront; per-shop widget branding is independently configurable. Default interface Vietnamese (`vi-VN`), architecture prepared for `en`; reference images happen to show English and are not a language requirement.
+The design direction is a premium, approachable SaaS control panel. Use a neutral/light foundation, restrained blue emphasis, clear text, subtle hairlines, tasteful surfaces and fashion imagery only where it adds content. The admin UI is **not** a luxury storefront; per-shop widget branding is independently configurable. The default interface is Vietnamese (`vi-VN`) with architecture prepared for `en`; reference images happen to show English and are not a language requirement.

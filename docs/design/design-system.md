@@ -47,7 +47,7 @@ Use Vietnamese labels in actual MVP; format VND with `Intl.NumberFormat('vi-VN',
 Next.js App Router + TypeScript; Tailwind + shadcn/ui + Radix primitives, Lucide icons; React Hook Form + Zod, TanStack Query/Table, Recharts, next-themes. Avoid introducing global state unless needed; TanStack Query for server state, URL params for filters, local state for transient widget/modal UI. Build `Button`, `Input`, `Select`, `Dialog`, `Sheet`, `Tabs`, `Toast`, `Skeleton`, `EmptyState`, `StatusBadge`, `CopyId`, `MetricCard`, `DataTable`, `ProductCard`, `ChatBubble`, `SourceChip`, `UploadDropzone`, `WidgetPreview` as reusable variants.
 
 ## Brand boundaries
-Agent Hub blue/navy is admin branding. Embedded widget's `brand_color`, launcher icon, greeting, name and logo come from published bot settings; use scoped CSS/shadow root to avoid host CSS collisions, no admin-specific nav inside widget. Never hotlink the AI-generated mockup as the shop's real product imagery.
+Blue/navy is the admin branding palette. The embedded widget's `brand_color`, launcher icon, greeting, name and logo come from published bot settings; use scoped CSS/shadow root to avoid host CSS collisions, with no admin-specific navigation inside the widget. Never hotlink the AI-generated mockup as the shop's real product imagery.
 
 ## Motion and focus
 150–220 ms transitions for hover/sheet; disable unnecessary animation with `prefers-reduced-motion`. Focus ring visible for all buttons and inputs, 44×44 px target for mobile primary actions. All color-coded statuses also have readable text/icons. Loading avoids layout jumps by reserving dimensions.

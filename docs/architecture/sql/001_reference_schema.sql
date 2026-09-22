@@ -1,4 +1,4 @@
--- Agent Hub reference DDL, PostgreSQL. NOT a substitute for reviewed Alembic migrations,
+-- Reference DDL for PostgreSQL. NOT a substitute for reviewed Alembic migrations,
 -- secret management, full authorization/RLS, vector extension/model-dimension migration,
 -- application validation, retention or all phase-specific production constraints.
 -- UUID columns receive UUIDv7 values supplied by BACKEND. No UUIDv4 defaults.

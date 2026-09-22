@@ -33,7 +33,7 @@ Never commit live `.env`; provide `.env.example` and check missing env at startu
 1. Supply and validate required env, provision private/public buckets; check Postgres version and `vector` extension if using embeddings.
 2. Run Alembic migrations; create minimal safe seed shop/products/document only for dev with label.
 3. Run persisted ingestion runner, FastAPI, Next.js; static external HTML at a different local port to test embed.
-4. As features land in F1–F5, expand the smoke sequence: login → workspace(shop) → agent(chatbot) → product/doc → playground → publish → embedded widget → conversation. **Only local health/scaffold + migration harness is required in F0**.
+4. As features land, expand the smoke sequence: login → workspace(shop) → agent(chatbot) → product/doc → playground → publish → embedded widget → conversation. Foundation acceptance requires only the local health/scaffold and migration harness; test later capabilities once implemented.
 5. Run lint/typecheck/unit/integration/e2e; verify no secrets in web bundle/network panel.
 
 ## VPS future

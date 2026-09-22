@@ -28,7 +28,7 @@ Affected docs, tests and migration plan:
 1. Identify the current phase/task and read relevant docs.
 2. Preserve confirmed decisions; propose only the smallest needed open choice.
 3. If a requirement conflicts with a confirmed choice, call it out rather than changing implementation silently.
-4. Avoid implementing P6+ while assigned F0–F5, even when the target architecture documents it.
+4. Avoid implementing capabilities outside the explicitly approved backlog item, even when the target architecture documents them.
 5. On owner approval, update decision register and dependent documents in the **same change** to prevent stale guidance.
 
 ## Status discipline

@@ -1,4 +1,4 @@
-"""Establish the empty F0 migration baseline.
+"""Establish the empty migration baseline.
 
 Revision ID: 20260921_0001
 Revises:
@@ -14,8 +14,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """F0 intentionally creates no domain tables."""
+    """The baseline intentionally creates no domain tables."""
 
 
 def downgrade() -> None:
-    """F0 intentionally creates no domain tables."""
+    """The baseline intentionally creates no domain tables."""

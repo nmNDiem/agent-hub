@@ -11,4 +11,4 @@ Cards/table with name, purpose, draft/published status, published_at, attached k
 5. Test in Playground. `Xuất bản` creates immutable revision/snapshot; other users see **only published** configuration. Settings edited afterwards stay draft until republished.
 
 ## Guardrails
-Model picker only offers supported configured OpenAI models from backend; no screenshot's outdated fixed model string. Bot public_id is unprefixed canonical UUIDv7 in URLs/API; optional `bot_` cosmetic prefix seen in image is **not** stored or copied. Validate URL allowlist. Archive bot rather than cascaded destructive deletion of conversations. Bot creation and publishing are owner-only in F0.
+Model picker only offers supported configured OpenAI models from backend; no screenshot's outdated fixed model string. Bot public_id is unprefixed canonical UUIDv7 in URLs/API; optional `bot_` cosmetic prefix seen in image is **not** stored or copied. Validate URL allowlist. Archive bots rather than cascading destructive deletion of conversations. Bot creation and publishing require owner permission once implemented.

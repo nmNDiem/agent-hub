@@ -11,10 +11,10 @@ Owner understands genuine shop AI usage and accesses high-priority operations. N
 - Section titles and `Xem tất cả` links only when routes exist. Empty dashboard after first shop creation: empty illustration, `Tạo chatbot đầu tiên`, optional `Thêm sản phẩm`, no empty graph pretending usage.
 
 ## Data contract
-`GET /api/v1/workspaces/{workspace_id}/dashboard?from=...&to=...` → cards/time series/list; server performs tenancy authorization. Cards define `total_conversations`, `assistant_messages`, `active_agents`, `connected_channels`; delta only if previous interval comparable. `GET .../conversations?limit=5` list preview. Analytics/top-product-mentions appear only once events support their accurate calculation (usually F5+).
+`GET /api/v1/workspaces/{workspace_id}/dashboard?from=...&to=...` → cards/time series/list; server performs tenancy authorization. Cards define `total_conversations`, `assistant_messages`, `active_agents`, `connected_channels`; delta only if the previous interval is comparable. `GET .../conversations?limit=5` lists a preview. Analytics and top-product mentions appear only once events support their accurate calculation.
 
 ## Interactions and errors
 Period query in URL, chart tooltip supports keyboard or accessible table fallback, IDs copy raw UUIDv7. Loading skeleton same height as cards; 403 no data; partial endpoint failure does not blank entire dashboard. If no bots CTA opens bot wizard. Dates must not copy reference image May 2025.
 
-## F1/F5 acceptance (F0: styled scaffold/empty shell only)
+## Dashboard acceptance
 Authenticated and scoped to shop; cards sourced from DB; empty state accurate; shop switcher changes every card; KPI queries bounded and indexed; responsive stack; loading/error/empty tested. Chart may be omitted until the real time-series endpoint is ready—never invent it.

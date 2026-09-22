@@ -16,4 +16,4 @@ Use product-specific size chart, reported fit and voluntary customer measurement
 Read-only order lookup only after verified customer authorization. Order creation, stock mutation, refunds and payment initiation require explicit owner approval, user confirmation, separate permission checks, idempotency keys and complete audit. Never grant such effects just because an LLM generated tool arguments.
 
 ## Generalizable tool model
-Tool manifest: name/version, purpose, typed input/output, data class, required scope, side-effect classification, confirmation policy, cost policy, audit data. The same gateway may host booking/CRM/ticketing tools later, without making commerce a dependency for every AgentHub agent.
+Tool manifest: name/version, purpose, typed input/output, data class, required scope, side-effect classification, confirmation policy, cost policy, audit data. The same gateway may host booking/CRM/ticketing tools later, without making commerce a dependency for every agent.

@@ -23,13 +23,13 @@ target_metadata = Base.metadata
 
 
 def get_database_url(*, allow_dialect_only: bool) -> str:
-    database_url = os.getenv("AGENT_HUB_DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL")
     if database_url:
         return normalize_database_url(database_url)
     if allow_dialect_only:
         return "postgresql+asyncpg://"
     raise RuntimeError(
-        "AGENT_HUB_DATABASE_URL is required for online migrations. "
+        "DATABASE_URL is required for online migrations. "
         "Copy the root .env.example to .env and provide a development database URL."
     )
 

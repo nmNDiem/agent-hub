@@ -6,7 +6,7 @@
 1. Explicit instructions from the repository owner in the current task.
 2. Confirmed decisions in `docs/00-decisions.md` and acceptance criteria for the task.
 3. Security and tenant-isolation invariants in `docs/08-security.md`.
-4. For ID implementation use `docs/architecture/identifiers.md`; for detailed UI use `docs/design/` and reference screenshots; for granular backend implementation use `docs/architecture/`. Numbered master docs remain authoritative if two guides conflict. F0–F5 phase names are defined ONLY in `docs/09-roadmap.md`, `docs/10-codex-backlog.md`, and `docs/22-phase-gates.md`.
+4. For ID implementation use `docs/architecture/identifiers.md`; for detailed UI use `docs/design/` and reference screenshots; for granular backend implementation use `docs/architecture/`. Numbered master docs remain authoritative if two guides conflict. Roadmap labels and sequencing belong only in `docs/09-roadmap.md`, `docs/10-codex-backlog.md`, `docs/22-phase-gates.md`, and the implementation plan.
 5. Proposed technical defaults in these docs. Do **not** silently elevate proposals into owner-approved decisions.
 
 When instructions conflict, explain the conflict and choose the safer, less invasive implementation; ask the owner before irreversible architecture decisions. Do not replace Next.js/TypeScript, FastAPI/Python, Supabase Postgres, Supabase Storage, OpenAI or custom email/password authentication. Develop locally now; target Docker-on-VPS later.
@@ -14,7 +14,7 @@ When instructions conflict, explain the conflict and choose the safer, less inva
 ## 1. Project identity and scope
 - Repository: `agent-hub`; product: AgentHub.
 - Confirmed: **Next.js/TypeScript frontend**, FastAPI/Python backend, Supabase PostgreSQL, Supabase Storage, **OpenAI** as LLM provider, **custom email/password auth owned by FastAPI (not Supabase Auth)**; initial use case: fashion shop; initial channel: embeddable website chat widget.
-- Confirmed environments: local development **now**, Docker containers deployed to VPS **later**. Do not substitute a managed app-hosting platform or require VPS access to complete F0.
+- Confirmed environments: local development **now**, Docker containers deployed to VPS **later**. Do not substitute a managed app-hosting platform or require VPS access to complete foundation work.
 - Long-term: multiple workspaces, agents, knowledge sources, channels; Facebook/Zalo and other business use cases follow the MVP.
 - `docs/00-decisions.md` is the source of truth for confirmed vs proposed vs deferred scope.
 
@@ -33,7 +33,7 @@ Before implementation:
 1. Identify the roadmap task and explicitly list acceptance criteria.
 2. Read `docs/03-architecture.md`, `docs/04-data-model.md`, `docs/05-api-contract.md`, `docs/06-agent-and-rag.md`, `docs/07-ux-flows.md`, and `docs/08-security.md` as applicable.
 3. State which choices are confirmed and which are only proposed. Make the smallest coherent change.
-4. Consult `docs/design/reference-assets.md` and all 3 images for UI work; written UX/accessibility rules override image inaccuracies. F0 delivers a styled scaffold and local health check, NOT authentication/catalog/RAG/widget production features. Never display mockup sample metrics or false Facebook/Zalo connection states as real.
+4. Consult `docs/design/reference-assets.md` and all 3 images for UI work; written UX/accessibility rules override image inaccuracies. Foundation work delivers a styled scaffold and local health check, not authentication/catalog/RAG/widget production features. Never display mockup sample metrics or false Facebook/Zalo connection states as real.
 
 While implementing:
 - Prefer clear FastAPI boundaries: routers -> service/use-case -> repositories/providers. Pydantic contracts; SQLAlchemy + Alembic are **proposed defaults**, not owner-confirmed facts.
@@ -44,7 +44,7 @@ While implementing:
 - Avoid introducing Redis, queue workers, LangGraph, billing, VPS provisioning or social-channel SDKs before a task requires them.
 
 Before claiming completion:
-- Run relevant lint, type, unit, integration and migration tests if their tooling exists; report exact commands/results. Never claim tests ran when they did not. Local boot is the current F0 exit gate; Docker/VPS only when the rollout phase is requested.
+- Run relevant lint, type, unit, integration and migration tests if their tooling exists; report exact commands/results. Never claim tests ran when they did not. Local boot is the foundation exit gate; Docker/VPS only when the rollout work is requested.
 - Cover a negative cross-workspace test for every newly exposed tenant-owned resource.
 - Update docs and `.env.example` when behavior/configuration changes.
 - Summarize files changed, migration/deployment impact, manual verification steps and known limitations.

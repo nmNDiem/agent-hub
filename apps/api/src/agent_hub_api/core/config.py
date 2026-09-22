@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +22,6 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_prefix="AGENT_HUB_",
         extra="ignore",
     )
 
@@ -32,7 +31,6 @@ class Settings(BaseSettings):
     jwt_signing_key: str | None = Field(
         default=None,
         repr=False,
-        validation_alias=AliasChoices("AGENT_HUB_JWT_SIGNING_KEY", "JWT_SIGNING_KEY"),
     )
     jwt_issuer: str = "agent-hub-api"
     jwt_audience: str = "agent-hub-dashboard"
@@ -44,16 +42,10 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     )
     email_delivery_enabled: bool = False
-    supabase_url: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("SUPABASE_URL", "AGENT_HUB_SUPABASE_URL"),
-    )
+    supabase_url: str | None = None
     supabase_service_role_key: str | None = Field(
         default=None,
         repr=False,
-        validation_alias=AliasChoices(
-            "SUPABASE_SERVICE_ROLE_KEY", "AGENT_HUB_SUPABASE_SERVICE_ROLE_KEY"
-        ),
     )
     storage_private_bucket: str = "agent-hub-private"
     catalog_image_max_bytes: int = 5 * 1024 * 1024

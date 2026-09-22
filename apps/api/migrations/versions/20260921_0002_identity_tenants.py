@@ -1,4 +1,4 @@
-"""Add F1 identity, session and tenant foundation.
+"""Add identity, session and tenant foundation.
 
 Revision ID: 20260921_0002
 Revises: 20260921_0001

@@ -24,5 +24,5 @@ In fashion demo ask `Tư vấn váy đi biển size M`; assistant may surface pr
 ## States and protection
 Bot not found/other workspace -> 404 or 403; LLM disabled -> explanatory state; empty knowledge -> message `Chưa có dữ liệu`; no citations -> hide panel; upload error -> retry; rate limit -> retry hint; streaming lost -> partial response plus retry. Keep workspace ID + agent ID in every query key. No OpenAI key or system prompt leaked in client response.
 
-## F4 acceptance (F0: visual shell only where applicable)
+## Playground acceptance
 True end-to-end chatbot response; source IDs valid and shop-scoped; product cards link existing products; config unsaved warning; reloading bot preserves saved config; upload rejection visible; reset only test history; keyboard + screen-reader transcript.

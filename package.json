@@ -8,6 +8,7 @@
     "dev": "concurrently -k --names api,web --prefix-colors cyan,magenta \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": ".\\.venv\\Scripts\\python.exe -m uvicorn agent_hub_api.main:app --app-dir apps/api/src --host 127.0.0.1 --port 8000",
     "dev:web": "pnpm --filter @agent-hub/web dev",
+    "db:migrate": ".\\.venv\\Scripts\\python.exe -m alembic -c apps/api/alembic.ini upgrade head",
     "build": "pnpm -r --if-present run build",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",

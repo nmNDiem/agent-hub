@@ -28,7 +28,7 @@ flowchart LR
 
 ## Backend packages
 
-Current F1 implementation:
+Current identity and tenancy implementation:
 
 ```text
 apps/api/
@@ -68,7 +68,7 @@ when their approved phase requires them, following the same dependency direction
 
 ## Frontend packages
 
-Current F1 implementation:
+Current identity and tenancy implementation:
 
 ```text
 apps/web/src/

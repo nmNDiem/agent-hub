@@ -29,7 +29,7 @@ Use opaque IDs for workspace, user, agent, channel connection, conversation, sou
 
 ## Processing patterns
 - Synchronous read: visitor -> API -> request auth/scope -> catalog/knowledge retrieval -> OpenAI -> SSE answer and product cards.
-- Async ingest: file upload -> source row -> processing job -> parse/chunk/embed -> index -> atomic ready/failed state. Retry idempotently; add durable worker if needed, not by default in F0.
+- Async ingest: file upload -> source row -> processing job -> parse/chunk/embed -> index -> atomic ready/failed state. Retry idempotently; add a durable worker only when workload measurements require one.
 - Channel delivery: signed webhook -> deduplicate event -> normalize -> conversation -> agent -> queue/retry outbound. Respect vendor rate limits and permission scopes.
 - Model access: single OpenAI adapter initially, config-driven model IDs and per-request budget; adapter seam is not permission to install other providers.
 

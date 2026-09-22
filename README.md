@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã hoàn thành **F2 Fashion catalog**: nền tảng F1 cùng product/variant/size-guide CRUD, CSV preview/import idempotent, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI integration và widget chat vẫn thuộc các phase sau.
+Repository đã có nền tảng xác thực và tenant cùng product/variant/size-guide CRUD, CSV preview/import idempotent, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI integration và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -43,7 +43,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `AGENT_HUB_DATABASE_URL`, Supabase keys, OpenAI key và `AGENT_HUB_JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `AGENT_HUB_EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật.
 
 ## Chạy local
 
@@ -76,24 +76,21 @@ pytest
 alembic upgrade head --sql
 ```
 
-Lệnh Alembic trên là offline dry-run và không cần database. Online migration yêu cầu `AGENT_HUB_DATABASE_URL` trong environment:
+Lệnh Alembic trên là offline dry-run và không cần database. Online migration yêu cầu `DATABASE_URL` trong environment:
 
 ```powershell
-Set-Location apps\api
-$env:AGENT_HUB_DATABASE_URL = "postgresql+asyncpg://..."
-alembic upgrade head
+pnpm db:migrate
 ```
 
-Migration F1 tạo identity/tenant tables; migration F2 tạo `products`, `product_variants`, `size_guides`, `product_images` và `catalog_imports`. Chạy migration online trên development database trước khi thử catalog:
+Các migration tạo identity/tenant tables, sau đó tạo `products`, `product_variants`, `size_guides`, `product_images` và `catalog_imports`. Chạy migration online trên development database trước khi thử catalog:
 
 ```powershell
-Set-Location apps\api
-alembic upgrade head
+pnpm db:migrate
 ```
 
 Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage. Để upload/xem ảnh catalog, tạo private bucket `agent-hub-private` trong Supabase Storage và cấu hình `SUPABASE_URL` cùng `SUPABASE_SERVICE_ROLE_KEY` chỉ ở backend. CRUD sản phẩm và CSV vẫn hoạt động khi Storage chưa được cấu hình; thao tác ảnh sẽ trả lỗi 503 rõ ràng.
 
-CSV F2 dùng header:
+CSV catalog dùng header:
 
 ```text
 product_sku,name,description,category,currency,price,product_url,variant_sku,variant_name,color,size,variant_price,stock_quantity
@@ -128,7 +125,7 @@ Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm vari
 | `docs/09-roadmap.md` | MVP delivery sequence |
 | `docs/10-codex-backlog.md` | Executable MVP work items |
 | `docs/11-acceptance-test-plan.md` | MVP quality gates |
-| `docs/12-full-product-scope.md` | Full AgentHub product scope |
+| `docs/12-full-product-scope.md` | Full product scope |
 | `docs/13-target-architecture.md` | Target modular architecture |
 | `docs/14-channel-platform.md` | Channels, webhooks, adapters |
 | `docs/15-saas-and-billing.md` | Tenancy, quota, plans, subscriptions |
@@ -151,4 +148,4 @@ Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm vari
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. F0 and F1 are complete; do not implement F2 or a later phase without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy and catalog capabilities are implemented; do not implement knowledge/RAG, agent runtime, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.

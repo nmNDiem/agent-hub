@@ -4,7 +4,7 @@
 |---|---|---|
 | `AppShell` | shop, nav, user | fixed desktop nav; mobile Sheet; main landmark; skip-to-content |
 | `ShopSwitcher` | accessible shops, active shop | switches scope, invalidates old-shop queries, resets filters, never carries old conversation into new shop |
-| `AppTopbar` | current route, notifications | accessible search trigger; no fake notifications in F0 |
+| `AppTopbar` | current route, notifications | accessible search trigger; no fake notifications before notification data exists |
 | `MetricCard` | label, value, unit, delta?, loading | trend shown only if backed by real timeseries; fallback `—`; accessible numeral |
 | `StatusBadge` | stable status enum | status text + style; never color alone |
 | `DataTable` | rows, sort, filters, cursor | URL-persisted filters, keyboard, empty/error/loading; server paging for large lists |
@@ -22,7 +22,7 @@
 `idle | loading | ready | empty | error | forbidden`; mutation adds `submitting | success`. Every async list has real skeleton; failure has retry with preserved form data; empty has action; forbidden says access is not permitted; distinguish 404 from unauthorized. For streaming: `connecting | streaming | finished | canceled | failed`; on error retain already displayed response and allow retry.
 
 ## Shell and navigation expectations
-Never display future modules as functional. F0 may show navigable, clearly labeled scaffold/empty shell only; F1+ reveal real authenticated pages when implemented; future Channels badges `Sắp ra mắt` and no clickable fake connection states. Global search `⌘K` is not active until search backend exists; make command menu navigation-only initially or hide placeholder.
+Never display future modules as functional. Foundation UI may show only a navigable, clearly labeled scaffold or empty shell; reveal authenticated pages only when their backend behavior exists. Future Channels use the badge `Sắp ra mắt` and no clickable fake connection states. Global search `⌘K` is not active until a search backend exists; make the command menu navigation-only initially or hide the placeholder.
 
 ## Chat rendering
 Plain text by default; if markdown enabled sanitize HTML, prohibit script/style and dangerous URL schemes, external link `rel="noopener noreferrer"`; all model-provided links require domain validation. Stream into a single message block, avoid reflow on every token by batching updates. Product suggestions use structured backend `products[]`, never regex parse arbitrary LLM text to invent IDs. Render citations only for real retrieved source IDs and permitted view.

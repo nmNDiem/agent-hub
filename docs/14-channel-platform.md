@@ -21,4 +21,4 @@ Origin allowlist is a defense-in-depth signal, **not** a secret. Public embed ke
 Connection setup/revoke, token storage encryption, webhook verification, multi-tenant mapping, reconnect/re-auth, template approval where platform requires, message window handling, media download quarantine, unsubscribe/handoff, message edits/deletes if supported. Store only necessary platform metadata; never log access tokens. Maintain manual fallback when a vendor endpoint is unavailable.
 
 ## Release gates per channel
-Document official vendor prerequisites and permitted use; obtain account permissions; implement contract and signature tests; confirm retention/privacy and consent; check channel rendering on real devices; run a pilot; record failure and disconnect behavior. Do not schedule Facebook/Zalo implementation as part of F0–F5.
+Document official vendor prerequisites and permitted use; obtain account permissions; implement contract and signature tests; confirm retention/privacy and consent; check channel rendering on real devices; run a pilot; record failure and disconnect behavior. Facebook/Zalo implementation is outside the currently approved MVP work.

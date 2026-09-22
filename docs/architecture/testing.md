@@ -16,4 +16,4 @@
 Never use mockup `bot_0198...` strings as real IDs. Generate UUIDv7 at fixture creation, seed 2 workspaces with similar product names and 2 agents to prove isolation. Internal BIGINTs left to DB identity. Fake OpenAI adapter keeps offline tests free/fast; opt-in real-provider smoke test explicitly budgeted and never used as mandatory CI.
 
 ## Demo is not done
-A pretty static dashboard without local boot, migration harness and working test tools does **not** pass F0. Real auth and tenant isolation are F1 gates. A hardcoded AI reply does not pass F3. Simulated `Connected` Facebook/Zalo badges do not count as channels. Reference images are layout targets, not functional acceptance evidence.
+A pretty static dashboard without local boot, migration harness and working test tools does **not** satisfy foundation acceptance. Authentication must include real tenant isolation. A hardcoded AI reply does not satisfy grounded-agent acceptance. Simulated `Connected` Facebook/Zalo badges do not count as channels. Reference images are layout targets, not functional acceptance evidence.

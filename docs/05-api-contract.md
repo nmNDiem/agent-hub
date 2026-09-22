@@ -1,6 +1,6 @@
 # 05 — API contract (v1)
 
-All paths are prefixed `/api/v1`. The Identity and workspace endpoints documented for F1 are implemented; later-phase endpoint families remain proposed until their phase is approved and implemented. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived agent/workspace-scoped widget session and abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
+All paths are prefixed `/api/v1`. Identity, workspace and catalog endpoints are implemented; the remaining endpoint families are proposed until explicitly approved and implemented. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived agent/workspace-scoped widget session and abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
 
 ## Identity
 | Method | Path | Notes |
@@ -14,9 +14,9 @@ All paths are prefixed `/api/v1`. The Identity and workspace endpoints documente
 | POST | `/auth/reset-password` | One-time expiring token; revoke sessions |
 | GET | `/me` | Signed-in profile + memberships |
 
-### F1 browser session contract
+### Browser session contract
 
-F1 uses FastAPI-issued `agenthub_access` and `agenthub_refresh` HttpOnly cookies. The readable `agenthub_csrf` cookie must be echoed in `X-CSRF-Token` for authenticated unsafe requests. Access cookies last 15 minutes and refresh sessions last 14 days by default; both values are server configuration. Refresh rotation invalidates the previous token and replay revokes the remaining token family. The access token is never stored in browser storage.
+The backend uses FastAPI-issued `agenthub_access` and `agenthub_refresh` HttpOnly cookies. The readable `agenthub_csrf` cookie must be echoed in `X-CSRF-Token` for authenticated unsafe requests. Access cookies last 15 minutes and refresh sessions last 14 days by default; both values are server configuration. Refresh rotation invalidates the previous token and replay revokes the remaining token family. The access token is never stored in browser storage.
 
 Registration creates the user and session but does not silently create a workspace. A user with no memberships creates the first workspace through `POST /workspaces`; the workspace and `owner` membership are committed atomically. Email verification/recovery routes exist only when a real delivery adapter is configured.
 
@@ -39,10 +39,10 @@ Registration creates the user and session but does not silently create a workspa
 | GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Per-tenant status |
 | GET | `/workspaces/{workspace_id}/conversations` | Pagination and redacted export policy |
 | GET | `/workspaces/{workspace_id}/leads` | PII accessible only to roles allowed |
-| GET | `/workspaces/{workspace_id}/usage` | Internal usage, not billing; F5 |
-| GET | `/workspaces/{workspace_id}/dashboard` | Real KPIs/time-series; F5, not F0 mock metrics |
-| GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Authorized conversation transcript; F5 |
-| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/playground/messages:stream` | Draft preview via same generation service, scoped and metered; F3 |
+| GET | `/workspaces/{workspace_id}/usage` | Proposed internal usage, not billing |
+| GET | `/workspaces/{workspace_id}/dashboard` | Proposed real KPIs/time-series; never return mock metrics as real data |
+| GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Proposed authorized conversation transcript |
+| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/playground/messages:stream` | Proposed draft preview via the same generation service, scoped and metered |
 
 ## Widget / visitor
 | Method | Path | Notes |
@@ -62,7 +62,7 @@ Registration creates the user and session but does not silently create a workspa
 `{ "error": { "code": "NOT_FOUND", "message": "...", "request_id": "..." } }`.
 Use non-leaking 404 for unauthorized cross-tenant resource where appropriate, 401 for missing auth, 403 for forbidden action, 422 for input validation, 429 for quota/rate limit, 503 for temporary model/provider failures. Define pagination and concurrency/timeout behavior before client integration.
 
-### F2 catalog contract
+### Catalog contract
 
 Product lists use opaque cursor pagination ordered by `(created_at DESC, id DESC)`. Product and variant IDs are internal BIGINT values exposed only behind authenticated, workspace-scoped dashboard routes. Owner/admin may mutate catalog data; members have read access. `DELETE` archives products and variants, and archived SKU values remain reserved. Prices serialize as exact decimal strings; `null` and zero remain distinct for product prices, variant overrides and stock.
 

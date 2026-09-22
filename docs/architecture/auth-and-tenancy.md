@@ -1,6 +1,6 @@
 # Authentication, authorization and multi-tenancy
 
-## Auth is built by Agent Hub
+## Authentication is owned by the backend
 No Supabase Auth assumption. Backend stores normalized email and Argon2id password hashes; enforce minimum password rules, rate limit by IP + email hash, generic invalid-credential response and server-side audit. Email verification/password recovery must be backed by actual configured delivery provider before exposed; recovery tokens random, hashed and short-lived.
 
 ## Cookie session flow
@@ -13,7 +13,7 @@ State-changing cookie-auth API must validate Origin/Referer as applicable and us
 Resolve agent/conversation/document by public ID or internal ID; query with `workspace_id` or join; verify `workspace_members(user_id, workspace_id)` and capability; check that the entity belongs to the workspace; return 404 for unauthorized resource discovery where appropriate; log safe denial. Every list uses `WHERE workspace_id = :authorized_workspace_id`, not a broad list later filtered in JavaScript. Background jobs, Storage object keys, embeddings and cache keys carry workspace/agent scope. Recheck after switching workspace. Resource public IDs are identifiers, not proof of authorization.
 
 ## RLS and service keys
-Because custom JWTs are **not** Supabase Auth JWTs, do not copy example `auth.uid()` RLS policies and assume they protect this app. Architecture invariant from F0 onward: **all DB/Storage privileged traffic server-side**, FastAPI app enforces tenancy and uses restricted database role; PostgreSQL RLS may add defense-in-depth using transaction-local `app.workspace_id` and `FORCE ROW LEVEL SECURITY` where carefully designed and tested. Service role keys can bypass Storage RLS: server-only, and backend must authorize each Storage operation first. Never expose service role key to browser. See official Supabase security docs referenced in `security-operations.md`.
+Because custom JWTs are **not** Supabase Auth JWTs, do not copy example `auth.uid()` RLS policies and assume they protect this app. Architecture invariant: **all DB/Storage privileged traffic stays server-side**. The FastAPI app enforces tenancy and uses a restricted database role; PostgreSQL RLS may add defense-in-depth using transaction-local `app.workspace_id` and `FORCE ROW LEVEL SECURITY` where carefully designed and tested. Service role keys can bypass Storage RLS: keep them server-only, and have the backend authorize each Storage operation first. Never expose a service role key to the browser. See official Supabase security docs referenced in `security-operations.md`.
 
 ## Anonymous public widget
 Public bot UUIDv7 + domain allowlist + published state + rate limit/quota + short-lived anonymous bot/session token. Origin validation is defense-in-depth, **not authentication** (non-browser clients can forge Origin). Anonymous token cannot call admin routes, list files or switch bot. A guessed bot public ID must not expose draft config, documents, API keys or other tenants.

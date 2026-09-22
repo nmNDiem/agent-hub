@@ -18,5 +18,5 @@
 
 - F0 scaffold: completed.
 - F1 identity/tenants: implemented locally with Argon2id credentials, HttpOnly access/refresh cookies, rotating refresh-token families, CSRF/origin checks, workspace membership enforcement, onboarding and tenant-negative tests. The implementation is organized as `identity` and `workspaces` domain modules; services own transactions and repositories do not commit. Dashboard auth/workspace UI lives under `src/features/`.
-- Email verification and recovery routes are registered only when `AGENT_HUB_EMAIL_DELIVERY_ENABLED=true`; a real delivery provider remains required before enabling them outside tests.
+- Email verification and recovery routes are registered only when `EMAIL_DELIVERY_ENABLED=true`; a real delivery provider remains required before enabling them outside tests.
 - F2 fashion catalog: implemented locally with workspace-scoped product/variant/optional size-guide CRUD, exact Decimal pricing, nullable stock, archived SKU reservation, stable cursor pagination, private image upload/signed URLs with retryable cleanup state, transactional CSV preview/import idempotency, and a responsive catalog dashboard. Supabase Storage credentials and a private bucket are required for real image operations; automated tests use a fake adapter.

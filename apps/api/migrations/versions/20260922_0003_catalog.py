@@ -1,4 +1,4 @@
-"""Add F2 workspace-scoped catalog and import state.
+"""Add workspace-scoped catalog and import state.
 
 Revision ID: 20260922_0003
 Revises: 20260921_0002
