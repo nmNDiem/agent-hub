@@ -22,7 +22,7 @@ const navigation = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
   { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
   { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: false },
-  { label: "Sản phẩm", icon: Boxes, segment: "products", enabled: false },
+  { label: "Sản phẩm", icon: Boxes, segment: "products", enabled: true },
 ];
 
 function Navigation({ workspace }: { workspace: Workspace }) {

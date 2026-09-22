@@ -3,7 +3,7 @@ import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import jwt
@@ -79,13 +79,16 @@ def create_access_token(
 def decode_access_token(token: str, settings: Settings) -> dict[str, Any]:
     if settings.jwt_signing_key is None:
         raise RuntimeError("JWT signing key is not configured")
-    return jwt.decode(
-        token,
-        settings.jwt_signing_key,
-        algorithms=[JWT_ALGORITHM],
-        audience=settings.jwt_audience,
-        issuer=settings.jwt_issuer,
-        options={"require": ["sub", "sid", "iss", "aud", "iat", "exp", "jti"]},
+    return cast(
+        dict[str, Any],
+        jwt.decode(
+            token,
+            settings.jwt_signing_key,
+            algorithms=[JWT_ALGORITHM],
+            audience=settings.jwt_audience,
+            issuer=settings.jwt_issuer,
+            options={"require": ["sub", "sid", "iss", "aud", "iat", "exp", "jti"]},
+        ),
     )
 
 

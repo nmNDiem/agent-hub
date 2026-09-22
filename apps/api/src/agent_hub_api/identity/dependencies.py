@@ -1,7 +1,7 @@
 import hmac
 from dataclasses import dataclass
 from time import monotonic
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 import jwt
@@ -24,7 +24,7 @@ from agent_hub_api.identity.service import AuthService
 
 
 def get_request_settings(request: Request) -> Settings:
-    return request.app.state.settings
+    return cast(Settings, request.app.state.settings)
 
 
 def get_email_delivery(request: Request) -> EmailDelivery:

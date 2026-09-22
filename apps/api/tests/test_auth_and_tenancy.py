@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import pytest
 from fastapi import FastAPI
@@ -87,7 +87,7 @@ def register(client: TestClient, email: str) -> dict[str, Any]:
         headers={"origin": ORIGIN},
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    return cast(dict[str, Any], response.json())
 
 
 def csrf_headers(client: TestClient) -> dict[str, str]:

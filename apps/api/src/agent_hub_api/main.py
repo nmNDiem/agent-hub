@@ -7,6 +7,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agent_hub_api.catalog.router import router as catalog_router
+from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
 from agent_hub_api.core.config import Settings, get_settings
 from agent_hub_api.core.database import create_database_engine, create_session_factory
 from agent_hub_api.core.errors import ApiError, api_error_handler
@@ -24,10 +26,20 @@ def create_app(
     settings: Settings | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     email_delivery: EmailDelivery | None = None,
+    catalog_storage: CatalogStorage | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
         raise ValueError("Email delivery must be configured when email routes are enabled")
+    if catalog_storage is None and (
+        runtime_settings.supabase_url is not None
+        and runtime_settings.supabase_service_role_key is not None
+    ):
+        catalog_storage = SupabaseCatalogStorage(
+            base_url=runtime_settings.supabase_url,
+            service_key=runtime_settings.supabase_service_role_key,
+            bucket=runtime_settings.storage_private_bucket,
+        )
     owned_engine = None
     if session_factory is None and runtime_settings.database_url is not None:
         owned_engine = create_database_engine(runtime_settings.database_url)
@@ -49,6 +61,7 @@ def create_app(
     application.state.settings = runtime_settings
     application.state.session_factory = session_factory
     application.state.email_delivery = email_delivery
+    application.state.catalog_storage = catalog_storage
     application.state.login_rate_limiter = LoginRateLimiter()
 
     @application.middleware("http")
@@ -110,6 +123,7 @@ def create_app(
     application.include_router(auth_router)
     application.include_router(profile_router)
     application.include_router(workspaces_router)
+    application.include_router(catalog_router)
     if runtime_settings.email_delivery_enabled:
         application.include_router(email_router)
     return application

@@ -30,7 +30,10 @@ Registration creates the user and session but does not silently create a workspa
 | GET/PUT | `/workspaces/{workspace_id}/agents/{agent_id}/widget` | Branding + domain allowlist + embed snippet |
 | CRUD | `/workspaces/{workspace_id}/products` | Filtering, pagination, validation |
 | CRUD | `/workspaces/{workspace_id}/products/{product_id}/variants` | SKU, color, size, stock |
-| POST | `/workspaces/{workspace_id}/catalog/import` | CSV validation; idempotent import job |
+| PUT/DELETE | `/workspaces/{workspace_id}/products/{product_id}/size-guide` | Optional validated JSON guide |
+| POST/GET/DELETE | `/workspaces/{workspace_id}/products/{product_id}/images` | Private upload, authorized signed URL and cleanup state |
+| POST | `/workspaces/{workspace_id}/catalog/import/preview` | Validate UTF-8 CSV without writes |
+| POST | `/workspaces/{workspace_id}/catalog/import` | Revalidate and transactionally import CSV; requires preview hash and `Idempotency-Key` |
 | CRUD | `/workspaces/{workspace_id}/knowledge-bases` | Knowledge grouping |
 | POST | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents` | Server-validated file upload |
 | GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Per-tenant status |
@@ -58,3 +61,11 @@ Registration creates the user and session but does not silently create a workspa
 ## Error envelope proposal
 `{ "error": { "code": "NOT_FOUND", "message": "...", "request_id": "..." } }`.
 Use non-leaking 404 for unauthorized cross-tenant resource where appropriate, 401 for missing auth, 403 for forbidden action, 422 for input validation, 429 for quota/rate limit, 503 for temporary model/provider failures. Define pagination and concurrency/timeout behavior before client integration.
+
+### F2 catalog contract
+
+Product lists use opaque cursor pagination ordered by `(created_at DESC, id DESC)`. Product and variant IDs are internal BIGINT values exposed only behind authenticated, workspace-scoped dashboard routes. Owner/admin may mutate catalog data; members have read access. `DELETE` archives products and variants, and archived SKU values remain reserved. Prices serialize as exact decimal strings; `null` and zero remain distinct for product prices, variant overrides and stock.
+
+CSV columns are `product_sku,name,description,category,currency,price,product_url,variant_sku,variant_name,color,size,variant_price,stock_quantity`. `product_sku` is required for import and may repeat to group variant rows; grouped product fields must match. Any populated variant requires a unique `variant_sku`. Preview returns a SHA-256 digest plus row/column errors. Commit resubmits the file and digest, revalidates against current database state, then writes the entire import and completion record in one transaction. `(workspace_id, Idempotency-Key)` is unique: same payload replays the stored result, different payload returns conflict, a live lease returns `IMPORT_IN_PROGRESS`, and an expired lease may be reclaimed.
+
+Catalog images accept verified PNG/JPEG/WebP only and are stored privately. Metadata, upload, signed URL and cleanup endpoints all enforce backend membership and immutable workspace scope. Deletion first commits `cleanup_pending`, then attempts Storage deletion; failure returns the persisted pending status and can be retried through `POST .../images/{image_id}/cleanup` without claiming the database transaction rolled back.

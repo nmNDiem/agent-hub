@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -16,8 +17,11 @@ class IdentityRepository:
         await self.session.flush()
 
     async def get_user_by_email(self, normalized_email: str) -> User | None:
-        return await self.session.scalar(
-            select(User).where(User.normalized_email == normalized_email)
+        return cast(
+            User | None,
+            await self.session.scalar(
+                select(User).where(User.normalized_email == normalized_email)
+            ),
         )
 
     async def get_user(self, user_id: UUID) -> User | None:
@@ -33,7 +37,7 @@ class IdentityRepository:
         query = select(AuthSession).where(AuthSession.refresh_token_hash == token_hash)
         if for_update:
             query = query.with_for_update()
-        return await self.session.scalar(query)
+        return cast(AuthSession | None, await self.session.scalar(query))
 
     async def get_access_identity(
         self, user_id: UUID, session_id: int
@@ -72,10 +76,13 @@ class IdentityRepository:
     async def get_email_token_for_update(
         self, token_hash: str, purpose: str
     ) -> EmailToken | None:
-        return await self.session.scalar(
-            select(EmailToken)
-            .where(EmailToken.token_hash == token_hash, EmailToken.purpose == purpose)
-            .with_for_update()
+        return cast(
+            EmailToken | None,
+            await self.session.scalar(
+                select(EmailToken)
+                .where(EmailToken.token_hash == token_hash, EmailToken.purpose == purpose)
+                .with_for_update()
+            ),
         )
 
     async def revoke_user_sessions(self, user_id: UUID, revoked_at: datetime) -> None:

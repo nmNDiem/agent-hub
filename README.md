@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã hoàn thành **F1 Identity & tenants**: FastAPI-owned email/password, rotating sessions, CSRF protection, workspace membership boundaries, login/register/onboarding và shop switcher. Catalog, RAG, OpenAI integration và widget chat vẫn thuộc các phase sau.
+Repository đã hoàn thành **F2 Fashion catalog**: nền tảng F1 cùng product/variant/size-guide CRUD, CSV preview/import idempotent, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI integration và widget chat vẫn thuộc các phase sau.
 
 ## Công nghệ và môi trường
 
@@ -84,14 +84,22 @@ $env:AGENT_HUB_DATABASE_URL = "postgresql+asyncpg://..."
 alembic upgrade head
 ```
 
-Migration F1 tạo `users`, `workspaces`, `workspace_members`, `auth_sessions` và `email_tokens`. Chạy migration online trên development database trước khi thử đăng ký:
+Migration F1 tạo identity/tenant tables; migration F2 tạo `products`, `product_variants`, `size_guides`, `product_images` và `catalog_imports`. Chạy migration online trên development database trước khi thử catalog:
 
 ```powershell
 Set-Location apps\api
 alembic upgrade head
 ```
 
-Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage.
+Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage. Để upload/xem ảnh catalog, tạo private bucket `agent-hub-private` trong Supabase Storage và cấu hình `SUPABASE_URL` cùng `SUPABASE_SERVICE_ROLE_KEY` chỉ ở backend. CRUD sản phẩm và CSV vẫn hoạt động khi Storage chưa được cấu hình; thao tác ảnh sẽ trả lỗi 503 rõ ràng.
+
+CSV F2 dùng header:
+
+```text
+product_sku,name,description,category,currency,price,product_url,variant_sku,variant_name,color,size,variant_price,stock_quantity
+```
+
+Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm variants; `variant_sku` không được trùng. Import là create-only và transactional, không tự ghi đè SKU hiện hữu hoặc đã archived.
 
 ## Where to read first
 

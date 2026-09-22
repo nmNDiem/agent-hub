@@ -18,11 +18,11 @@ Use **UUIDv7 only for `users.id`, `workspaces.id` and public IDs on externally a
 - `widget_sessions`: id, workspace_id, agent_id, token_hash or signed session id, expires_at, privacy/consent state, visitor_key_hash.
 
 ## Catalog
-- `products`: id, workspace_id, external_id/SKU, title, description, category, brand, status, product_url, currency, price_minor, price_updated_at; unique SKU scoped to workspace where supplied.
-- `product_variants`: id, workspace_id, product_id, variant_sku, color, size, price_minor_override, stock_quantity nullable, stock_updated_at, active; unique variant SKU scoped to workspace.
+- `products`: id, workspace_id, product_sku, title, description, category, status, product_url, currency, price, timestamps; product SKU is normalized uppercase and unique per workspace where supplied. Archived rows continue reserving their SKU.
+- `product_variants`: id, workspace_id, product_id, variant_sku, generic name/options such as color/size, price_override, stock_quantity nullable, status and timestamps; variant SKU is normalized uppercase and unique per workspace where supplied. Archived rows continue reserving their SKU.
 - `product_images`: id, workspace_id, product_id, variant_id nullable, storage_path, sort_order, alt_text.
 - `size_guides`: id, workspace_id, product_id nullable, structured_content, source_id nullable.
-Currency value e.g. VND; store integer minor units according to currency-specific precision. `stock_quantity = NULL` means unknown, not available.
+Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary floats. `price_override = NULL` inherits the product price while `0` is an explicit zero price. Currency is an explicit ISO code such as VND. `stock_quantity = NULL` means unknown, while `0` means known out of stock. Products may exist without variants or a size guide; option fields do not make the core catalog fashion-only.
 
 ## Knowledge
 - `knowledge_bases`: id, workspace_id, name, kind, status.

@@ -5,7 +5,7 @@
 ## API identity and serialization
 - `/api/v1` prefix, JSON/UTF-8; generate stable OpenAPI in FastAPI and typed frontend client from that spec.
 - Admin routes authorize workspace membership and capability every time. UUIDv7 `workspace_id` and `public_agent_id` are lowercase unprefixed hyphenated UUID strings. Internal BIGINT IDs for products/documents only inside authenticated workspace-scoped admin APIs; visitor agent/conversation IDs are public UUIDv7 values, never BIGINT.
-- `null` means unknown stock/price; do not map to zero. Prices in integer currency minor units plus explicit ISO currency; timestamp fields ISO-8601 UTC.
+- `null` means unknown stock/price; do not map to zero. F2 prices use exact `NUMERIC(18,2)` / application `Decimal`, serialize as decimal strings, and always include explicit ISO currency; timestamps use ISO-8601 UTC.
 
 ## Pagination and errors
 - List endpoints accept `limit` (default 20, max 100) and opaque cursor; allowlist sort and filter keys; response `{ "items": [], "next_cursor": null }`.

@@ -44,6 +44,24 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     )
     email_delivery_enabled: bool = False
+    supabase_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SUPABASE_URL", "AGENT_HUB_SUPABASE_URL"),
+    )
+    supabase_service_role_key: str | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices(
+            "SUPABASE_SERVICE_ROLE_KEY", "AGENT_HUB_SUPABASE_SERVICE_ROLE_KEY"
+        ),
+    )
+    storage_private_bucket: str = "agent-hub-private"
+    catalog_image_max_bytes: int = 5 * 1024 * 1024
+    catalog_image_max_pixels: int = 20_000_000
+    catalog_csv_max_bytes: int = 2 * 1024 * 1024
+    catalog_csv_max_rows: int = 5_000
+    storage_signed_url_seconds: int = 300
+    catalog_import_lease_seconds: int = 300
 
     @field_validator("database_url")
     @classmethod

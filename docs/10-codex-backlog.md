@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0 and F1 are implemented locally. F2 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0, F1 and F2 are implemented locally. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -17,7 +17,7 @@
   repositories do not commit. Keep the central ORM registry for Alembic.
 - Done: no cross-tenant read/write and no stale refresh token after rotation/logout.
 
-## F2 — Fashion catalog
+## F2 — Fashion catalog (complete)
 - Product, variant, size guide and image models/APIs; CSV import with preview/validation, safe Storage files, archive semantics.
 - Done: create/import 20+ products, distinguish unknown vs zero stock, correct price across variants; cross-tenant image access denied.
 
