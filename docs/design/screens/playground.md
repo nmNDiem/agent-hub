@@ -22,7 +22,7 @@ Owner tests the real backend assistant against the shop's approved knowledge bef
 In fashion demo ask `Tư vấn váy đi biển size M`; assistant may surface products **only** if present in database and allowed for the shop; display actual name/price/stock (or hide price/stock if not known). Size chart displayed only if sourced from a size-guide document or product metadata. Image input shows thumbnail + remove and short alt text; AI results should distinguish uncertain visual features and avoid definitive claims about fit from a photo.
 
 ## States and protection
-Bot not found/other shop -> 404 or 403; LLM disabled -> explanatory state; empty knowledge -> message `Chưa có dữ liệu`; no citations -> hide panel; upload error -> retry; rate limit -> retry hint; streaming lost -> partial response plus retry. Keep shop id + bot id in every query key. No OpenAI key or system prompt leaked in client response.
+Bot not found/other workspace -> 404 or 403; LLM disabled -> explanatory state; empty knowledge -> message `Chưa có dữ liệu`; no citations -> hide panel; upload error -> retry; rate limit -> retry hint; streaming lost -> partial response plus retry. Keep workspace ID + agent ID in every query key. No OpenAI key or system prompt leaked in client response.
 
 ## F4 acceptance (F0: visual shell only where applicable)
 True end-to-end chatbot response; source IDs valid and shop-scoped; product cards link existing products; config unsaved warning; reloading bot preserves saved config; upload rejection visible; reset only test history; keyboard + screen-reader transcript.

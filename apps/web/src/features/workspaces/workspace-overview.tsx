@@ -10,7 +10,7 @@ import { api, ApiError, type Me, type Workspace } from "@/lib/api";
 
 export function WorkspaceOverview() {
   const router = useRouter();
-  const params = useParams<{ shopSlug: string }>();
+  const params = useParams<{ workspaceSlug: string }>();
   const [me, setMe] = useState<Me>();
   const [workspace, setWorkspace] = useState<Workspace>();
   const [error, setError] = useState<string>();
@@ -20,7 +20,7 @@ export function WorkspaceOverview() {
     api.getMe().then((data) => {
       if (!active) return;
       if (data.workspaces.length === 0) { router.replace("/onboarding/create-shop"); return; }
-      const selected = data.workspaces.find((item) => item.slug === params.shopSlug);
+      const selected = data.workspaces.find((item) => item.slug === params.workspaceSlug);
       if (!selected) {
         setError("Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập.");
         return;
@@ -33,7 +33,7 @@ export function WorkspaceOverview() {
       else setError("Không thể tải thông tin cửa hàng. Vui lòng thử lại.");
     });
     return () => { active = false; };
-  }, [params.shopSlug, router]);
+  }, [params.workspaceSlug, router]);
 
   if (error) return <main className="center-state"><p role="alert">{error}</p><button onClick={() => location.reload()}>Thử lại</button></main>;
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;

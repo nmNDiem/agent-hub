@@ -7,7 +7,7 @@
 - [ ] Responsive checks at 1440, 1024, 768, 390, 320 px; no horizontal overflow or hidden send button.
 - [ ] Loading, empty, error, forbidden, long-content states tested for each async panel.
 - [ ] Keyboard, focus return, screen-reader labels, visible focus, contrast and reduced motion reviewed.
-- [ ] Shop switching clears stale scoped data; no access via direct route to other shop.
+- [ ] Workspace switching clears stale scoped data; no access via direct route to another workspace.
 - [ ] Buttons reflect implemented operations; disabled future integrations never imply active connections.
 
 ## Dashboard

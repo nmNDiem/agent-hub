@@ -6,19 +6,19 @@
 ## Authenticated admin route proposal
 ```text
 /app                         -> redirects to last permitted shop
-/app/[shopSlug]/overview
-/app/[shopSlug]/conversations
-/app/[shopSlug]/conversations/[conversationPublicId]
-/app/[shopSlug]/chatbots
-/app/[shopSlug]/chatbots/new
-/app/[shopSlug]/chatbots/[botPublicId]
-/app/[shopSlug]/chatbots/[botPublicId]/playground
-/app/[shopSlug]/products
-/app/[shopSlug]/knowledge
-/app/[shopSlug]/knowledge/[documentId]
-/app/[shopSlug]/channels     -> feature-gated
-/app/[shopSlug]/analytics    -> feature-gated
-/app/[shopSlug]/settings
+/app/[workspaceSlug]/overview
+/app/[workspaceSlug]/conversations
+/app/[workspaceSlug]/conversations/[conversationPublicId]
+/app/[workspaceSlug]/chatbots
+/app/[workspaceSlug]/chatbots/new
+/app/[workspaceSlug]/chatbots/[botPublicId]
+/app/[workspaceSlug]/chatbots/[botPublicId]/playground
+/app/[workspaceSlug]/products
+/app/[workspaceSlug]/knowledge
+/app/[workspaceSlug]/knowledge/[documentId]
+/app/[workspaceSlug]/channels     -> feature-gated
+/app/[workspaceSlug]/analytics    -> feature-gated
+/app/[workspaceSlug]/settings
 ```
 Slug is navigation convenience, **not** authorization: backend resolves requested shop and verifies membership. Routes identify bots/conversations by canonical UUIDv7 `public_id`; internal BIGINT never appears in external URLs. Document details may use internal IDs only behind authenticated APIs, but prefer public IDs when shared links are expected.
 

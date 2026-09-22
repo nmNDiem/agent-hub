@@ -15,7 +15,7 @@ Image contains a fictional **Lumé** storefront as host-page context. Agent Hub 
 <script async src="https://YOUR_HOST/widget/v1/loader.js"
         data-bot-id="<PUBLISHED_BOT_UUIDV7>"></script>
 ```
-Public ID is *not* an access key. On load fetch public, safe published config for the bot. Add allowed domains and a published flag at server; never put a privileged token, Shop ID, OpenAI key, or internal numeric IDs in loader. No `*` postMessage target; validate origins and iframe sender if using iframe isolation. In F0 local testing, host/port can be configurable; deploy script URL only once host exists.
+Public ID is *not* an access key. On load fetch public, safe published config for the bot. Add allowed domains and a published flag at server; never put a privileged token, workspace ID, OpenAI key, or internal numeric IDs in loader. No `*` postMessage target; validate origins and iframe sender if using iframe isolation. In F0 local testing, host/port can be configurable; deploy script URL only once host exists.
 
 ## Interaction flow
 Open → fetch safe config → display greeting → generate anonymous short-lived bot-scoped session via server → send text/optional image → SSE stream → show structured product cards from catalog → open product link restricted to shop-approved URL domains. Reopen preserves session only for defined retention period, user can `Xóa cuộc trò chuyện` and revoke token. Consent/disclosure about AI and privacy visible, not implied.
