@@ -8,6 +8,7 @@ import { FormEvent, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 
 type AuthMode = "login" | "register";
+const PASSWORD_MIN_LENGTH = 8;
 
 function safeDestination(value: string | null): string | null {
   return value && (value.startsWith("/app/") || value === "/onboarding/create-shop") ? value : null;
@@ -79,7 +80,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               <input
                 autoComplete={isRegister ? "new-password" : "current-password"}
                 id={`${mode}-password`}
-                minLength={isRegister ? 12 : 1}
+                minLength={isRegister ? PASSWORD_MIN_LENGTH : 1}
                 name="password"
                 required
                 type={showPassword ? "text" : "password"}
@@ -88,12 +89,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 {showPassword ? <EyeOff aria-hidden="true" size={18} /> : <Eye aria-hidden="true" size={18} />}
               </button>
             </span>
-            {isRegister && <small>Tối thiểu 12 ký tự, gồm ít nhất một chữ và một số.</small>}
+            {isRegister && <small>Tối thiểu 8 ký tự, gồm ít nhất một chữ và một số.</small>}
           </label>
           {isRegister && (
             <label htmlFor="confirm-password">
               Xác nhận mật khẩu
-              <input autoComplete="new-password" id="confirm-password" minLength={12} name="confirmPassword" required type="password" />
+              <input autoComplete="new-password" id="confirm-password" minLength={PASSWORD_MIN_LENGTH} name="confirmPassword" required type="password" />
             </label>
           )}
           {error && <p className="form-error" role="alert">{error}</p>}

@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+PASSWORD_MIN_LENGTH = 8
+
 
 def validate_password_strength(value: str) -> str:
     if not any(character.isalpha() for character in value) or not any(
@@ -14,7 +16,7 @@ def validate_password_strength(value: str) -> str:
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=128)
 
     @field_validator("password")
     @classmethod
@@ -36,7 +38,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(TokenRequest):
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=128)
 
     @field_validator("password")
     @classmethod

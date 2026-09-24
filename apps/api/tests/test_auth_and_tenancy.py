@@ -119,6 +119,26 @@ def test_registration_hashes_password_and_creates_no_implicit_workspace(
     assert user.password_hash.startswith("$argon2id$")
 
 
+def test_registration_accepts_eight_character_password_and_rejects_seven(
+    app_factory: AppFactory,
+) -> None:
+    app, _, _ = app_factory()
+    with TestClient(app) as client:
+        accepted = client.post(
+            "/api/v1/auth/register",
+            json={"email": "eight@example.com", "password": "passwor1"},
+            headers={"origin": ORIGIN},
+        )
+        rejected = client.post(
+            "/api/v1/auth/register",
+            json={"email": "seven@example.com", "password": "passwo1"},
+            headers={"origin": ORIGIN},
+        )
+
+    assert accepted.status_code == 201
+    assert rejected.status_code == 422
+
+
 def test_refresh_rotation_replay_revokes_the_token_family(app_factory: AppFactory) -> None:
     app, _, _ = app_factory()
     with TestClient(app) as client:
@@ -285,7 +305,7 @@ def test_reset_token_is_single_use_and_revokes_sessions(app_factory: AppFactory)
         token = delivery.reset_tokens[-1]
         reset = client.post(
             "/api/v1/auth/reset-password",
-            json={"token": token, "password": "new-secure-password-456"},
+            json={"token": token, "password": "reset123"},
             headers={"origin": ORIGIN},
         )
         assert reset.status_code == 200
@@ -298,7 +318,7 @@ def test_reset_token_is_single_use_and_revokes_sessions(app_factory: AppFactory)
         assert reused.status_code == 400
         login = client.post(
             "/api/v1/auth/login",
-            json={"email": "owner@example.com", "password": "new-secure-password-456"},
+            json={"email": "owner@example.com", "password": "reset123"},
         )
         assert login.status_code == 200
 
