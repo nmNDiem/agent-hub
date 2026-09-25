@@ -25,6 +25,7 @@ from agent_hub_api.catalog.models import (
     ProductVariant,
     SizeGuide,
 )
+from agent_hub_api.catalog.options import load_variant_options, set_variant_options
 from agent_hub_api.catalog.repository import CatalogRepository
 from agent_hub_api.catalog.schemas import (
     CleanupResponse,
@@ -81,7 +82,11 @@ def decode_cursor(cursor: str | None) -> tuple[datetime | None, int | None]:
         ) from exc
 
 
-def variant_response(variant: ProductVariant, product_price: Decimal | None) -> VariantResponse:
+def variant_response(
+    variant: ProductVariant,
+    product_price: Decimal | None,
+    options: dict[str, str] | None = None,
+) -> VariantResponse:
     effective_price = (
         variant.price_override if variant.price_override is not None else product_price
     )
@@ -89,8 +94,9 @@ def variant_response(variant: ProductVariant, product_price: Decimal | None) -> 
         id=variant.id,
         variant_sku=variant.variant_sku,
         name=variant.name,
-        color=variant.color,
-        size=variant.size,
+        color=(options or {}).get("Color", variant.color),
+        size=(options or {}).get("Size", variant.size),
+        options=options or {},
         price_override=variant.price_override,
         effective_price=effective_price,
         stock_quantity=variant.stock_quantity,
@@ -105,6 +111,7 @@ def image_response(image: ProductImage) -> ImageResponse:
         id=image.id,
         variant_id=image.variant_id,
         original_filename=image.original_filename,
+        source_url=image.source_url,
         content_type=image.content_type,
         byte_size=image.byte_size,
         width=image.width,
@@ -195,7 +202,10 @@ class CatalogService:
         variants, guide, images = await self.repository.get_product_detail_relations(
             workspace_id, product_id
         )
-        return self._detail(product, variants, guide, images)
+        option_map = await load_variant_options(
+            self.session, workspace_id, [variant.id for variant in variants]
+        )
+        return self._detail(product, variants, guide, images, option_map)
 
     def _detail(
         self,
@@ -203,6 +213,7 @@ class CatalogService:
         variants: list[ProductVariant],
         guide: SizeGuide | None,
         images: list[ProductImage],
+        option_map: dict[int, dict[str, str]],
     ) -> ProductDetailResponse:
         summary = self._summary(product, sum(variant.status == "active" for variant in variants))
         guide_payload = (
@@ -219,7 +230,10 @@ class CatalogService:
             **summary.model_dump(),
             description=product.description,
             product_url=product.product_url,
-            variants=[variant_response(variant, product.price) for variant in variants],
+            variants=[
+                variant_response(variant, product.price, option_map.get(variant.id, {}))
+                for variant in variants
+            ],
             size_guide=guide_payload,
             images=[image_response(image) for image in images],
         )
@@ -234,7 +248,7 @@ class CatalogService:
                 await self.repository.add_product(product)
         except IntegrityError as exc:
             raise self._sku_conflict("product_sku") from exc
-        return self._detail(product, [], None, [])
+        return self._detail(product, [], None, [], {})
 
     async def update_product(
         self,
@@ -279,13 +293,21 @@ class CatalogService:
             async with self.session.begin():
                 await self._authorize(user, workspace_id, write=True)
                 product = await self._product_or_404(workspace_id, product_id)
-                variant = ProductVariant(
-                    workspace_id=workspace_id, product_id=product_id, **payload.model_dump()
-                )
+                values = payload.model_dump(exclude={"options"})
+                variant = ProductVariant(workspace_id=workspace_id, product_id=product_id, **values)
                 await self.repository.add_variant(variant)
+                options: dict[str, str | None] = dict(payload.options)
+                if payload.color is not None:
+                    options["Color"] = payload.color
+                if payload.size is not None:
+                    options["Size"] = payload.size
+                await set_variant_options(
+                    self.session, workspace_id, product, variant, options, replace_all=True
+                )
         except IntegrityError as exc:
             raise self._sku_conflict("variant_sku") from exc
-        return variant_response(variant, product.price)
+        option_map = await load_variant_options(self.session, workspace_id, [variant.id])
+        return variant_response(variant, product.price, option_map.get(variant.id, {}))
 
     async def update_variant(
         self,
@@ -304,12 +326,36 @@ class CatalogService:
                     raise ApiError(
                         status.HTTP_404_NOT_FOUND, "NOT_FOUND", "KhÃ´ng tÃ¬m tháº¥y biáº¿n thá»ƒ."
                     )
-                for field in payload.model_fields_set:
+                for field in payload.model_fields_set - {"options"}:
                     setattr(variant, field, getattr(payload, field))
+                if "options" in payload.model_fields_set:
+                    await set_variant_options(
+                        self.session,
+                        workspace_id,
+                        product,
+                        variant,
+                        dict(payload.options),
+                        replace_all=True,
+                    )
+                else:
+                    changed_options: dict[str, str | None] = {}
+                    if "color" in payload.model_fields_set:
+                        changed_options["Color"] = payload.color
+                    if "size" in payload.model_fields_set:
+                        changed_options["Size"] = payload.size
+                    await set_variant_options(
+                        self.session,
+                        workspace_id,
+                        product,
+                        variant,
+                        changed_options,
+                        replace_all=False,
+                    )
                 variant.updated_at = datetime.now(UTC)
         except IntegrityError as exc:
             raise self._sku_conflict("variant_sku") from exc
-        return variant_response(variant, product.price)
+        option_map = await load_variant_options(self.session, workspace_id, [variant.id])
+        return variant_response(variant, product.price, option_map.get(variant.id, {}))
 
     async def archive_variant(
         self, user: User, workspace_id: UUID, product_id: int, variant_id: int
@@ -473,12 +519,24 @@ class CatalogService:
                     )
                     await self.repository.add_product(product)
                     for _, variant_payload in parsed_product.variants:
-                        await self.repository.add_variant(
-                            ProductVariant(
-                                workspace_id=workspace_id,
-                                product_id=product.id,
-                                **variant_payload.model_dump(),
-                            )
+                        variant = ProductVariant(
+                            workspace_id=workspace_id,
+                            product_id=product.id,
+                            **variant_payload.model_dump(exclude={"options"}),
+                        )
+                        await self.repository.add_variant(variant)
+                        options: dict[str, str | None] = dict(variant_payload.options)
+                        if variant_payload.color is not None:
+                            options["Color"] = variant_payload.color
+                        if variant_payload.size is not None:
+                            options["Size"] = variant_payload.size
+                        await set_variant_options(
+                            self.session,
+                            workspace_id,
+                            product,
+                            variant,
+                            options,
+                            replace_all=True,
                         )
                 stored_claim = await self.repository.get_import_by_key(
                     workspace_id, idempotency_key
@@ -708,6 +766,12 @@ class CatalogService:
         image = await self.repository.get_image(workspace_id, product_id, image_id)
         if image is None or image.status != "active":
             raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "KhÃ´ng tÃ¬m tháº¥y áº£nh.")
+        if image.object_key is None:
+            if image.source_url is None:
+                raise ApiError(
+                    status.HTTP_404_NOT_FOUND, "NOT_FOUND", "KhÃ´ng tÃ¬m tháº¥y nguá»“n áº£nh."
+                )
+            return ImageUrlResponse(url=image.source_url, expires_in=0)
         try:
             url = await self.storage.create_signed_url(
                 object_key=image.object_key,
@@ -750,6 +814,13 @@ class CatalogService:
         return await self._attempt_cleanup(image)
 
     async def _attempt_cleanup(self, image: ProductImage) -> CleanupResponse:
+        if image.object_key is None:
+            async with self.session.begin():
+                image.status = "deleted"
+                image.updated_at = datetime.now(UTC)
+            return CleanupResponse(
+                image_id=image.id, status="deleted", message="ÄÃ£ xÃ³a metadata áº£nh."
+            )
         try:
             await self.storage.delete(object_key=image.object_key)
         except StorageError:

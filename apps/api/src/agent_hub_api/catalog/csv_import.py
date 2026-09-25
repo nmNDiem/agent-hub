@@ -1,49 +1,18 @@
 from __future__ import annotations
 
-import csv
 import hashlib
-import io
 from dataclasses import dataclass, field
+from typing import Any
 
 from pydantic import ValidationError
 
+from agent_hub_api.catalog.file_extractor import ExtractionError
+from agent_hub_api.catalog.import_pipeline import analyze_catalog
+from agent_hub_api.catalog.import_types import Cell, CellState
 from agent_hub_api.catalog.schemas import (
     ImportErrorResponse,
     ProductCreateRequest,
     VariantCreateRequest,
-)
-
-CSV_COLUMNS = (
-    "product_sku",
-    "name",
-    "description",
-    "category",
-    "currency",
-    "price",
-    "product_url",
-    "variant_sku",
-    "variant_name",
-    "color",
-    "size",
-    "variant_price",
-    "stock_quantity",
-)
-PRODUCT_COLUMNS = (
-    "product_sku",
-    "name",
-    "description",
-    "category",
-    "currency",
-    "price",
-    "product_url",
-)
-VARIANT_COLUMNS = (
-    "variant_sku",
-    "variant_name",
-    "color",
-    "size",
-    "variant_price",
-    "stock_quantity",
 )
 
 
@@ -65,184 +34,130 @@ class ParsedCatalogCsv:
         return sum(len(product.variants) for product in self.products)
 
 
+def _value(fields: dict[str, Cell], name: str) -> Any:
+    cell = fields.get(name, Cell(CellState.MISSING))
+    return cell.value if cell.state is CellState.VALUE else None
+
+
 def _validation_errors(row: int, exc: ValidationError) -> list[ImportErrorResponse]:
-    errors: list[ImportErrorResponse] = []
-    for detail in exc.errors():
-        location = detail.get("loc", ())
-        errors.append(
-            ImportErrorResponse(
-                row=row,
-                column=str(location[-1]) if location else None,
-                code="INVALID_VALUE",
-                message=str(detail["msg"]),
-            )
+    return [
+        ImportErrorResponse(
+            row=row,
+            column=str(detail.get("loc", (None,))[-1]),
+            code="INVALID_VALUE",
+            message=str(detail["msg"]),
         )
-    return errors
+        for detail in exc.errors()
+    ]
 
 
 def parse_catalog_csv(content: bytes, *, max_bytes: int, max_rows: int) -> ParsedCatalogCsv:
-    payload_sha256 = hashlib.sha256(content).hexdigest()
-    errors: list[ImportErrorResponse] = []
-    if len(content) > max_bytes:
-        return ParsedCatalogCsv(
-            payload_sha256,
-            [],
-            [
-                ImportErrorResponse(
-                    row=None, column=None, code="FILE_TOO_LARGE", message="CSV file is too large"
-                )
-            ],
-        )
+    """Compatibility adapter over the universal structure-driven pipeline."""
+
+    digest = hashlib.sha256(content).hexdigest()
     try:
-        decoded = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return ParsedCatalogCsv(
-            payload_sha256,
-            [],
-            [
-                ImportErrorResponse(
-                    row=None,
-                    column=None,
-                    code="INVALID_ENCODING",
-                    message="CSV must use UTF-8 encoding",
-                )
-            ],
+        analysis = analyze_catalog(
+            content,
+            "catalog.csv",
+            max_bytes=max_bytes,
+            max_sheets=1,
+            max_rows=max_rows,
+            max_columns=200,
         )
-    reader = csv.DictReader(io.StringIO(decoded, newline=""))
-    if reader.fieldnames is None:
+    except ExtractionError as exc:
         return ParsedCatalogCsv(
-            payload_sha256,
+            digest,
             [],
-            [
-                ImportErrorResponse(
-                    row=None, column=None, code="MISSING_HEADER", message="CSV header is missing"
-                )
-            ],
-        )
-    fieldnames = tuple(name.strip() for name in reader.fieldnames)
-    missing = [column for column in CSV_COLUMNS if column not in fieldnames]
-    if missing:
-        return ParsedCatalogCsv(
-            payload_sha256,
-            [],
-            [
-                ImportErrorResponse(
-                    row=1,
-                    column=column,
-                    code="MISSING_COLUMN",
-                    message=f"Required column '{column}' is missing",
-                )
-                for column in missing
-            ],
+            [ImportErrorResponse(row=None, column=None, code="FILE_ERROR", message=str(exc))],
         )
 
-    grouped: dict[str, ParsedProduct] = {}
-    raw_products: dict[str, tuple[str, ...]] = {}
-    variant_skus: set[str] = set()
-    for index, source_row in enumerate(reader, start=2):
-        if index - 1 > max_rows:
-            errors.append(
-                ImportErrorResponse(
-                    row=index,
-                    column=None,
-                    code="TOO_MANY_ROWS",
-                    message=f"CSV cannot contain more than {max_rows} data rows",
-                )
-            )
-            break
-        row = {key.strip(): (value or "").strip() for key, value in source_row.items() if key}
-        product_sku = row.get("product_sku", "").upper()
+    errors = [
+        ImportErrorResponse(
+            row=int(issue.source_location.get("row", 0)) or None,
+            column=None,
+            code=issue.issue_type,
+            message=issue.message,
+        )
+        for issue in analysis.issues
+        if issue.severity in {"error", "needs_confirmation"}
+    ]
+    parsed: list[ParsedProduct] = []
+    seen_variants: set[str] = set()
+    for product in analysis.products:
+        row = int(product.source["row"])
+        product_sku = _value(product.fields, "product_sku")
         if not product_sku:
             errors.append(
                 ImportErrorResponse(
-                    row=index,
+                    row=row,
                     column="product_sku",
                     code="REQUIRED",
-                    message="product_sku is required for CSV import",
-                )
-            )
-            continue
-        product_values = tuple(
-            product_sku if column == "product_sku" else row.get(column, "")
-            for column in PRODUCT_COLUMNS
-        )
-        first_values = raw_products.get(product_sku)
-        if first_values is not None and first_values != product_values:
-            errors.append(
-                ImportErrorResponse(
-                    row=index,
-                    column="product_sku",
-                    code="INCONSISTENT_PRODUCT",
-                    message="Rows grouped by product_sku must use identical product fields",
+                    message="product_sku is required for the legacy CSV API",
                 )
             )
             continue
         try:
-            product_request = ProductCreateRequest.model_validate(
+            request = ProductCreateRequest.model_validate(
                 {
                     "product_sku": product_sku,
-                    "name": row.get("name", ""),
-                    "description": row.get("description") or None,
-                    "category": row.get("category") or None,
-                    "currency": row.get("currency") or "VND",
-                    "price": row.get("price") or None,
-                    "product_url": row.get("product_url") or None,
+                    "name": _value(product.fields, "name"),
+                    "description": _value(product.fields, "description"),
+                    "category": _value(product.fields, "category"),
+                    "currency": _value(product.fields, "currency") or "VND",
+                    "price": _value(product.fields, "base_price"),
+                    "product_url": _value(product.fields, "product_url"),
                 }
             )
         except ValidationError as exc:
-            errors.extend(_validation_errors(index, exc))
+            errors.extend(_validation_errors(row, exc))
             continue
-        parsed_product = grouped.get(product_sku)
-        if parsed_product is None:
-            parsed_product = ParsedProduct(row=index, product=product_request)
-            grouped[product_sku] = parsed_product
-            raw_products[product_sku] = product_values
-
-        has_variant_data = any(row.get(column) for column in VARIANT_COLUMNS)
-        if not has_variant_data:
-            continue
-        variant_sku = row.get("variant_sku", "").upper()
-        if not variant_sku:
-            errors.append(
-                ImportErrorResponse(
-                    row=index,
-                    column="variant_sku",
-                    code="REQUIRED",
-                    message="variant_sku is required when variant fields are present",
+        item = ParsedProduct(row=row, product=request)
+        for variant in product.variants:
+            variant_row = int(variant.source["row"])
+            variant_sku = _value(variant.fields, "variant_sku")
+            if not variant_sku:
+                errors.append(
+                    ImportErrorResponse(
+                        row=variant_row,
+                        column="variant_sku",
+                        code="REQUIRED",
+                        message="variant_sku is required when variant fields are present",
+                    )
                 )
-            )
-            continue
-        if variant_sku in variant_skus:
-            errors.append(
-                ImportErrorResponse(
-                    row=index,
-                    column="variant_sku",
-                    code="DUPLICATE_VARIANT_SKU",
-                    message="variant_sku must be unique in the CSV",
+                continue
+            normalized_sku = str(variant_sku).strip().upper()
+            if normalized_sku in seen_variants:
+                errors.append(
+                    ImportErrorResponse(
+                        row=variant_row,
+                        column="variant_sku",
+                        code="DUPLICATE_VARIANT_SKU",
+                        message="variant_sku must be unique in the CSV",
+                    )
                 )
-            )
-            continue
-        try:
-            variant_request = VariantCreateRequest.model_validate(
-                {
-                    "variant_sku": variant_sku,
-                    "name": row.get("variant_name") or None,
-                    "color": row.get("color") or None,
-                    "size": row.get("size") or None,
-                    "price_override": row.get("variant_price") or None,
-                    "stock_quantity": row.get("stock_quantity") or None,
-                }
-            )
-        except ValidationError as exc:
-            errors.extend(_validation_errors(index, exc))
-            continue
-        variant_skus.add(variant_sku)
-        parsed_product.variants.append((index, variant_request))
-
-    if not grouped and not errors:
+                continue
+            seen_variants.add(normalized_sku)
+            try:
+                item.variants.append(
+                    (
+                        variant_row,
+                        VariantCreateRequest.model_validate(
+                            {
+                                "variant_sku": normalized_sku,
+                                "name": _value(variant.fields, "name"),
+                                "color": _value(variant.options, "Color"),
+                                "size": _value(variant.options, "Size"),
+                                "price_override": _value(variant.fields, "price"),
+                                "stock_quantity": _value(variant.fields, "stock_quantity"),
+                            }
+                        ),
+                    )
+                )
+            except ValidationError as exc:
+                errors.extend(_validation_errors(variant_row, exc))
+        parsed.append(item)
+    if not parsed and not errors:
         errors.append(
-            ImportErrorResponse(
-                row=None, column=None, code="EMPTY_FILE", message="CSV has no data rows"
-            )
+            ImportErrorResponse(row=None, column=None, code="EMPTY_FILE", message="CSV has no data")
         )
-    return ParsedCatalogCsv(payload_sha256, list(grouped.values()), errors)
+    return ParsedCatalogCsv(digest, parsed, errors)

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -5,6 +6,8 @@ from fastapi import APIRouter, Depends, File, Form, Header, Query, Request, Uplo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.catalog.schemas import (
+    CatalogImportResponse,
+    CatalogSearchResponse,
     CleanupResponse,
     ImageResponse,
     ImageUrlResponse,
@@ -14,14 +17,17 @@ from agent_hub_api.catalog.schemas import (
     ProductDetailResponse,
     ProductListResponse,
     ProductUpdateRequest,
+    ResolveImportIssueRequest,
     SizeGuideRequest,
     SizeGuideResponse,
+    UniversalImportCommitResponse,
     VariantCreateRequest,
     VariantResponse,
     VariantUpdateRequest,
 )
 from agent_hub_api.catalog.service import CatalogService
 from agent_hub_api.catalog.storage import CatalogStorage, UnavailableCatalogStorage
+from agent_hub_api.catalog.universal_service import UniversalCatalogService
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.database import get_db_session
 from agent_hub_api.core.errors import ApiError
@@ -42,6 +48,106 @@ def get_catalog_storage(request: Request) -> CatalogStorage:
 
 def service(session: AsyncSession, settings: Settings, storage: CatalogStorage) -> CatalogService:
     return CatalogService(session, settings, storage)
+
+
+def universal_service(session: AsyncSession, settings: Settings) -> UniversalCatalogService:
+    return UniversalCatalogService(session, settings)
+
+
+@router.post(
+    "/catalog/imports",
+    response_model=CatalogImportResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_csrf)],
+)
+async def create_catalog_import(
+    workspace_id: UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+    file: Annotated[UploadFile, File()],
+) -> CatalogImportResponse:
+    content = await file.read(settings.catalog_import_max_bytes + 1)
+    return await universal_service(session, settings).create_and_analyze(
+        user, workspace_id, file.filename or "catalog", content
+    )
+
+
+@router.get("/catalog/imports/{import_id}", response_model=CatalogImportResponse)
+async def get_catalog_import(
+    workspace_id: UUID,
+    import_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> CatalogImportResponse:
+    return await universal_service(session, settings).get(user, workspace_id, import_id)
+
+
+@router.post(
+    "/catalog/imports/{import_id}/issues/{issue_id}/resolve",
+    response_model=CatalogImportResponse,
+    dependencies=[Depends(require_csrf)],
+)
+async def resolve_catalog_import_issue(
+    workspace_id: UUID,
+    import_id: int,
+    issue_id: int,
+    payload: ResolveImportIssueRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> CatalogImportResponse:
+    return await universal_service(session, settings).resolve(
+        user, workspace_id, import_id, issue_id, payload
+    )
+
+
+@router.post(
+    "/catalog/imports/{import_id}/commit",
+    response_model=UniversalImportCommitResponse,
+    dependencies=[Depends(require_csrf)],
+)
+async def commit_catalog_import_job(
+    workspace_id: UUID,
+    import_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=128)],
+) -> UniversalImportCommitResponse:
+    return await universal_service(session, settings).commit(
+        user, workspace_id, import_id, idempotency_key
+    )
+
+
+@router.get("/catalog/search", response_model=CatalogSearchResponse)
+async def search_catalog(
+    workspace_id: UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
+    text: Annotated[str | None, Query(max_length=200)] = None,
+    brand: Annotated[str | None, Query(max_length=160)] = None,
+    price_min: Annotated[Decimal | None, Query(ge=0)] = None,
+    price_max: Annotated[Decimal | None, Query(ge=0)] = None,
+    in_stock: bool | None = None,
+    option: Annotated[list[str] | None, Query()] = None,
+    attribute: Annotated[list[str] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CatalogSearchResponse:
+    return await universal_service(session, settings).search(
+        user,
+        workspace_id,
+        text=text,
+        brand=brand,
+        price_min=price_min,
+        price_max=price_max,
+        in_stock=in_stock,
+        options=option or [],
+        attributes=attribute or [],
+        limit=limit,
+    )
 
 
 @router.get("/products", response_model=ProductListResponse)

@@ -79,6 +79,46 @@ export type ImportPreview = {
   errors: ImportIssue[];
 };
 
+export type CatalogImportJob = {
+  id: number;
+  status: "uploaded" | "analyzing" | "needs_confirmation" | "ready" | "committing" | "committed" | "failed";
+  original_filename: string;
+  file_type: "csv" | "xls" | "xlsx" | null;
+  schema_fingerprint: string | null;
+  summary: {
+    products: Record<"create" | "update" | "unchanged" | "conflict", number>;
+    variants: Record<"create" | "update" | "unchanged" | "conflict", number>;
+    images: Record<"create" | "update" | "unchanged" | "conflict", number>;
+  };
+  issues: Array<{
+    id: number;
+    issue_type: string;
+    severity: string;
+    message: string;
+    source_location: Record<string, unknown>;
+    evidence: Record<string, unknown>;
+    options: unknown[];
+    status: string;
+  }>;
+  metadata: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UniversalImportResult = {
+  import_id: number;
+  status: "committed";
+  products_created: number;
+  products_updated: number;
+  products_unchanged: number;
+  variants_created: number;
+  variants_updated: number;
+  variants_unchanged: number;
+  images_created: number;
+  replayed: boolean;
+};
+
 function cookieValue(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;
   return document.cookie
@@ -223,4 +263,30 @@ export const api = {
       { method: "POST", body: form, headers: { "Idempotency-Key": idempotencyKey } },
     );
   },
+  createCatalogImport: (workspaceId: string, file: File) => {
+    const form = new FormData();
+    form.set("file", file);
+    return request<CatalogImportJob>(`/api/v1/workspaces/${workspaceId}/catalog/imports`, {
+      method: "POST",
+      body: form,
+    });
+  },
+  getCatalogImport: (workspaceId: string, importId: number) =>
+    request<CatalogImportJob>(
+      `/api/v1/workspaces/${workspaceId}/catalog/imports/${importId}`,
+    ),
+  resolveCatalogImportIssue: (
+    workspaceId: string,
+    importId: number,
+    issueId: number,
+    payload: { action: "map" | "ignore" | "select_parent"; field?: string; value?: string | number },
+  ) => request<CatalogImportJob>(
+    `/api/v1/workspaces/${workspaceId}/catalog/imports/${importId}/issues/${issueId}/resolve`,
+    { method: "POST", body: JSON.stringify(payload) },
+  ),
+  commitCatalogImportJob: (workspaceId: string, importId: number, idempotencyKey: string) =>
+    request<UniversalImportResult>(
+      `/api/v1/workspaces/${workspaceId}/catalog/imports/${importId}/commit`,
+      { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
+    ),
 };

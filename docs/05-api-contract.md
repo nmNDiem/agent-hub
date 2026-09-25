@@ -34,6 +34,11 @@ Registration creates the user and session but does not silently create a workspa
 | POST/GET/DELETE | `/workspaces/{workspace_id}/products/{product_id}/images` | Private upload, authorized signed URL and cleanup state |
 | POST | `/workspaces/{workspace_id}/catalog/import/preview` | Validate UTF-8 CSV without writes |
 | POST | `/workspaces/{workspace_id}/catalog/import` | Revalidate and transactionally import CSV; requires preview hash and `Idempotency-Key` |
+| POST | `/workspaces/{workspace_id}/catalog/imports` | Upload and analyze CSV/XLS/XLSX into persisted staging; no catalog mutation |
+| GET | `/workspaces/{workspace_id}/catalog/imports/{import_id}` | Read workspace-scoped status, diff and issues |
+| POST | `/workspaces/{workspace_id}/catalog/imports/{import_id}/issues/{issue_id}/resolve` | Resolve a persisted ambiguity |
+| POST | `/workspaces/{workspace_id}/catalog/imports/{import_id}/commit` | Atomic, idempotent MERGE commit; requires `Idempotency-Key` |
+| GET | `/workspaces/{workspace_id}/catalog/search` | Structured text/brand/price/stock/options/attributes search |
 | CRUD | `/workspaces/{workspace_id}/knowledge-bases` | Knowledge grouping |
 | POST | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents` | Server-validated file upload |
 | GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Per-tenant status |
@@ -69,3 +74,5 @@ Product lists use opaque cursor pagination ordered by `(created_at DESC, id DESC
 CSV columns are `product_sku,name,description,category,currency,price,product_url,variant_sku,variant_name,color,size,variant_price,stock_quantity`. `product_sku` is required for import and may repeat to group variant rows; grouped product fields must match. Any populated variant requires a unique `variant_sku`. Preview returns a SHA-256 digest plus row/column errors. Commit resubmits the file and digest, revalidates against current database state, then writes the entire import and completion record in one transaction. `(workspace_id, Idempotency-Key)` is unique: same payload replays the stored result, different payload returns conflict, a live lease returns `IMPORT_IN_PROGRESS`, and an expired lease may be reclaimed.
 
 Catalog images accept verified PNG/JPEG/WebP only and are stored privately. Metadata, upload, signed URL and cleanup endpoints all enforce backend membership and immutable workspace scope. Deletion first commits `cleanup_pending`, then attempts Storage deletion; failure returns the persisted pending status and can be retried through `POST .../images/{image_id}/cleanup` without claiming the database transaction rolled back.
+
+The two CSV routes remain compatibility routes during F2.1. New clients use the import-job routes. The universal importer detects structure rather than vendor, accepts CSV/XLS/XLSX, persists normalized staging and never treats a record absent from a file as deletion. Multiple `option=Name:Value` filters on catalog search are correlated to the same variant.

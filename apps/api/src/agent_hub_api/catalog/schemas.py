@@ -109,6 +109,7 @@ class VariantCreateRequest(BaseModel):
     size: str | None = Field(default=None, max_length=80)
     price_override: Money | None = None
     stock_quantity: int | None = Field(default=None, ge=0)
+    options: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("variant_sku")
     @classmethod
@@ -119,6 +120,19 @@ class VariantCreateRequest(BaseModel):
     @classmethod
     def clean_text(cls, value: str | None) -> str | None:
         return normalize_optional_text(value)
+
+    @field_validator("options")
+    @classmethod
+    def clean_options(cls, value: dict[str, str]) -> dict[str, str]:
+        if len(value) > 10:
+            raise ValueError("A variant cannot have more than 10 options")
+        cleaned = {name.strip(): option.strip() for name, option in value.items()}
+        if any(
+            not name or not option or len(name) > 100 or len(option) > 160
+            for name, option in cleaned.items()
+        ):
+            raise ValueError("Option names and values must be non-empty and within length limits")
+        return cleaned
 
 
 class VariantUpdateRequest(VariantCreateRequest):
@@ -149,6 +163,7 @@ class VariantResponse(BaseModel):
     name: str | None
     color: str | None
     size: str | None
+    options: dict[str, str] = Field(default_factory=dict)
     price_override: Decimal | None
     effective_price: Decimal | None
     stock_quantity: int | None
@@ -171,11 +186,12 @@ class SizeGuideResponse(BaseModel):
 class ImageResponse(BaseModel):
     id: int
     variant_id: int | None
-    original_filename: str
-    content_type: str
-    byte_size: int
-    width: int
-    height: int
+    original_filename: str | None
+    source_url: str | None = None
+    content_type: str | None
+    byte_size: int | None
+    width: int | None
+    height: int | None
     alt_text: str | None
     sort_order: int
     status: Literal["uploading", "active", "cleanup_pending", "deleted"]
@@ -245,3 +261,89 @@ class ImportCommitResponse(BaseModel):
     variant_count: int
     payload_sha256: str
     replayed: bool = False
+
+
+class GenericOptionResponse(BaseModel):
+    name: str
+    value: str
+
+
+class ImportIssueDetail(BaseModel):
+    id: int
+    issue_type: str
+    severity: str
+    message: str
+    source_location: dict[str, JsonValue]
+    evidence: dict[str, JsonValue]
+    options: list[JsonValue]
+    status: str
+
+
+class ImportDiffSummary(BaseModel):
+    products: dict[str, int]
+    variants: dict[str, int]
+    images: dict[str, int]
+
+
+class CatalogImportResponse(BaseModel):
+    id: int
+    status: Literal[
+        "uploaded",
+        "analyzing",
+        "needs_confirmation",
+        "ready",
+        "committing",
+        "committed",
+        "failed",
+    ]
+    original_filename: str
+    file_type: str | None
+    schema_fingerprint: str | None
+    summary: ImportDiffSummary
+    issues: list[ImportIssueDetail]
+    metadata: dict[str, JsonValue]
+    result: dict[str, JsonValue] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResolveImportIssueRequest(BaseModel):
+    action: Literal["map", "ignore", "select_parent"]
+    field: str | None = Field(default=None, max_length=100)
+    value: str | int | None = None
+
+
+class UniversalImportCommitResponse(BaseModel):
+    import_id: int
+    status: Literal["committed"]
+    products_created: int
+    products_updated: int
+    products_unchanged: int
+    variants_created: int
+    variants_updated: int
+    variants_unchanged: int
+    images_created: int
+    replayed: bool = False
+
+
+class CatalogSearchItem(BaseModel):
+    id: int
+    name: str
+    brand: str | None
+    category: str | None
+    currency: str
+    price: Decimal | None
+    variant_id: int | None
+    variant_sku: str | None
+    effective_price: Decimal | None
+    stock_quantity: int | None
+    options: dict[str, str]
+    attributes: dict[str, JsonValue]
+
+    @field_serializer("price", "effective_price", when_used="json")
+    def serialize_search_money(self, value: Decimal | None) -> str | None:
+        return format(value, ".2f") if value is not None else None
+
+
+class CatalogSearchResponse(BaseModel):
+    items: list[CatalogSearchItem]

@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant cùng product/variant/size-guide CRUD, CSV preview/import idempotent, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI integration và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant cùng generic catalog CRUD, universal CSV/XLS/XLSX import có staging/diff/commit, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI runtime và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -82,7 +82,7 @@ Lệnh Alembic trên là offline dry-run và không cần database. Online migra
 pnpm db:migrate
 ```
 
-Các migration tạo identity/tenant tables, sau đó tạo `products`, `product_variants`, `size_guides`, `product_images` và `catalog_imports`. Chạy migration online trên development database trước khi thử catalog:
+Các migration tạo identity/tenant tables, catalog canonical, generic options, external references và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog:
 
 ```powershell
 pnpm db:migrate
@@ -90,13 +90,15 @@ pnpm db:migrate
 
 Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage. Để upload/xem ảnh catalog, tạo private bucket `agent-hub-private` trong Supabase Storage và cấu hình `SUPABASE_URL` cùng `SUPABASE_SERVICE_ROLE_KEY` chỉ ở backend. CRUD sản phẩm và CSV vẫn hoạt động khi Storage chưa được cấu hình; thao tác ảnh sẽ trả lỗi 503 rõ ràng.
 
-CSV catalog dùng header:
+Importer mới nhận CSV, XLS và XLSX, tự suy luận cấu trúc từ header/row shape, hỗ trợ nhiều sheet và không yêu cầu chọn vendor. Luồng mới là `Upload → Analyze → Resolve (nếu cần) → Preview diff → Commit`.
+
+Import mặc định là `MERGE`: dữ liệu không có trong file không bị archive/delete; cột thiếu không xóa giá trị hiện hữu. Hai route CSV cũ vẫn được giữ cho client cũ. Header CSV cũ là:
 
 ```text
 product_sku,name,description,category,currency,price,product_url,variant_sku,variant_name,color,size,variant_price,stock_quantity
 ```
 
-Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm variants; `variant_sku` không được trùng. Import là create-only và transactional, không tự ghi đè SKU hiện hữu hoặc đã archived.
+Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm variants; `variant_sku` không được trùng. Chi tiết model, semantics và API mới nằm tại `docs/catalog-import.md`.
 
 ## Where to read first
 

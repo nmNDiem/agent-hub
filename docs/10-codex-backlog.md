@@ -21,6 +21,11 @@
 - Product, variant, size guide and image models/APIs; CSV import with preview/validation, safe Storage files, archive semantics.
 - Done: create/import 20+ products, distinguish unknown vs zero stock, correct price across variants; cross-tenant image access denied.
 
+## F2.1 — Universal catalog import (complete)
+- Generalize catalog options/attributes/images and import CSV/XLS/XLSX through one structure-driven pipeline.
+- Persist staged records and issues; preview create/update/unchanged/conflict; commit atomically in MERGE mode.
+- Keep legacy color/size and CSV endpoints compatible; structured option filters match one actual variant.
+
 ## F3 — Knowledge / agent
 - Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; embedding adapter and pgvector; agents and KB link; typed tools.
 - Done: scoped search, citation refs, no fabricated SKU/stock/discount and prompt-injection regression tests.

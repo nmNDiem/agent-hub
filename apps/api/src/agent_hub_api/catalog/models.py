@@ -10,14 +10,18 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from agent_hub_api.core.database import BIGINT_PRIMARY_KEY, Base, utc_now
+
+JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 
 
 class Product(Base):
@@ -38,11 +42,21 @@ class Product(Base):
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     product_sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    barcode: Mapped[str | None] = mapped_column(String(100), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
+    slug: Mapped[str | None] = mapped_column(String(220), nullable=True)
+    brand: Mapped[str | None] = mapped_column(String(160), nullable=True)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    description_html_source: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    description_html_sanitized: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    description_text: Mapped[str | None] = mapped_column(Text(), nullable=True)
     category: Mapped[str | None] = mapped_column(String(120), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="VND")
     price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    stock_quantity: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    inventory_policy: Mapped[str] = mapped_column(String(16), default="unknown")
+    attributes_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
     product_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -81,11 +95,16 @@ class ProductVariant(Base):
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     product_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     variant_sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    barcode: Mapped[str | None] = mapped_column(String(100), nullable=True)
     name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     color: Mapped[str | None] = mapped_column(String(80), nullable=True)
     size: Mapped[str | None] = mapped_column(String(80), nullable=True)
     price_override: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     stock_quantity: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    inventory_policy: Mapped[str] = mapped_column(String(16), default="unknown")
+    option_signature: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    attributes_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -142,13 +161,14 @@ class ProductImage(Base):
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     product_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     variant_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
-    object_key: Mapped[str] = mapped_column(String(1024))
-    original_filename: Mapped[str] = mapped_column(String(255))
-    content_type: Mapped[str] = mapped_column(String(64))
-    byte_size: Mapped[int] = mapped_column(Integer())
-    width: Mapped[int] = mapped_column(Integer())
-    height: Mapped[int] = mapped_column(Integer())
-    sha256: Mapped[str] = mapped_column(String(64))
+    object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    byte_size: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     alt_text: Mapped[str | None] = mapped_column(String(300), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer(), default=0)
     status: Mapped[str] = mapped_column(String(24), default="uploading")
@@ -166,18 +186,172 @@ class CatalogImport(Base):
         UniqueConstraint(
             "workspace_id", "idempotency_key", name="uq_catalog_imports_workspace_key"
         ),
-        CheckConstraint(
-            "status IN ('processing', 'completed', 'failed')", name="ck_catalog_imports_status"
-        ),
         Index("ix_catalog_imports_workspace_created", "workspace_id", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
-    idempotency_key: Mapped[str] = mapped_column(String(128))
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     payload_sha256: Mapped[str] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(16), default="processing")
-    result: Mapped[dict[str, object] | None] = mapped_column(JSON(), nullable=True)
-    lease_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(24), default="uploaded")
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_type: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    schema_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    mapping_profile_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    catalog_revision_at_analysis: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    summary_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    source_content: Mapped[bytes | None] = mapped_column(LargeBinary(), nullable=True)
+    result: Mapped[dict[str, object] | None] = mapped_column(JSON_DOCUMENT, nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProductOptionDefinition(Base):
+    __tablename__ = "product_option_definitions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "product_id", "normalized_name", name="uq_option_def_product_name"
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_option_def_workspace_id"),
+        ForeignKeyConstraint(
+            ["workspace_id", "product_id"], ["products.workspace_id", "products.id"]
+        ),
+    )
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    product_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    name: Mapped[str] = mapped_column(String(100))
+    normalized_name: Mapped[str] = mapped_column(String(100))
+    position: Mapped[int] = mapped_column(Integer(), default=0)
+
+
+class ProductOptionValue(Base):
+    __tablename__ = "product_option_values"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "option_definition_id",
+            "normalized_value",
+            name="uq_option_value_definition_value",
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_option_value_workspace_id"),
+        ForeignKeyConstraint(
+            ["workspace_id", "option_definition_id"],
+            ["product_option_definitions.workspace_id", "product_option_definitions.id"],
+        ),
+    )
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    option_definition_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    value: Mapped[str] = mapped_column(String(160))
+    normalized_value: Mapped[str] = mapped_column(String(160))
+    position: Mapped[int] = mapped_column(Integer(), default=0)
+
+
+class VariantOptionValue(Base):
+    __tablename__ = "variant_option_values"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "variant_id",
+            "option_definition_id",
+            name="uq_variant_option_definition",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "variant_id"], ["product_variants.workspace_id", "product_variants.id"]
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "option_value_id"],
+            ["product_option_values.workspace_id", "product_option_values.id"],
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "option_definition_id"],
+            ["product_option_definitions.workspace_id", "product_option_definitions.id"],
+        ),
+    )
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    variant_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    option_value_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    option_definition_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+
+
+class CatalogExternalRef(Base):
+    __tablename__ = "catalog_external_refs"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "namespace",
+            "entity_type",
+            "external_id",
+            name="uq_catalog_external_ref",
+        ),
+        Index("ix_catalog_external_refs_lookup", "workspace_id", "namespace", "external_id"),
+    )
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    entity_type: Mapped[str] = mapped_column(String(16))
+    entity_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    namespace: Mapped[str] = mapped_column(String(120))
+    external_id: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class CatalogImportMappingProfile(Base):
+    __tablename__ = "catalog_import_mapping_profiles"
+    __table_args__ = (
+        Index("ix_mapping_profiles_workspace_fingerprint", "workspace_id", "schema_fingerprint"),
+    )
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    schema_fingerprint: Mapped[str] = mapped_column(String(64))
+    mapping_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4))
+    confirmed_by_user: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class CatalogImportStagedRecord(Base):
+    __tablename__ = "catalog_import_staged_records"
+    __table_args__ = (Index("ix_staged_records_import", "workspace_id", "import_id"),)
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    import_id: Mapped[int] = mapped_column(ForeignKey("catalog_imports.id"))
+    entity_type: Mapped[str] = mapped_column(String(16))
+    source_location: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
+    normalized_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
+    identity_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    mutation: Mapped[str] = mapped_column(String(16))
+    target_entity_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+
+
+class CatalogImportIssue(Base):
+    __tablename__ = "catalog_import_issues"
+    __table_args__ = (Index("ix_import_issues_status", "workspace_id", "import_id", "status"),)
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    import_id: Mapped[int] = mapped_column(ForeignKey("catalog_imports.id"))
+    issue_type: Mapped[str] = mapped_column(String(48))
+    severity: Mapped[str] = mapped_column(String(24))
+    entity_scope: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    source_location: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    message: Mapped[str] = mapped_column(Text())
+    evidence_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    options_json: Mapped[list[object]] = mapped_column(JSON_DOCUMENT, default=list)
+    status: Mapped[str] = mapped_column(String(16), default="open")
+    resolution_json: Mapped[dict[str, object] | None] = mapped_column(JSON_DOCUMENT, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

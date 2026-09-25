@@ -7,7 +7,9 @@ const mocks = vi.hoisted(() => ({
   getMe: vi.fn(),
   listProducts: vi.fn(),
   createProduct: vi.fn(),
-  previewCatalogImport: vi.fn(),
+  createCatalogImport: vi.fn(),
+  resolveCatalogImportIssue: vi.fn(),
+  commitCatalogImportJob: vi.fn(),
   replace: vi.fn(),
 }));
 
@@ -26,7 +28,9 @@ vi.mock("@/lib/api", async (importOriginal) => {
       getMe: mocks.getMe,
       listProducts: mocks.listProducts,
       createProduct: mocks.createProduct,
-      previewCatalogImport: mocks.previewCatalogImport,
+      createCatalogImport: mocks.createCatalogImport,
+      resolveCatalogImportIssue: mocks.resolveCatalogImportIssue,
+      commitCatalogImportJob: mocks.commitCatalogImportJob,
     },
   };
 });
@@ -86,20 +90,30 @@ describe("CatalogPage", () => {
     expect(await screen.findByText("Sản phẩm này không có biến thể.")).toBeInTheDocument();
   });
 
-  it("shows row-level CSV preview before enabling import", async () => {
-    mocks.previewCatalogImport.mockResolvedValue({
-      payload_sha256: "a".repeat(64),
-      product_count: 2,
-      variant_count: 2,
-      errors: [{ row: 3, column: "variant_sku", code: "DUPLICATE", message: "SKU bị trùng" }],
+  it("shows only unresolved questions after universal file analysis", async () => {
+    mocks.createCatalogImport.mockResolvedValue({
+      id: 7,
+      status: "needs_confirmation",
+      original_filename: "catalog.xlsx",
+      file_type: "xlsx",
+      schema_fingerprint: "a".repeat(64),
+      summary: {
+        products: { create: 2, update: 0, unchanged: 0, conflict: 0 },
+        variants: { create: 2, update: 0, unchanged: 0, conflict: 0 },
+        images: { create: 0, update: 0, unchanged: 0, conflict: 0 },
+      },
+      issues: [{ id: 3, issue_type: "AMBIGUOUS_COLUMN", severity: "needs_confirmation", message: "Cột Mã hàng có vẻ là SKU.", source_location: { sheet: "Data", row: 1 }, evidence: {}, options: [], status: "open" }],
+      metadata: { rows: 2 },
+      result: null,
+      created_at: "2026-09-25T00:00:00Z",
+      updated_at: "2026-09-25T00:00:00Z",
     });
     render(<CatalogPage />);
     await screen.findByText("Sản phẩm chưa có");
-    const file = new File(["product_sku,name"], "catalog.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/Chọn CSV UTF-8/), { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: "Kiểm tra dữ liệu" }));
+    const file = new File(["workbook"], "catalog.xlsx");
+    fireEvent.change(screen.getByLabelText("Chọn tệp catalog"), { target: { files: [file] } });
 
-    expect(await screen.findByText(/Dòng 3, variant_sku: SKU bị trùng/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Import catalog" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Cột Mã hàng có vẻ là SKU.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nhập catalog" })).toBeDisabled();
   });
 });

@@ -4,14 +4,12 @@ import {
   Archive,
   Boxes,
   ChevronRight,
-  FileSpreadsheet,
   ImagePlus,
   LoaderCircle,
   PackagePlus,
   Plus,
   RefreshCw,
   Search,
-  Upload,
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -21,12 +19,12 @@ import { AppShell } from "@/components/app-shell";
 import {
   api,
   ApiError,
-  type ImportPreview,
   type Me,
   type ProductDetail,
   type ProductSummary,
   type Workspace,
 } from "@/lib/api";
+import { CatalogImportWizard } from "./catalog-import-wizard";
 
 function text(form: FormData, name: string): string {
   return String(form.get(name) ?? "").trim();
@@ -59,9 +57,6 @@ export function CatalogPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [importFile, setImportFile] = useState<File>();
-  const [importPreview, setImportPreview] = useState<ImportPreview>();
-  const [importKey, setImportKey] = useState("");
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
 
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
@@ -245,35 +240,6 @@ export function CatalogPage() {
     formElement.reset();
   }
 
-  async function previewCsv() {
-    if (!workspace || !importFile) return;
-    setBusy(true);
-    setError(undefined);
-    try {
-      setImportPreview(await api.previewCatalogImport(workspace.id, importFile));
-      setImportKey(crypto.randomUUID());
-    } catch (caught) {
-      setError(errorMessage(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function commitCsv() {
-    if (!workspace || !importFile || !importPreview || importPreview.errors.length) return;
-    await mutate(async () => {
-      const result = await api.commitCatalogImport(
-        workspace.id,
-        importFile,
-        importPreview.payload_sha256,
-        importKey,
-      );
-      setImportFile(undefined);
-      setImportPreview(undefined);
-      setNotice(`Đã nhập ${result.product_count} sản phẩm và ${result.variant_count} biến thể.`);
-    }, "Import hoàn tất.", false);
-  }
-
   if (loading) return <main className="center-state" aria-live="polite">Đang tải catalog…</main>;
   if (!me || !workspace) return <main className="center-state"><p role="alert">{error}</p></main>;
 
@@ -331,14 +297,10 @@ export function CatalogPage() {
               </form>
             </details>
 
-            <details className="action-card">
-              <summary><FileSpreadsheet size={18} /> Import CSV</summary>
-              <div className="import-panel">
-                <label className="upload-dropzone"><Upload size={22} /><span>Chọn CSV UTF-8</span><small>Tối đa 2 MB; preview không ghi dữ liệu.</small><input accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0]); setImportPreview(undefined); }} type="file" /></label>
-                <button className="secondary-button" disabled={!importFile || busy} onClick={() => void previewCsv()} type="button">Kiểm tra dữ liệu</button>
-                {importPreview && <div className="import-preview"><strong>{importPreview.product_count} sản phẩm · {importPreview.variant_count} biến thể</strong>{importPreview.errors.length ? <ul>{importPreview.errors.map((issue, index) => <li key={`${issue.row}-${issue.column}-${index}`}>Dòng {issue.row ?? "—"}, {issue.column ?? "tệp"}: {issue.message}</li>)}</ul> : <><p>Không phát hiện lỗi. Commit sẽ validate lại toàn bộ.</p><button className="primary-button" disabled={busy} onClick={() => void commitCsv()} type="button">Import catalog</button></>}</div>}
-              </div>
-            </details>
+            <CatalogImportWizard
+              workspaceId={workspace.id}
+              onCommitted={async () => { await refreshProducts(); }}
+            />
           </aside>
         )}
       </div>

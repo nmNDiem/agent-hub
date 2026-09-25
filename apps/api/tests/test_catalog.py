@@ -209,6 +209,25 @@ def test_catalog_preserves_null_and_zero_and_archived_skus_remain_reserved(
         assert inherited.json()["effective_price"] is None
         assert inherited.json()["stock_quantity"] is None
 
+        generic = client.post(
+            f"/api/v1/workspaces/{workspace['id']}/products/{product['id']}/variants",
+            json={
+                "variant_sku": "GENERIC-1",
+                "options": {"Storage": "256GB", "Color": "Black"},
+            },
+            headers=csrf_headers(client),
+        )
+        assert generic.status_code == 201, generic.text
+        assert generic.json()["color"] == "Black"
+        assert generic.json()["options"] == {"Storage": "256GB", "Color": "Black"}
+        detail = client.get(
+            f"/api/v1/workspaces/{workspace['id']}/products/{product['id']}"
+        )
+        generic_detail = next(
+            item for item in detail.json()["variants"] if item["variant_sku"] == "GENERIC-1"
+        )
+        assert generic_detail["options"]["Storage"] == "256GB"
+
         guide = client.put(
             f"/api/v1/workspaces/{workspace['id']}/products/{product['id']}/size-guide",
             json={"title": "Generic option guide", "content": {"options": ["A", "B"]}},
@@ -496,3 +515,87 @@ def test_cursor_pagination_uses_stable_created_at_and_id_order(app_factory: AppF
         second_ids = {item["id"] for item in second.json()["items"]}
         assert len(first_ids) == len(second_ids) == 2
         assert first_ids.isdisjoint(second_ids)
+
+
+def test_universal_import_commit_and_option_search_are_tenant_scoped(
+    app_factory: AppFactory,
+) -> None:
+    app, _, _ = app_factory()
+    output = io.StringIO(newline="")
+    columns = [
+        "Handle",
+        "Name",
+        "SKU",
+        "Option1 Name",
+        "Option1 Value",
+        "Option2 Name",
+        "Option2 Value",
+        "Price",
+        "Quantity",
+    ]
+    writer = csv.DictWriter(output, fieldnames=columns)
+    writer.writeheader()
+    writer.writerow(
+        {
+            "Handle": "shirt",
+            "Name": "Shirt",
+            "SKU": "RED-M",
+            "Option1 Name": "Color",
+            "Option1 Value": "Red",
+            "Option2 Name": "Size",
+            "Option2 Value": "M",
+            "Price": "100",
+            "Quantity": "0",
+        }
+    )
+    writer.writerow(
+        {
+            "Handle": "shirt",
+            "SKU": "BLUE-L",
+            "Option1 Name": "Color",
+            "Option1 Value": "Blue",
+            "Option2 Name": "Size",
+            "Option2 Value": "L",
+            "Price": "120",
+            "Quantity": "3",
+        }
+    )
+    content = output.getvalue().encode()
+
+    with TestClient(app) as owner, TestClient(app) as stranger:
+        workspace = register_and_create_workspace(owner, "universal@example.com", "universal")
+        created = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/catalog/imports",
+            files={"file": ("catalog.csv", content, "text/csv")},
+            headers=csrf_headers(owner),
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["status"] == "ready"
+        assert created.json()["summary"]["products"]["create"] == 1
+        import_id = created.json()["id"]
+
+        register_and_create_workspace(stranger, "stranger@example.com", "stranger")
+        denied = stranger.get(f"/api/v1/workspaces/{workspace['id']}/catalog/imports/{import_id}")
+        assert denied.status_code == 404
+
+        committed = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/catalog/imports/{import_id}/commit",
+            headers={**csrf_headers(owner), "Idempotency-Key": "universal-1"},
+        )
+        assert committed.status_code == 200, committed.text
+        assert committed.json()["products_created"] == 1
+        assert committed.json()["variants_created"] == 2
+
+        exact = owner.get(
+            f"/api/v1/workspaces/{workspace['id']}/catalog/search",
+            params=[("option", "Color:Red"), ("option", "Size:M")],
+        )
+        assert exact.status_code == 200, exact.text
+        assert [item["variant_sku"] for item in exact.json()["items"]] == ["RED-M"]
+
+        impossible = owner.get(
+            f"/api/v1/workspaces/{workspace['id']}/catalog/search",
+            params=[("option", "Color:Red"), ("option", "Size:L")],
+        )
+        assert impossible.status_code == 200
+        assert impossible.json()["items"] == []

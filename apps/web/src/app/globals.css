@@ -177,6 +177,31 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .import-preview { padding: 12px; border-radius: 10px; background: var(--muted); line-height: 1.5; }
 .import-preview p { margin: 7px 0 12px; color: var(--muted-foreground); }
 .import-preview ul { max-height: 190px; overflow: auto; margin: 9px 0 0; padding-left: 20px; color: hsl(0 65% 38%); font-size: 12px; }
+.import-wizard { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.import-wizard .card-heading { padding: 0; border: 0; }
+.upload-dropzone.is-dragging { border-color: hsl(221 83% 53%) !important; background: hsl(218 100% 95%); }
+.import-progress { min-height: 150px; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; color: var(--muted-foreground); }
+.import-progress strong { color: var(--foreground); }
+.import-review { display: grid; gap: 16px; }
+.import-file { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.import-file span { color: var(--muted-foreground); font-size: 12px; }
+.import-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.import-summary article { display: grid; gap: 3px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; }
+.import-summary span { color: var(--muted-foreground); font-size: 12px; }
+.import-issues { display: grid; gap: 8px; }
+.import-issues h4 { margin: 0; }
+.import-issues article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid hsl(38 80% 70%); border-radius: 9px; background: hsl(45 100% 97%); }
+.import-issues article div { display: grid; gap: 3px; }
+.import-issues small { color: var(--muted-foreground); }
+.import-success { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 10px; background: hsl(145 55% 96%); color: hsl(150 60% 28%); }
+.import-success div { flex: 1; }
+.import-success p { margin: 4px 0 0; }
+.import-failed-icon { color: hsl(0 65% 45%); }
+
+@media (max-width: 767px) {
+  .import-summary { grid-template-columns: 1fr; }
+  .import-issues article, .import-success, .import-file { align-items: stretch; flex-direction: column; }
+}
 .product-editor { margin-top: 22px; overflow: hidden; }
 .editor-header .eyebrow { margin-bottom: 3px; }
 .product-fields { border-bottom: 1px solid var(--border); }

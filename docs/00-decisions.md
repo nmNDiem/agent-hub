@@ -37,6 +37,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Capture visitor contact | Optional with consent | PROPOSED | Email/phone are not prerequisites to chat |
 | Human handoff | Contact CTA / callback lead, not live-agent inbox | PROPOSED | Live inbox deferred |
 | Knowledge sources | Manual shop text, PDF/TXT FAQ, CSV catalog | PROPOSED | Images of products through Storage |
+| Catalog architecture | Generic options and a structure-driven CSV/XLS/XLSX importer | CONFIRMED | F2.1; no vendor-specific parser, default import mode is MERGE |
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
 | Upload and usage quotas | Yes | PROPOSED | Set numbers during deployment/configuration |

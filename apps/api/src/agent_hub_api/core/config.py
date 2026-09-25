@@ -50,8 +50,13 @@ class Settings(BaseSettings):
     storage_private_bucket: str = "agent-hub-private"
     catalog_image_max_bytes: int = 5 * 1024 * 1024
     catalog_image_max_pixels: int = 20_000_000
-    catalog_csv_max_bytes: int = 2 * 1024 * 1024
-    catalog_csv_max_rows: int = 5_000
+    catalog_import_max_bytes: int = 10 * 1024 * 1024
+    catalog_import_max_rows: int = 20_000
+    catalog_import_max_columns: int = 200
+    catalog_import_max_sheets: int = 20
+    # Legacy names retained for the compatibility endpoints.
+    catalog_csv_max_bytes: int = 10 * 1024 * 1024
+    catalog_csv_max_rows: int = 20_000
     storage_signed_url_seconds: int = 300
     catalog_import_lease_seconds: int = 300
 
