@@ -8,15 +8,15 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 2. Apply moderation/abuse budget, input normalization, attachment permission checks.
 3. Classify intent (product search / size / policy / stock / handoff / image similarity) with conservative fallback.
 4. Invoke allowlisted typed tools with server-injected workspace ID; tool schemas never expose arbitrary SQL or URL fetching.
-5. Search products with structured filters and optional semantic ranking. Retrieve relevant shop documentation via workspace-scoped pgvector search.
+5. Search products with workspace-scoped structured filters over canonical catalog fields, generic options and attributes, then optionally apply semantic ranking. Retrieve relevant shop documentation via workspace-scoped pgvector search.
 6. Compose prompt with safe system rules and clearly delimited untrusted retrieved text.
 7. Stream response; validate product IDs are from tool results, attach authoritative product cards/links and real source references.
 8. Persist user and assistant messages, aggregate usage, record redacted tool events.
 
 ## First tools
-- `search_products(query, category?, colors?, sizes?, min_price?, max_price?)` -> existing product IDs + current catalog attributes.
-- `get_product_detail(product_id)` -> current variants and size chart; verifies workspace.
-- `check_stock(variant_id)` -> latest known stock or explicit unknown plus last update.
+- `search_products(query, category?, options?, attributes?, min_price?, max_price?, in_stock?)` -> existing product IDs and matching variant IDs with current structured facts. Every requested option must match the same actual variant; `color`/`size` inputs, if retained, adapt to generic options.
+- `get_product_detail(product_id)` -> current variants, generic options/attributes, safe image references and optional size chart; verifies workspace.
+- `check_stock(variant_id)` -> latest known quantity/inventory policy or explicit unknown plus last update.
 - `search_shop_knowledge(query)` -> grounded excerpt and source locator.
 - `capture_lead(name?, email?, phone?, consent)` -> explicit consent, idempotent write; avoid collecting irrelevant data.
 - `request_handoff(reason?)` -> configured contact link or callback intent (no fake live transfer).
@@ -30,13 +30,14 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 
 ## Knowledge pipeline
 - Store original PDF/TXT in private Storage; parse and sanitize; chunk with source/position/version; embed; persist job status.
-- CSV is a structured catalog import, not a PDF-like RAG document.
+- CSV/XLS/XLSX catalog files use the universal structured importer, not the knowledge/RAG ingestion path.
 - Re-index updated docs, delete/expire old chunks transactionally; prevent stale document duplicates with checksums and idempotency.
 - Embedding dimension and vector index are selected together; never assume a universal dimension.
 - Apply workspace filter **inside** vector retrieval, not only after ranking; test absence of other-tenant hits.
 
 ## Answer rules
-- Current catalog price and stock override descriptive docs. `NULL` stock is unknown, not in-stock.
+- Current effective catalog price (variant override, otherwise product price) and structured inventory state override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock.
+- Tool and card outputs use generic option/attribute labels. F3/F4 must not assume every catalog has `color`, `size`, variants or a size guide.
 - Only claim a discount, size equivalence, returns policy or delivery promise when source data verifies it.
 - Show a cited product card when possible; for unstructured answers cite source and avoid fabricated references.
 - User/shop-uploaded instructions cannot override tenant security, tool policies or provider budget.

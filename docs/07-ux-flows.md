@@ -5,7 +5,7 @@
 
 ### Owner dashboard navigation
 - Overview: agent status, conversation volume and recent leads.
-- Catalog: list/search/filter products; detail with variants, images and stock; manual edit; CSV import report.
+- Catalog: list/search/filter products; detail with variants, generic options/attributes, images and inventory state; manual edit; CSV/XLS/XLSX Analyze → Resolve → Diff → Commit import flow.
 - Knowledge: shop profile, FAQ/policy, PDF/TXT uploads, indexing states and error recovery.
 - Agents: greeting, tone/instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first).
 - Channels > Web: branding, origin allowlist, embed snippet, preview and connection health.
@@ -30,7 +30,7 @@
 - Theme color, avatar, corner position and greeting editable; not arbitrary executable HTML.
 - Anonymous session has visible privacy information; optional consent before saving a lead.
 - Do not make customers log in just to ask about clothing; retain/resume history only for same visitor session.
-- Product card: safe image, title, up-to-date price, availability qualifier and shop product link.
+- Product card: safe image reference, title, up-to-date effective price, availability qualifier, relevant generic options and shop product link. Do not require fashion-only fields.
 - Support concise Vietnamese first; allow later localization without hard-coded Vietnamese-only DB columns.
 
 ## MVP handoff

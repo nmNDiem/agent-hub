@@ -17,7 +17,7 @@ Supabase is the selected database/storage service, **not the chosen auth server 
 | Workspace | membership, roles, tenant settings, access decision | raw passwords |
 | Agent | config, versions, allowed tools, publish state | payment execution |
 | Knowledge | sources, chunks, indexing and provenance | live stock/price source of truth |
-| Catalog | products/variants, sizing, stock, public URL | model-generated prices |
+| Catalog | products/optional variants, generic options/attributes, effective price, inventory, images/links, universal import/search | model-generated catalog facts or implicit deletion during MERGE |
 | Conversation | normalized messages, participants, handoff status | platform-specific token semantics |
 | Channel adapters | webhook validation, mapping, outbound delivery | independent AI reasoning logic |
 | Tool gateway | typed allowlisted actions with audited scope | arbitrary model-executed code |

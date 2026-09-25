@@ -36,7 +36,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Anonymous visitor chat | Yes, scoped anonymous session | PROPOSED | Rate limits and origin controls |
 | Capture visitor contact | Optional with consent | PROPOSED | Email/phone are not prerequisites to chat |
 | Human handoff | Contact CTA / callback lead, not live-agent inbox | PROPOSED | Live inbox deferred |
-| Knowledge sources | Manual shop text, PDF/TXT FAQ, CSV catalog | PROPOSED | Images of products through Storage |
+| Knowledge sources | Manual shop text and PDF/TXT FAQ; catalog remains structured data | PROPOSED | Catalog uses manual CRUD or the confirmed CSV/XLS/XLSX importer; images use Storage or recorded remote references |
 | Catalog architecture | Generic options and a structure-driven CSV/XLS/XLSX importer | CONFIRMED | F2.1; no vendor-specific parser, default import mode is MERGE |
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
@@ -48,7 +48,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 
 ## Open decisions to validate at scaffolding or deployment
 - Email delivery provider, exact OpenAI chat/vision/embedding model IDs and exact monthly usage limits.
-- Shop catalog source (manual + CSV default vs live ecommerce platform), stock refresh policy and SKU identifiers.
+- Future live-commerce connector/provider, stock refresh policy and connector identity mapping; manual CRUD plus CSV/XLS/XLSX MERGE is already the confirmed file-import baseline.
 - User data retention periods, privacy notice, handoff destination, allowed domains and production secrets management.
 - Local connection strategy for Supabase services: use a remote development Supabase project or explicitly provision local equivalents; no live customer data in dev.
 - VPS provider, sizing, reverse proxy, domain, SMTP provider and backup location when production deployment is scheduled.

@@ -19,7 +19,7 @@ Owner tests the real backend assistant against the shop's approved knowledge bef
 6. `Xem trên website` opens same widget configuration in isolated preview; never treat preview as public deployment.
 
 ## Product response example
-In fashion demo ask `Tư vấn váy đi biển size M`; assistant may surface products **only** if present in database and allowed for the shop; display actual name/price/stock (or hide price/stock if not known). Size chart displayed only if sourced from a size-guide document or product metadata. Image input shows thumbnail + remove and short alt text; AI results should distinguish uncertain visual features and avoid definitive claims about fit from a photo.
+In fashion demo ask `Tư vấn váy đi biển size M`; the tool maps `Size=M` to a generic option and may surface products **only** when the same allowed database variant satisfies all requested options. Display actual name, relevant option labels, effective price and explicit inventory qualifier (hide or label unknown facts). The same response/card schema must also handle products without variants or fashion options. Size charts appear only when sourced from a size-guide document or product metadata. Image input shows thumbnail + remove and short alt text; AI results distinguish uncertain visual features and avoid definitive fit claims from a photo.
 
 ## States and protection
 Bot not found/other workspace -> 404 or 403; LLM disabled -> explanatory state; empty knowledge -> message `Chưa có dữ liệu`; no citations -> hide panel; upload error -> retry; rate limit -> retry hint; streaming lost -> partial response plus retry. Keep workspace ID + agent ID in every query key. No OpenAI key or system prompt leaked in client response.

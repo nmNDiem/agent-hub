@@ -19,10 +19,14 @@ Use **UUIDv7 only for `users.id`, `workspaces.id` and public IDs on externally a
 
 ## Catalog
 - `products`: id, workspace_id, product_sku, title, description, category, status, product_url, currency, price, timestamps; product SKU is normalized uppercase and unique per workspace where supplied. Archived rows continue reserving their SKU.
-- `product_variants`: id, workspace_id, product_id, variant_sku, generic name/options such as color/size, price_override, stock_quantity nullable, status and timestamps; variant SKU is normalized uppercase and unique per workspace where supplied. Archived rows continue reserving their SKU.
-- `product_images`: id, workspace_id, product_id, variant_id nullable, storage_path, sort_order, alt_text.
+- `product_variants`: id, workspace_id, product_id, variant_sku, name, price_override, stock_quantity nullable, inventory_policy, deterministic option_signature, legacy color/size compatibility fields, status and timestamps; variant SKU is normalized uppercase and unique per workspace where supplied. Archived rows continue reserving their SKU.
+- `product_option_definitions`, `product_option_values`, `variant_option_values`: normalized, ordered generic variant dimensions and values. These tables are the option source of truth; `color` and `size` are compatibility projections only.
+- `products.attributes_json`, `product_variants.attributes_json`: flexible non-identity facts that should not become variant dimensions. Identity, pricing, stock and options remain relational rather than being hidden in attribute JSON.
+- `catalog_external_refs`: trusted source/namespace/external-ID mappings used for deterministic reconciliation; display names are never identity.
+- `product_images`: id, workspace_id, product_id, variant_id nullable, storage_path or un-fetched remote reference, source kind, sort_order, alt_text and lifecycle state. Import analysis/commit never fetches arbitrary remote URLs.
+- `catalog_imports`, normalized staged records, issues and mapping profiles: persisted universal-import evidence and decisions. Analyze never mutates the canonical catalog; commit revalidates and applies an atomic idempotent MERGE.
 - `size_guides`: id, workspace_id, product_id nullable, structured_content, source_id nullable.
-Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary floats. `price_override = NULL` inherits the product price while `0` is an explicit zero price. Currency is an explicit ISO code such as VND. `stock_quantity = NULL` means unknown, while `0` means known out of stock. Products may exist without variants or a size guide; option fields do not make the core catalog fashion-only.
+Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary floats. `price_override = NULL` inherits the product price while `0` is an explicit zero price. Currency is an explicit ISO code such as VND. `stock_quantity = NULL` means unknown, while `0` means known out of stock; `inventory_policy` supplies the interpretation without collapsing those states. Products may exist without variants, options or a size guide, and the canonical model is not fashion-specific.
 
 ## Knowledge
 - `knowledge_bases`: id, workspace_id, name, kind, status.
@@ -40,7 +44,7 @@ Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary float
 - `audit_logs`: id, workspace_id, actor_user_id nullable, action, resource_type, resource_id, metadata_redacted, occurred_at.
 
 ## Tenant isolation indexes / invariants
-- `products(workspace_id,status,category)`; `product_variants(workspace_id,product_id)`; `messages(workspace_id,conversation_id,created_at)`; `knowledge_chunks(workspace_id,document_id)` plus vector index suited to chosen dimensions/index strategy.
-- No cross-workspace FK relationship; select/search/CSV import/embedding jobs restricted to workspace.
+- `products(workspace_id,status,category)`; `product_variants(workspace_id,product_id)`; option joins by variant/definition/value; external refs by workspace/source/external ID; import jobs by workspace/status; `messages(workspace_id,conversation_id,created_at)`; `knowledge_chunks(workspace_id,document_id)` plus vector index suited to chosen dimensions/index strategy.
+- No cross-workspace FK relationship; select/search/universal import/embedding jobs restricted to workspace.
 - Soft-archive products and agents; retention/purge policy for visitor content must be documented before production.
 - Use DB uniqueness and transactional updates for imports, refresh rotation and idempotent lead submissions.

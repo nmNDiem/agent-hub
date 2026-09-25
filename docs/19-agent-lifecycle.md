@@ -10,7 +10,7 @@ Name, purpose, greeting, supported language(s), public identity, assistant polic
 System rules and tenant policy originate on server, not from visitors/docs. Retrieved website content and shop documents are untrusted and quoted as data. Model output never directly changes data; only typed server tools may act after authz, scope and business-rule checks. Track tool IDs, confirmation, errors and selected source revisions with redaction.
 
 ## Evaluation before publish
-Test product price/stock retrieval, policy answer grounding, no-match handling, adversarial document prompts, cross-workspace data, cost ceilings, vision no-match and escalation. For a major prompt/model revision, run fixture regression and sample review before publishing.
+Test effective product price/inventory retrieval, generic option/attribute filtering with same-variant semantics, product-only records, policy answer grounding, no-match handling, adversarial document prompts, cross-workspace data, cost ceilings, vision no-match and escalation. For a major prompt/model revision, run fixture regression and sample review before publishing.
 
 ## Future features
 Agent templates (shop, portfolio, customer support), more than one concurrently published agent per workspace, channel-specific policy overrides, staged rollouts, experiment flags and workflow builder. Those are design targets, not MVP task authorization.

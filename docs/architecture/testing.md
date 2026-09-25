@@ -6,6 +6,8 @@
 | Auth | signup/login/logout/refresh rotation/reuse; generic failures; cookie attrs, CSRF, redirect safety |
 | Tenancy | shop A member cannot list/get/mutate shop B bot, conversation, product, doc or Storage asset; cross-shop RAG fixture |
 | DB | Alembic upgrade on clean DB, unique constraints, FK match, deletion/archival and tenancy indexes |
+| Catalog import | CSV/XLS/XLSX shared extraction; cell-state semantics; staged diff; mapping fingerprint stability; identity/SKU conflicts; atomic idempotent MERGE; original XLS regression |
+| Catalog search | generic options/attributes; all options on one actual variant; effective price fallback; unknown vs zero stock; product-only records; cross-workspace denial |
 | AI | fake-provider deterministic stream, timeout/abort/retry, actual source IDs only, no hallucinated product, image reject |
 | Knowledge | MIME/size/signature, corrupt PDF, no-text PDF, retries/idempotency, remove revokes chunks, no partial ready |
 | Widget | published vs draft, invalid origin, brute-force quota, session binding, mobile focus/host CSS isolation |
@@ -13,7 +15,7 @@
 | Ops | health, secret redaction, per-shop token cap, metric definitions and log request IDs |
 
 ## Test fixture protocol
-Never use mockup `bot_0198...` strings as real IDs. Generate UUIDv7 at fixture creation, seed 2 workspaces with similar product names and 2 agents to prove isolation. Internal BIGINTs left to DB identity. Fake OpenAI adapter keeps offline tests free/fast; opt-in real-provider smoke test explicitly budgeted and never used as mandatory CI.
+Never use mockup `bot_0198...` strings as real IDs. Generate UUIDv7 at fixture creation, seed 2 workspaces with similar product names, overlapping SKUs/options and 2 agents to prove isolation. Include product-only and multi-variant fixtures where different variants individually satisfy different filters, so false cross-variant matches are detectable. Internal BIGINTs are left to DB identity. Fake OpenAI adapter keeps offline tests free/fast; opt-in real-provider smoke test is explicitly budgeted and never mandatory CI. PostgreSQL-specific catalog constraints and migrations must run against a dedicated non-production PostgreSQL database before the F2.1 gate closes.
 
 ## Demo is not done
 A pretty static dashboard without local boot, migration harness and working test tools does **not** satisfy foundation acceptance. Authentication must include real tenant isolation. A hardcoded AI reply does not satisfy grounded-agent acceptance. Simulated `Connected` Facebook/Zalo badges do not count as channels. Reference images are layout targets, not functional acceptance evidence.

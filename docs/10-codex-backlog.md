@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0, F1 and F2 are implemented locally. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0, F1 and F2 are implemented locally. F2.1 is implemented but its real PostgreSQL integration gate remains pending. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -21,18 +21,21 @@
 - Product, variant, size guide and image models/APIs; CSV import with preview/validation, safe Storage files, archive semantics.
 - Done: create/import 20+ products, distinguish unknown vs zero stock, correct price across variants; cross-tenant image access denied.
 
-## F2.1 — Universal catalog import (complete)
+## F2.1 — Universal catalog import (implemented; PostgreSQL gate pending)
 - Generalize catalog options/attributes/images and import CSV/XLS/XLSX through one structure-driven pipeline.
 - Persist staged records and issues; preview create/update/unchanged/conflict; commit atomically in MERGE mode.
 - Keep legacy color/size and CSV endpoints compatible; structured option filters match one actual variant.
+- Close the phase only after the migration and PostgreSQL-marked integration suite pass against a dedicated non-production database.
 
 ## F3 — Knowledge / agent
-- Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; embedding adapter and pgvector; agents and KB link; typed tools.
-- Done: scoped search, citation refs, no fabricated SKU/stock/discount and prompt-injection regression tests.
+- Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; embedding adapter and pgvector; agents and KB link; typed tools over the F2.1 catalog/search contract.
+- Catalog tools accept generic option/attribute filters, preserve same-variant option semantics, and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
+- Done: scoped search, citation refs, no fabricated SKU/stock/discount, no cross-variant option joins, no fashion-only schema assumption and prompt-injection regression tests.
 
 ## F4 — Widget / visitor / vision
 - Safe embeddable widget, agent publish/origin config, scoped anonymous sessions, conversations, SSE product cards and image upload/vision matching.
-- Done: functional website integration, keyboard/mobile checks, other visitor cannot open conversation, source/card schema tested.
+- Product cards consume F3 tool output and may show relevant generic options/attributes without requiring size/color, variants or size guides; remote image references must pass the catalog's safe delivery policy and are never fetched during import.
+- Done: functional website integration, keyboard/mobile checks, other visitor cannot open conversation, source/card schema tested across product-only and multi-option variant fixtures.
 
 ## F5 — Pilot release
 - Leads with consent, callback CTA, shop dashboard threads/usage, rate limits/quotas, local observability and documented backup/production prerequisites. Deploy to VPS only in phase P7 when authorized.

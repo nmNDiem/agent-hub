@@ -33,7 +33,7 @@ Next.js/TypeScript, FastAPI, Supabase PostgreSQL, Supabase Storage, OpenAI, Fast
 - `identity`: users, credentials, verification/reset flows, sessions.
 - `workspaces`: membership, roles and tenant request context.
 - `agents`: configuration, publish state, channel connection.
-- `catalog`: products, variants, images, price, stock, sizing and CSV ingestion.
+- `catalog`: products, optional variants, generic options/attributes, images, effective price, inventory, optional sizing and universal CSV/XLS/XLSX ingestion/search.
 - `knowledge`: documents, source text, chunks, embeddings, ingestion status.
 - `conversations`: visitor sessions, messages, SSE and retention.
 - `tools`: validated catalog lookup / lead capture.

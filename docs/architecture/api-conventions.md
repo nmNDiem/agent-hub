@@ -14,7 +14,7 @@
 
 ## Streaming specifics
 Master events: `message.start`, `message.delta`, `product.cards`, `source.refs`, `message.completed`, `message.error`, `heartbeat`. `text/event-stream`, `Cache-Control: no-cache`, disable proxy buffering, heartbeat comments and abort on disconnect. No alternate names `message.products`, `message.sources`, `message.done` unless the master API contract is formally amended.
-- Persist incoming message before generation. On failure/cancel record final state, reconcile provider usage. Product cards contain only verified catalog fields and approved links; do not expose private URLs, internal IDs, raw prompts or sensitive provider errors.
+- Persist incoming message before generation. On failure/cancel record final state and reconcile provider usage. Product cards contain only verified current catalog fields: safe public identifiers/references, approved links/images, effective decimal price, explicit inventory state and relevant generic options/attributes. They must not require fashion-only fields or expose private URLs, dashboard-only internal IDs, raw prompts or sensitive provider errors.
 - For cookie-auth admin writes enforce CSRF and correct same-origin forwarding. Widget endpoints derive workspace and agent exclusively from published agent + issued short-lived session; Origin allowlist is defense in depth, not an identity proof.
 
 ## Request examples

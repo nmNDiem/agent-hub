@@ -11,6 +11,11 @@ Detailed implementation companion to `../04-data-model.md`; if a table is missin
   AGENTS ||--o{ AGENT_REVISIONS : snapshots
   WORKSPACES ||--o{ PRODUCTS : sells
   PRODUCTS ||--o{ PRODUCT_VARIANTS : has
+  PRODUCTS ||--o{ PRODUCT_OPTION_DEFINITIONS : defines
+  PRODUCT_OPTION_DEFINITIONS ||--o{ PRODUCT_OPTION_VALUES : permits
+  PRODUCT_VARIANTS ||--o{ VARIANT_OPTION_VALUES : selects
+  PRODUCT_OPTION_VALUES ||--o{ VARIANT_OPTION_VALUES : assigned
+  WORKSPACES ||--o{ CATALOG_IMPORTS : stages
   WORKSPACES ||--o{ KNOWLEDGE_DOCUMENTS : owns
   KNOWLEDGE_DOCUMENTS ||--o{ KNOWLEDGE_CHUNKS : splits
   AGENTS ||--o{ CONVERSATIONS : serves
@@ -25,14 +30,18 @@ Detailed implementation companion to `../04-data-model.md`; if a table is missin
 - `workspace_members`: BIGINT id, workspace_id/user_id, role `owner`/`admin`/`member`, composite unique. Owners and admins may update workspace settings; members have read access. Ownership transfer/audit remains future work.
 - `agents`: BIGINT id, UUIDv7 public_id, workspace_id, name, draft_config jsonb, published_revision_id nullable, state; publish only if config and knowledge validate.
 - `agent_revisions`: BIGINT id, agent_id, revision_no unique per bot, immutable config jsonb, published_at; immutable published snapshot.
-- `products`: BIGINT id, workspace_id, product SKU optional, name, description, category, exact decimal price nullable, currency, URL and status; variants have product_id, optional globally workspace-unique variant SKU, generic option name plus optional size/color, exact decimal price override and nullable stock. `NULL` stock is **unknown**, not zero or unlimited. Archived product and variant SKU values remain reserved.
+- `products`: BIGINT id, workspace_id, optional workspace-unique product SKU, name, description, category/brand, exact decimal base price nullable, currency, URL and status. Variants have product_id, optional workspace-unique variant SKU, name, exact decimal price override, nullable stock, inventory policy, deterministic option signature, status and legacy size/color projections. `NULL` stock is **unknown**, not zero or unlimited; zero is a known quantity. Archived product and variant SKU values remain reserved.
+- `product_option_definitions`, `product_option_values` and `variant_option_values`: normalized generic variant dimensions, ordered values and assignments. They are the source of truth for options. Constraints prevent a variant from selecting two values for one definition; search with multiple options correlates every constraint to the same variant.
+- Product/variant attributes store non-identity facts without moving core identity, price, stock or option relationships into JSONB. `catalog_external_refs` maps trusted source namespaces and IDs to canonical entities; product names never act as identity.
+- Product images may point to a managed Storage object or a recorded remote reference with explicit source/lifecycle metadata. Import analyze/commit never fetches arbitrary remote URLs.
+- `catalog_imports` owns normalized staged records, issues and structural mapping-profile evidence. Analyze is read-only with respect to canonical catalog rows; commit revalidates affected identity evidence and applies an atomic idempotent MERGE. Records absent from an input file are untouched.
 - `knowledge_documents`: BIGINT id, workspace_id, storage asset id, title, kind, status, content_sha256, error; chunks have workspace_id denormalized with constraints/service checks, document_id, position, content, embedding vector if configured; selected source relations/revision manifests avoid cross-bot leakage.
 - `conversations`: BIGINT id + UUIDv7 public_id, workspace_id, agent_id, channel, revision_id, anonymous_session_hash, state/timestamps; visitor identity optional. `messages`: BIGINT id, conversation_id, role, text, attachments metadata, status, generation/source metadata (JSONB), sequence/created_at.
 - `media_assets`: BIGINT id, workspace_id, bucket, object_key, MIME, bytes, sha256, visibility/retention. `ingestion_jobs`: BIGINT id, workspace_id, document_id, status, attempt, lease, error/timestamps.
 - `auth_sessions`: BIGINT id, user_id, `refresh_token_hash`, family id, expiry, revoke/rotated status; refresh tokens random. `audit_logs`: BIGINT id, workspace_id nullable, actor_user_id, event name, target reference, safe metadata, created_at.
 
 ## Constraints and query patterns
-Every mutable shop resource has immutable `workspace_id` and indexed tenant predicates. Cross-table shop consistency must be checked by service/DB constraints; avoid binding a bot of shop A to a doc of shop B. No hard-delete cascade that unintentionally destroys auditable conversations; archive/deletion policy first. One user cannot have duplicate membership for a shop; SKU unique per shop where not null; revision_no unique per bot. Catalog monetary amounts use `NUMERIC(18,2)` and application `Decimal`, with explicit currency and decimal-string API serialization. `created_at` and `updated_at` are UTC timestamptz, displayed in local time only.
+Every mutable shop resource has immutable `workspace_id` and indexed tenant predicates. Cross-table shop consistency must be checked by service/DB constraints; avoid binding a bot of shop A to a doc, import issue, option value or product of shop B. No hard-delete cascade that unintentionally destroys auditable conversations; archive/deletion policy first. One user cannot have duplicate membership for a shop; SKU unique per shop where not null; trusted external identity unique in its workspace/source namespace; revision_no unique per bot. Catalog monetary amounts use `NUMERIC(18,2)` and application `Decimal`, with explicit currency and decimal-string API serialization. `created_at` and `updated_at` are UTC timestamptz, displayed in local time only.
 
 ## Vector strategy
 Choose a specific OpenAI embedding model and its actual dimension at implementation; configure schema accordingly and record it. Do **not** paste a made-up `vector(1536)` without model/dimension validation. For a small initial dataset, exact similarity search with a mandatory shop filter may be adequate; build HNSW/IVFFlat only after measuring and understanding tenant-filter effects. Content search and structured product query should be distinct functions.

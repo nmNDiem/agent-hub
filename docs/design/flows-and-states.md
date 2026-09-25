@@ -6,7 +6,7 @@ flowchart LR
  A[Register and log in] --> B[Create shop]
  B --> C[Create chatbot draft]
  C --> D[Add products and knowledge]
- D --> E[Wait for ingestion ready]
+ D --> E[Resolve catalog import and wait for knowledge ready]
  E --> F[Test in Playground]
  F --> G{Answer correct?}
  G -->|No| C
@@ -19,7 +19,7 @@ flowchart LR
 Each step gives completion/next-step guidance; never say a bot is live until publish completed and embedded page actually loads. Knowledge upload state must finish before retrieval.
 
 ## Journey B — customer product discovery
-Customer opens launcher → reads AI disclosure/greeting → asks e.g. `Có váy mùa hè size M không?` → server scopes current published bot to shop → search available matching catalog, optionally relevant size guides → stream answer → render 0–N real structured product cards with product URL → customer visits merchant storefront. If there are no matching products, assistant explicitly says none found; no fabricated price/stock.
+Customer opens launcher → reads AI disclosure/greeting → asks e.g. `Có váy mùa hè size M không?` → server scopes current published bot to shop → search the F2.1 structured catalog using generic `Size=M` plus other filters on the same actual variant, optionally retrieve relevant size guides → stream answer → render 0–N real structured product cards with safe image/link references, effective price, explicit inventory qualifier and relevant option labels → customer visits merchant storefront. The same card contract works for catalogs without size/color or variants. If there are no matching products, the assistant explicitly says none were found; no fabricated price/stock/options.
 
 ## Journey C — image-based discovery
 Click image button → select local image → client shows thumbnail and progress → server validates MIME/signature/size → store privately under shop-scoped path, short-lived model access → response makes appropriately qualified visual observations → optional catalog match → cleanup/retention per docs. Image-only message is valid if chosen model supports it; reject non-image files before OpenAI call.
@@ -31,6 +31,7 @@ Open published bot → edit draft → `Có thay đổi chưa lưu` warning → s
 | Domain | State(s) | Transition constraints |
 |---|---|---|
 | document | queued, processing, ready, failed | only `ready` searchable; delete revokes immediately |
+| catalog import | uploaded, analyzing, needs_confirmation, ready, committing, committed, failed | analyze/staging never mutates catalog; commit is atomic/idempotent MERGE; conflicts remain reviewable |
 | bot | draft, published, archived | archived cannot start new sessions; published changes via revision |
 | message | pending, streaming, completed, failed, canceled | never retry with duplicate message ID; idempotency key per send |
 | channel | disconnected, connected, error | connected only after actual provider check |

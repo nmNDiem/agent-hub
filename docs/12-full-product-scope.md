@@ -18,7 +18,7 @@ AgentHub lets individuals and organizations create knowledge-grounded AI assista
 | Knowledge | Files, URL import, ingestion/re-indexing, citations, governance | FAQ, TXT/PDF and catalog; structured search + RAG | DOCX, crawl/sync, lifecycle policies |
 | Conversation | Thread history, streaming, attachments, contacts, handoff | Website widget, image, lead, callback CTA | Unified inbox, staff assignment, SLA |
 | Channels | Web, Facebook, Zalo, extensible adapters | Website | Official platform integration after review |
-| Commerce | Catalog, variants, sizing, stock, product cards | Read-only grounded consultation, CSV/manual data | External commerce sync, order lookup, approved write actions |
+| Commerce | Catalog, variants, generic options/attributes, inventory, product cards | Read-only grounded consultation, manual data and universal CSV/XLS/XLSX import | External commerce sync, order lookup, approved write actions |
 | Other business tools | Calendar, ticketing, CRM, knowledge operations | None | Permissioned connectors per use case |
 | SaaS | Plans, meter, quota, billing, invoices, limits | Internal usage record and safety cap | Paid plans/subscriptions |
 | Operations | Health, logs, retries, backups, release controls | Local dev, focused QA | Docker on VPS, hardened operations |
