@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -54,7 +55,6 @@ class Product(Base):
     currency: Mapped[str] = mapped_column(String(3), default="VND")
     price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
-    stock_quantity: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     inventory_policy: Mapped[str] = mapped_column(String(16), default="unknown")
     attributes_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
     product_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
@@ -84,10 +84,6 @@ class ProductVariant(Base):
             "price_override IS NULL OR price_override >= 0",
             name="ck_product_variants_price_nonnegative",
         ),
-        CheckConstraint(
-            "stock_quantity IS NULL OR stock_quantity >= 0",
-            name="ck_product_variants_stock_nonnegative",
-        ),
         Index("ix_product_variants_workspace_product", "workspace_id", "product_id"),
     )
 
@@ -101,7 +97,6 @@ class ProductVariant(Base):
     size: Mapped[str | None] = mapped_column(String(80), nullable=True)
     price_override: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
-    stock_quantity: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     inventory_policy: Mapped[str] = mapped_column(String(16), default="unknown")
     option_signature: Mapped[str | None] = mapped_column(String(512), nullable=True)
     attributes_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
@@ -110,6 +105,141 @@ class ProductVariant(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
+
+
+class Location(Base):
+    __tablename__ = "locations"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id", name="uq_locations_workspace_id_id"),
+        UniqueConstraint("workspace_id", "code", name="uq_locations_workspace_code"),
+        CheckConstraint("length(trim(name)) > 0", name="ck_locations_name_nonempty"),
+        CheckConstraint(
+            "type IN ('store','warehouse','showroom','service','online','other')",
+            name="ck_locations_type",
+        ),
+        Index("ix_locations_workspace_active", "workspace_id", "is_active", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    type: Mapped[str] = mapped_column(String(24), default="store")
+    address_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class LocationVariant(Base):
+    __tablename__ = "location_variants"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "location_id"],
+            ["locations.workspace_id", "locations.id"],
+            name="fk_location_variants_workspace_location",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "variant_id"],
+            ["product_variants.workspace_id", "product_variants.id"],
+            name="fk_location_variants_workspace_variant",
+        ),
+        CheckConstraint(
+            "price_override IS NULL OR price_override >= 0",
+            name="ck_location_variants_price_nonnegative",
+        ),
+        CheckConstraint(
+            "compare_at_price_override IS NULL OR compare_at_price_override >= 0",
+            name="ck_location_variants_compare_price_nonnegative",
+        ),
+        Index("ix_location_variants_workspace_variant", "workspace_id", "variant_id"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    location_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    variant_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True)
+    price_override: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    compare_at_price_override: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class InventoryLevel(Base):
+    __tablename__ = "inventory_levels"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "location_id"],
+            ["locations.workspace_id", "locations.id"],
+            name="fk_inventory_levels_workspace_location",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "variant_id"],
+            ["product_variants.workspace_id", "product_variants.id"],
+            name="fk_inventory_levels_workspace_variant",
+        ),
+        CheckConstraint(
+            "quantity IS NULL OR quantity >= 0", name="ck_inventory_quantity_nonnegative"
+        ),
+        Index("ix_inventory_levels_workspace_variant", "workspace_id", "variant_id"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    location_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    variant_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    quantity: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class CatalogCollection(Base):
+    __tablename__ = "catalog_collections"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id", name="uq_catalog_collections_workspace_id_id"),
+        UniqueConstraint("workspace_id", "name", name="uq_catalog_collections_workspace_name"),
+        CheckConstraint("length(trim(name)) > 0", name="ck_catalog_collections_name_nonempty"),
+        Index("ix_catalog_collections_workspace_active", "workspace_id", "is_active"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class CatalogCollectionProduct(Base):
+    __tablename__ = "catalog_collection_products"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "collection_id"],
+            ["catalog_collections.workspace_id", "catalog_collections.id"],
+            name="fk_collection_products_workspace_collection",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "product_id"],
+            ["products.workspace_id", "products.id"],
+            name="fk_collection_products_workspace_product",
+        ),
+        Index("ix_collection_products_workspace_product", "workspace_id", "product_id"),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    collection_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
+    product_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True)
 
 
 class SizeGuide(Base):

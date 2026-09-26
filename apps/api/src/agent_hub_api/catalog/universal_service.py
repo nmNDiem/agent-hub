@@ -19,10 +19,15 @@ from agent_hub_api.catalog.import_pipeline import (
 )
 from agent_hub_api.catalog.import_types import ImportIssueData
 from agent_hub_api.catalog.models import (
+    CatalogCollection,
+    CatalogCollectionProduct,
     CatalogImport,
     CatalogImportIssue,
     CatalogImportMappingProfile,
     CatalogImportStagedRecord,
+    InventoryLevel,
+    Location,
+    LocationVariant,
     Product,
     ProductImage,
     ProductOptionDefinition,
@@ -40,6 +45,7 @@ from agent_hub_api.catalog.schemas import (
     ResolveImportIssueRequest,
     UniversalImportCommitResponse,
 )
+from agent_hub_api.catalog.scope_service import resolve_location, upsert_variant_location
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.identity.models import User
@@ -162,6 +168,60 @@ class UniversalCatalogService:
             if variant_skus
             else {}
         )
+        locations = list(
+            (
+                await self.session.scalars(
+                    select(Location).where(Location.workspace_id == workspace_id)
+                )
+            ).all()
+        )
+        locations_by_code = {
+            location.code: location
+            for location in locations
+            if location.code is not None and location.is_active
+        }
+        known_location_codes = set(locations_by_code)
+        existing_location_data: dict[
+            tuple[int, int], tuple[LocationVariant, InventoryLevel | None]
+        ] = {}
+        if variants_by_sku:
+            location_rows = (
+                await self.session.execute(
+                    select(LocationVariant, InventoryLevel)
+                    .outerjoin(
+                        InventoryLevel,
+                        and_(
+                            InventoryLevel.workspace_id == LocationVariant.workspace_id,
+                            InventoryLevel.location_id == LocationVariant.location_id,
+                            InventoryLevel.variant_id == LocationVariant.variant_id,
+                        ),
+                    )
+                    .where(
+                        LocationVariant.workspace_id == workspace_id,
+                        LocationVariant.variant_id.in_(
+                            [variant.id for variant in variants_by_sku.values()]
+                        ),
+                    )
+                )
+            ).all()
+            existing_location_data = {
+                (assignment.location_id, assignment.variant_id): (assignment, inventory)
+                for assignment, inventory in location_rows
+            }
+        for item in serialized:
+            for variant in item["variants"]:
+                location_code = _cell_value(variant["fields"], "location_code")
+                normalized_code = str(location_code).strip().upper() if location_code else None
+                if normalized_code and normalized_code not in known_location_codes:
+                    analysis.issues.append(
+                        ImportIssueData(
+                            "UNKNOWN_LOCATION",
+                            "error",
+                            f'Location code "{normalized_code}" không tồn tại trong workspace.',
+                            variant["source"],
+                            {"location_code": normalized_code},
+                        )
+                    )
         product_ids = {v.product_id for v in variants_by_sku.values()}
         existing_by_id = (
             {
@@ -177,12 +237,33 @@ class UniversalCatalogService:
             if product_ids
             else {}
         )
+        existing_product_ids = {product.id for product in products_by_sku.values()} | set(
+            existing_by_id
+        )
+        implicit_variants_by_product = (
+            {
+                variant.product_id: variant
+                for variant in (
+                    await self.session.scalars(
+                        select(ProductVariant).where(
+                            ProductVariant.workspace_id == workspace_id,
+                            ProductVariant.product_id.in_(existing_product_ids),
+                            ProductVariant.variant_sku.is_(None),
+                        )
+                    )
+                ).all()
+            }
+            if existing_product_ids
+            else {}
+        )
         records: list[CatalogImportStagedRecord] = []
         counts = {
             "products": {"create": 0, "update": 0, "unchanged": 0, "conflict": 0},
             "variants": {"create": 0, "update": 0, "unchanged": 0, "conflict": 0},
             "images": {"create": 0, "update": 0, "unchanged": 0, "conflict": 0},
         }
+        variant_mutations: dict[str, str] = {}
+        mutation_priority = {"unchanged": 0, "update": 1, "create": 2, "conflict": 3}
         for item in serialized:
             sku = _cell_value(item["fields"], "product_sku")
             candidates = {
@@ -220,14 +301,41 @@ class UniversalCatalogService:
                     target_entity_id=target,
                 )
             )
-            for variant in item["variants"]:
+            variants_for_diff = item["variants"] or [
+                {"fields": {}, "options": {}, "source": item["source"]}
+            ]
+            for variant in variants_for_diff:
                 vsku = _cell_value(variant["fields"], "variant_sku")
-                existing = variants_by_sku.get(str(vsku).upper()) if vsku else None
+                existing = (
+                    variants_by_sku.get(str(vsku).upper())
+                    if vsku
+                    else implicit_variants_by_product.get(target)
+                    if target
+                    else None
+                )
                 vmutation = "update" if existing else "create"
-                if existing and self._variant_unchanged(existing, variant["fields"]):
+                location_code = _cell_value(variant["fields"], "location_code")
+                resolved_location = locations_by_code.get(
+                    str(location_code).strip().upper() if location_code else "DEFAULT"
+                )
+                location_data = (
+                    existing_location_data.get((resolved_location.id, existing.id))
+                    if existing is not None and resolved_location is not None
+                    else None
+                )
+                if existing and self._variant_unchanged(existing, variant["fields"], location_data):
                     vmutation = "unchanged"
-                counts["variants"][vmutation] += 1
+                variant_key = (
+                    str(vsku).strip().upper()
+                    if vsku
+                    else f"product:{target or sku or item['source']}:default"
+                )
+                previous = variant_mutations.get(variant_key)
+                if previous is None or mutation_priority[vmutation] > mutation_priority[previous]:
+                    variant_mutations[variant_key] = vmutation
             counts["images"]["create"] += len(item["images"])
+        for mutation in variant_mutations.values():
+            counts["variants"][mutation] += 1
         for record in records:
             if record.mutation == "conflict":
                 analysis.issues.append(
@@ -321,17 +429,40 @@ class UniversalCatalogService:
         )
 
     @staticmethod
-    def _variant_unchanged(variant: ProductVariant, fields: dict[str, Any]) -> bool:
+    def _variant_unchanged(
+        variant: ProductVariant,
+        fields: dict[str, Any],
+        location_data: tuple[LocationVariant, InventoryLevel | None] | None,
+    ) -> bool:
         pairs = (
             ("price_override", "price"),
             ("compare_at_price", "compare_at_price"),
-            ("stock_quantity", "stock_quantity"),
         )
-        return all(
+        base_unchanged = all(
             _cell_value(fields, source) is None
             or str(getattr(variant, target)) == str(_cell_value(fields, source))
             for target, source in pairs
         )
+        if not base_unchanged:
+            return False
+        location_fields = {
+            "stock_quantity": location_data[1].quantity
+            if location_data is not None and location_data[1] is not None
+            else None,
+            "location_price": location_data[0].price_override if location_data else None,
+            "location_compare_at_price": (
+                location_data[0].compare_at_price_override if location_data else None
+            ),
+        }
+        for source, current in location_fields.items():
+            cell = fields.get(source, {"state": "missing", "value": None})
+            if cell.get("state") in {"missing", "blank"}:
+                continue
+            desired = cell.get("value") if cell.get("state") == "value" else None
+            if str(current) != str(desired):
+                return False
+        has_location_reference = _cell_value(fields, "location_code") is not None
+        return location_data is not None or not has_location_reference
 
     async def get(self, user: User, workspace_id: UUID, import_id: int) -> CatalogImportResponse:
         await self._authorize(user, workspace_id)
@@ -517,13 +648,14 @@ class UniversalCatalogService:
                 )
                 job.status = "committing"
                 job.idempotency_key = idempotency_key
+                variant_outcomes: dict[int, str] = {}
                 for record in records:
-                    await self._commit_record(workspace_id, record, result)
+                    await self._commit_record(workspace_id, record, result, variant_outcomes)
                 job.status = "committed"
                 job.committed_at = datetime.now(UTC)
                 job.completed_at = job.committed_at
                 job.updated_at = job.committed_at
-                job.result = cast(dict[str, object], result)
+                job.result = result
         except IntegrityError as exc:
             raise ApiError(
                 status.HTTP_409_CONFLICT,
@@ -533,7 +665,11 @@ class UniversalCatalogService:
         return UniversalImportCommitResponse.model_validate(result)
 
     async def _commit_record(
-        self, workspace_id: UUID, record: CatalogImportStagedRecord, result: dict[str, Any]
+        self,
+        workspace_id: UUID,
+        record: CatalogImportStagedRecord,
+        result: dict[str, Any],
+        variant_outcomes: dict[int, str],
     ) -> None:
         data = cast(dict[str, Any], record.normalized_json)
         fields = cast(dict[str, Any], data["fields"])
@@ -580,6 +716,15 @@ class UniversalCatalogService:
             if source in fields:
                 _apply_cell(product, attr, fields[source])
         variants = cast(list[dict[str, Any]], data["variants"])
+        creates_implicit_variant = not variants
+        if not variants:
+            variants = [
+                {
+                    "fields": {},
+                    "options": {},
+                    "source": data["source"],
+                }
+            ]
         for variant_data in variants:
             vf = cast(dict[str, Any], variant_data["fields"])
             sku = _cell_value(vf, "variant_sku")
@@ -591,7 +736,13 @@ class UniversalCatalogService:
                     )
                 )
                 if sku
-                else None
+                else await self.session.scalar(
+                    select(ProductVariant).where(
+                        ProductVariant.workspace_id == workspace_id,
+                        ProductVariant.product_id == product.id,
+                        ProductVariant.variant_sku.is_(None),
+                    )
+                )
             )
             created = variant is None
             if variant is None:
@@ -599,7 +750,7 @@ class UniversalCatalogService:
                     workspace_id=workspace_id,
                     product_id=product.id,
                     variant_sku=str(sku).upper() if sku else None,
-                    attributes_json={},
+                    attributes_json={"system_default": True} if creates_implicit_variant else {},
                 )
                 self.session.add(variant)
                 await self.session.flush()
@@ -614,22 +765,57 @@ class UniversalCatalogService:
                 ("barcode", "barcode"),
                 ("price_override", "price"),
                 ("compare_at_price", "compare_at_price"),
-                ("stock_quantity", "stock_quantity"),
             ):
-                changed = _apply_cell(variant, attr, vf[source]) or changed
+                if source in vf:
+                    changed = _apply_cell(variant, attr, vf[source]) or changed
             await self._set_options(
                 workspace_id,
                 product,
                 variant,
                 cast(dict[str, Any], variant_data["options"]),
             )
-            result[
-                "variants_created"
-                if created
-                else "variants_updated"
-                if changed
-                else "variants_unchanged"
-            ] += 1
+            location_code = _cell_value(vf, "location_code")
+            location = await resolve_location(
+                self.session,
+                workspace_id,
+                str(location_code) if location_code is not None else None,
+            )
+            stock_cell = vf.get("stock_quantity", {"state": "missing", "value": None})
+            price_cell = vf.get("location_price", {"state": "missing", "value": None})
+            compare_cell = vf.get("location_compare_at_price", {"state": "missing", "value": None})
+            quantity_supplied = stock_cell.get("state") in {"value", "explicit_null"}
+            price_supplied = price_cell.get("state") in {"value", "explicit_null"}
+            compare_supplied = compare_cell.get("state") in {"value", "explicit_null"}
+            await upsert_variant_location(
+                self.session,
+                workspace_id=workspace_id,
+                location=location,
+                variant=variant,
+                quantity=(int(stock_cell["value"]) if stock_cell.get("state") == "value" else None),
+                quantity_supplied=quantity_supplied,
+                price_override=(
+                    Decimal(str(price_cell["value"]))
+                    if price_cell.get("state") == "value"
+                    else None
+                ),
+                price_supplied=price_supplied,
+                compare_at_price_override=(
+                    Decimal(str(compare_cell["value"]))
+                    if compare_cell.get("state") == "value"
+                    else None
+                ),
+                compare_price_supplied=compare_supplied,
+            )
+            outcome = "created" if created else "updated" if changed else "unchanged"
+            previous = variant_outcomes.get(variant.id)
+            priority = {"unchanged": 0, "updated": 1, "created": 2}
+            if previous is None:
+                result[f"variants_{outcome}"] += 1
+                variant_outcomes[variant.id] = outcome
+            elif priority[outcome] > priority[previous]:
+                result[f"variants_{previous}"] -= 1
+                result[f"variants_{outcome}"] += 1
+                variant_outcomes[variant.id] = outcome
         images = cast(list[dict[str, Any]], data["images"])
         for index, image in enumerate(images):
             url = image.get("source_url")
@@ -690,37 +876,96 @@ class UniversalCatalogService:
         options: list[str],
         attributes: list[str],
         limit: int,
+        location_id: int | None = None,
+        collection_id: int | None = None,
     ) -> CatalogSearchResponse:
         await self._authorize(user, workspace_id)
+        if location_id is not None:
+            location_exists = await self.session.scalar(
+                select(Location.id).where(
+                    Location.workspace_id == workspace_id,
+                    Location.id == location_id,
+                    Location.is_active.is_(True),
+                )
+            )
+            if location_exists is None:
+                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy location.")
+        if collection_id is not None:
+            collection_exists = await self.session.scalar(
+                select(CatalogCollection.id).where(
+                    CatalogCollection.workspace_id == workspace_id,
+                    CatalogCollection.id == collection_id,
+                    CatalogCollection.is_active.is_(True),
+                )
+            )
+            if collection_exists is None:
+                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy collection.")
         stmt = (
-            select(Product, ProductVariant)
+            select(Product, ProductVariant, LocationVariant, InventoryLevel, Location)
             .join(
                 ProductVariant,
                 and_(
                     ProductVariant.workspace_id == Product.workspace_id,
                     ProductVariant.product_id == Product.id,
                 ),
-                isouter=True,
+            )
+            .join(
+                LocationVariant,
+                and_(
+                    LocationVariant.workspace_id == ProductVariant.workspace_id,
+                    LocationVariant.variant_id == ProductVariant.id,
+                ),
+            )
+            .join(
+                Location,
+                and_(
+                    Location.workspace_id == LocationVariant.workspace_id,
+                    Location.id == LocationVariant.location_id,
+                ),
+            )
+            .outerjoin(
+                InventoryLevel,
+                and_(
+                    InventoryLevel.workspace_id == LocationVariant.workspace_id,
+                    InventoryLevel.location_id == LocationVariant.location_id,
+                    InventoryLevel.variant_id == LocationVariant.variant_id,
+                ),
             )
             .where(
                 Product.workspace_id == workspace_id,
                 Product.status == "active",
-                or_(ProductVariant.id.is_(None), ProductVariant.status == "active"),
+                ProductVariant.status == "active",
+                LocationVariant.is_active.is_(True),
+                Location.is_active.is_(True),
             )
         )
+        if location_id is not None:
+            stmt = stmt.where(LocationVariant.location_id == location_id)
+        if collection_id is not None:
+            stmt = stmt.where(
+                exists(
+                    select(1).where(
+                        CatalogCollectionProduct.workspace_id == workspace_id,
+                        CatalogCollectionProduct.collection_id == collection_id,
+                        CatalogCollectionProduct.product_id == Product.id,
+                    )
+                )
+            )
         if text:
             stmt = stmt.where(
                 or_(Product.name.ilike(f"%{text}%"), Product.product_sku.ilike(f"%{text}%"))
             )
         if brand:
             stmt = stmt.where(Product.brand.ilike(brand))
-        effective = func.coalesce(ProductVariant.price_override, Product.price)
+        effective = func.coalesce(
+            LocationVariant.price_override, ProductVariant.price_override, Product.price
+        )
         if price_min is not None:
             stmt = stmt.where(effective >= price_min)
         if price_max is not None:
             stmt = stmt.where(effective <= price_max)
         if in_stock is True:
-            stmt = stmt.where(ProductVariant.stock_quantity > 0)
+            stmt = stmt.where(InventoryLevel.quantity > 0)
         for raw in attributes:
             if ":" not in raw:
                 raise ApiError(
@@ -769,7 +1014,7 @@ class UniversalCatalogService:
             )
         rows = (await self.session.execute(stmt.limit(limit))).all()
         items: list[CatalogSearchItem] = []
-        for product, variant in rows:
+        for product, variant, assignment, inventory, location in rows:
             option_map: dict[str, str] = {}
             if variant:
                 opt_rows = (
@@ -809,11 +1054,15 @@ class UniversalCatalogService:
                     variant_id=variant.id if variant else None,
                     variant_sku=variant.variant_sku if variant else None,
                     effective_price=(
-                        variant.price_override
-                        if variant and variant.price_override is not None
+                        assignment.price_override
+                        if assignment.price_override is not None
+                        else variant.price_override
+                        if variant.price_override is not None
                         else product.price
                     ),
-                    stock_quantity=variant.stock_quantity if variant else product.stock_quantity,
+                    stock_quantity=inventory.quantity if inventory is not None else None,
+                    location_id=location.id,
+                    location_name=location.name,
                     options=option_map,
                     attributes=cast(Any, product.attributes_json or {}),
                 )

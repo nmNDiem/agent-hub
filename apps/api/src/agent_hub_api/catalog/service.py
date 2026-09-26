@@ -14,12 +14,16 @@ from uuid import UUID
 from fastapi import status
 from PIL import Image, UnidentifiedImageError
 from pydantic import JsonValue
+from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.catalog.csv_import import ParsedCatalogCsv, parse_catalog_csv
 from agent_hub_api.catalog.models import (
     CatalogImport,
+    InventoryLevel,
+    Location,
+    LocationVariant,
     Product,
     ProductImage,
     ProductVariant,
@@ -42,8 +46,13 @@ from agent_hub_api.catalog.schemas import (
     SizeGuideRequest,
     SizeGuideResponse,
     VariantCreateRequest,
+    VariantLocationAvailabilityResponse,
     VariantResponse,
     VariantUpdateRequest,
+)
+from agent_hub_api.catalog.scope_service import (
+    get_or_create_default_location,
+    upsert_variant_location,
 )
 from agent_hub_api.catalog.storage import CatalogStorage, StorageError
 from agent_hub_api.core.config import Settings
@@ -86,6 +95,7 @@ def variant_response(
     variant: ProductVariant,
     product_price: Decimal | None,
     options: dict[str, str] | None = None,
+    availability: list[VariantLocationAvailabilityResponse] | None = None,
 ) -> VariantResponse:
     effective_price = (
         variant.price_override if variant.price_override is not None else product_price
@@ -99,7 +109,11 @@ def variant_response(
         options=options or {},
         price_override=variant.price_override,
         effective_price=effective_price,
-        stock_quantity=variant.stock_quantity,
+        stock_quantity=next(
+            (item.quantity for item in availability or [] if item.location_code == "DEFAULT"),
+            None,
+        ),
+        availability=availability or [],
         status=cast(Literal["active", "archived"], variant.status),
         created_at=variant.created_at,
         updated_at=variant.updated_at,
@@ -205,7 +219,64 @@ class CatalogService:
         option_map = await load_variant_options(
             self.session, workspace_id, [variant.id for variant in variants]
         )
-        return self._detail(product, variants, guide, images, option_map)
+        availability = await self._load_availability(workspace_id, variants, product.price)
+        return self._detail(product, variants, guide, images, option_map, availability)
+
+    async def _load_availability(
+        self, workspace_id: UUID, variants: list[ProductVariant], product_price: Decimal | None
+    ) -> dict[int, list[VariantLocationAvailabilityResponse]]:
+        if not variants:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(LocationVariant, InventoryLevel, Location)
+                .join(
+                    Location,
+                    and_(
+                        Location.workspace_id == LocationVariant.workspace_id,
+                        Location.id == LocationVariant.location_id,
+                    ),
+                )
+                .outerjoin(
+                    InventoryLevel,
+                    and_(
+                        InventoryLevel.workspace_id == LocationVariant.workspace_id,
+                        InventoryLevel.location_id == LocationVariant.location_id,
+                        InventoryLevel.variant_id == LocationVariant.variant_id,
+                    ),
+                )
+                .where(
+                    LocationVariant.workspace_id == workspace_id,
+                    LocationVariant.variant_id.in_([variant.id for variant in variants]),
+                )
+                .order_by(Location.name)
+            )
+        ).all()
+        base_prices = {
+            variant.id: variant.price_override
+            if variant.price_override is not None
+            else product_price
+            for variant in variants
+        }
+        result: dict[int, list[VariantLocationAvailabilityResponse]] = {}
+        for assignment, inventory, location in rows:
+            base_price = base_prices[assignment.variant_id]
+            result.setdefault(assignment.variant_id, []).append(
+                VariantLocationAvailabilityResponse(
+                    location_id=location.id,
+                    location_name=location.name,
+                    location_code=location.code,
+                    is_active=assignment.is_active and location.is_active,
+                    quantity=inventory.quantity if inventory is not None else None,
+                    price_override=assignment.price_override,
+                    effective_price=(
+                        assignment.price_override
+                        if assignment.price_override is not None
+                        else base_price
+                    ),
+                )
+            )
+        return result
 
     def _detail(
         self,
@@ -214,6 +285,7 @@ class CatalogService:
         guide: SizeGuide | None,
         images: list[ProductImage],
         option_map: dict[int, dict[str, str]],
+        availability: dict[int, list[VariantLocationAvailabilityResponse]] | None = None,
     ) -> ProductDetailResponse:
         summary = self._summary(product, sum(variant.status == "active" for variant in variants))
         guide_payload = (
@@ -231,7 +303,12 @@ class CatalogService:
             description=product.description,
             product_url=product.product_url,
             variants=[
-                variant_response(variant, product.price, option_map.get(variant.id, {}))
+                variant_response(
+                    variant,
+                    product.price,
+                    option_map.get(variant.id, {}),
+                    (availability or {}).get(variant.id, []),
+                )
                 for variant in variants
             ],
             size_guide=guide_payload,
@@ -293,9 +370,18 @@ class CatalogService:
             async with self.session.begin():
                 await self._authorize(user, workspace_id, write=True)
                 product = await self._product_or_404(workspace_id, product_id)
-                values = payload.model_dump(exclude={"options"})
+                values = payload.model_dump(exclude={"options", "stock_quantity"})
                 variant = ProductVariant(workspace_id=workspace_id, product_id=product_id, **values)
                 await self.repository.add_variant(variant)
+                default_location = await get_or_create_default_location(self.session, workspace_id)
+                await upsert_variant_location(
+                    self.session,
+                    workspace_id=workspace_id,
+                    location=default_location,
+                    variant=variant,
+                    quantity=payload.stock_quantity,
+                    quantity_supplied=True,
+                )
                 options: dict[str, str | None] = dict(payload.options)
                 if payload.color is not None:
                     options["Color"] = payload.color
@@ -307,7 +393,13 @@ class CatalogService:
         except IntegrityError as exc:
             raise self._sku_conflict("variant_sku") from exc
         option_map = await load_variant_options(self.session, workspace_id, [variant.id])
-        return variant_response(variant, product.price, option_map.get(variant.id, {}))
+        availability = await self._load_availability(workspace_id, [variant], product.price)
+        return variant_response(
+            variant,
+            product.price,
+            option_map.get(variant.id, {}),
+            availability.get(variant.id, []),
+        )
 
     async def update_variant(
         self,
@@ -326,8 +418,20 @@ class CatalogService:
                     raise ApiError(
                         status.HTTP_404_NOT_FOUND, "NOT_FOUND", "KhÃ´ng tÃ¬m tháº¥y biáº¿n thá»ƒ."
                     )
-                for field in payload.model_fields_set - {"options"}:
+                for field in payload.model_fields_set - {"options", "stock_quantity"}:
                     setattr(variant, field, getattr(payload, field))
+                if "stock_quantity" in payload.model_fields_set:
+                    default_location = await get_or_create_default_location(
+                        self.session, workspace_id
+                    )
+                    await upsert_variant_location(
+                        self.session,
+                        workspace_id=workspace_id,
+                        location=default_location,
+                        variant=variant,
+                        quantity=payload.stock_quantity,
+                        quantity_supplied=True,
+                    )
                 if "options" in payload.model_fields_set:
                     await set_variant_options(
                         self.session,
@@ -355,7 +459,13 @@ class CatalogService:
         except IntegrityError as exc:
             raise self._sku_conflict("variant_sku") from exc
         option_map = await load_variant_options(self.session, workspace_id, [variant.id])
-        return variant_response(variant, product.price, option_map.get(variant.id, {}))
+        availability = await self._load_availability(workspace_id, [variant], product.price)
+        return variant_response(
+            variant,
+            product.price,
+            option_map.get(variant.id, {}),
+            availability.get(variant.id, []),
+        )
 
     async def archive_variant(
         self, user: User, workspace_id: UUID, product_id: int, variant_id: int
@@ -522,9 +632,20 @@ class CatalogService:
                         variant = ProductVariant(
                             workspace_id=workspace_id,
                             product_id=product.id,
-                            **variant_payload.model_dump(exclude={"options"}),
+                            **variant_payload.model_dump(exclude={"options", "stock_quantity"}),
                         )
                         await self.repository.add_variant(variant)
+                        default_location = await get_or_create_default_location(
+                            self.session, workspace_id
+                        )
+                        await upsert_variant_location(
+                            self.session,
+                            workspace_id=workspace_id,
+                            location=default_location,
+                            variant=variant,
+                            quantity=variant_payload.stock_quantity,
+                            quantity_supplied=True,
+                        )
                         options: dict[str, str | None] = dict(variant_payload.options)
                         if variant_payload.color is not None:
                             options["Color"] = variant_payload.color

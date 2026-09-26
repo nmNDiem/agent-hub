@@ -6,6 +6,8 @@ import {
   ChevronDown,
   CircleGauge,
   LogOut,
+  Layers3,
+  MapPin,
   Menu,
   MessageSquareText,
   Settings,
@@ -22,7 +24,9 @@ const navigation = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
   { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
   { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: false },
-  { label: "Sản phẩm", icon: Boxes, segment: "products", enabled: true },
+  { label: "Catalog", icon: Boxes, segment: "catalog", enabled: true },
+  { label: "Locations", icon: MapPin, segment: "locations", enabled: true },
+  { label: "Collections", icon: Layers3, segment: "catalog/collections", enabled: true },
 ];
 
 function Navigation({ workspace }: { workspace: Workspace }) {

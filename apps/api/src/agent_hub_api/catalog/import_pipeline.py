@@ -46,6 +46,9 @@ ALIASES: dict[str, set[str]] = {
     "variant_price": {"variant price"},
     "compare_at_price": {"compare at price", "gia so sanh"},
     "stock_quantity": {"inventory qty", "quantity", "stock", "so luong", "ton kho"},
+    "location_code": {"location code", "branch code", "warehouse code", "ma chi nhanh", "ma kho"},
+    "location_price": {"location price", "branch price", "store price", "gia chi nhanh"},
+    "location_compare_at_price": {"location compare at price", "gia so sanh chi nhanh"},
     "inventory_policy": {"inventory policy", "quan ly kho"},
     "image_url": {"image src", "image", "anh dai dien", "url anh"},
     "image_alt": {"image alt text", "alt text", "chu thich anh"},
@@ -239,6 +242,7 @@ def analyze_catalog(
             image = _value(_field(row, "image_url"))
             variant_sku = _value(_field(row, "variant_sku"))
             product_sku = _value(_field(row, "product_sku"))
+            location_code = _value(_field(row, "location_code"))
             group_key = str(slug or product_sku or "").strip().casefold()
             if name:
                 fields = {
@@ -250,7 +254,11 @@ def analyze_catalog(
                     "description": _field(row, "description"),
                     "product_url": _field(row, "product_url"),
                     "currency": Cell(CellState.VALUE, "VND"),
-                    "base_price": _money(_field(row, "price")),
+                    "base_price": (
+                        _money(_field(row, "price"))
+                        if location_code is None
+                        else Cell(CellState.MISSING)
+                    ),
                     "compare_at_price": _money(_field(row, "compare_at_price")),
                 }
                 description = _value(fields["description"])
@@ -306,7 +314,15 @@ def analyze_catalog(
                             {"sheet": sheet_name, "row": row_index},
                         )
                     )
-            if variant_sku or any(_value(_field(row, f"option_{i}_value")) for i in range(1, 4)):
+            has_location_data = any(
+                _field(row, field).state in {CellState.VALUE, CellState.EXPLICIT_NULL}
+                for field in ("location_code", "stock_quantity", "location_price")
+            )
+            if (
+                variant_sku
+                or has_location_data
+                or any(_value(_field(row, f"option_{i}_value")) for i in range(1, 4))
+            ):
                 options: dict[str, Cell] = {}
                 if _field(row, "legacy_color").state is CellState.VALUE:
                     options["Color"] = _field(row, "legacy_color")
@@ -331,10 +347,23 @@ def analyze_catalog(
                             _field(row, "variant_price")
                             if _field(row, "variant_price").state is not CellState.MISSING
                             else _field(row, "price")
+                            if location_code is None
+                            else Cell(CellState.MISSING)
                         ),
                         "compare_at_price": _money(_field(row, "compare_at_price")),
                         "stock_quantity": _integer(_field(row, "stock_quantity")),
                         "inventory_policy": _field(row, "inventory_policy"),
+                        "location_code": _field(row, "location_code"),
+                        "location_price": _money(
+                            _field(row, "location_price")
+                            if _field(row, "location_price").state is not CellState.MISSING
+                            else _field(row, "price")
+                            if location_code is not None
+                            else Cell(CellState.MISSING)
+                        ),
+                        "location_compare_at_price": _money(
+                            _field(row, "location_compare_at_price")
+                        ),
                     },
                     options,
                     {},
@@ -383,8 +412,13 @@ def analyze_catalog(
     ).hexdigest()
     duplicate_skus = [
         sku
-        for sku, count in Counter(
-            str(_value(v.fields["variant_sku"])).strip().upper()
+        for (sku, _location), count in Counter(
+            (
+                str(_value(v.fields["variant_sku"])).strip().upper(),
+                str(_value(v.fields.get("location_code", Cell(CellState.MISSING))) or "DEFAULT")
+                .strip()
+                .upper(),
+            )
             for p in products
             for v in p.variants
             if _value(v.fields["variant_sku"])

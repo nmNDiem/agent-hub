@@ -36,7 +36,7 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 - Apply workspace filter **inside** vector retrieval, not only after ranking; test absence of other-tenant hits.
 
 ## Answer rules
-- Current effective catalog price (variant override, otherwise product price) and structured inventory state override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock.
+- Current effective catalog price (location override, otherwise variant override, otherwise product price) and location-scoped structured inventory override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock. F3 resolves allowed agent locations/collections before calling the F2.2 scoped search contract.
 - Tool and card outputs use generic option/attribute labels. F3/F4 must not assume every catalog has `color`, `size`, variants or a size guide.
 - Only claim a discount, size equivalence, returns policy or delivery promise when source data verifies it.
 - Show a cited product card when possible; for unstructured answers cite source and avoid fabricated references.

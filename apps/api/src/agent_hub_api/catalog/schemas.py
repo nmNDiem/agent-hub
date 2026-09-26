@@ -157,6 +157,20 @@ class SizeGuideRequest(BaseModel):
         return self
 
 
+class VariantLocationAvailabilityResponse(BaseModel):
+    location_id: int
+    location_name: str
+    location_code: str | None
+    is_active: bool
+    quantity: int | None
+    price_override: Decimal | None
+    effective_price: Decimal | None
+
+    @field_serializer("price_override", "effective_price", when_used="json")
+    def serialize_money(self, value: Decimal | None) -> str | None:
+        return format(value, ".2f") if value is not None else None
+
+
 class VariantResponse(BaseModel):
     id: int
     variant_sku: str | None
@@ -167,6 +181,7 @@ class VariantResponse(BaseModel):
     price_override: Decimal | None
     effective_price: Decimal | None
     stock_quantity: int | None
+    availability: list[VariantLocationAvailabilityResponse] = Field(default_factory=list)
     status: CatalogStatus
     created_at: datetime
     updated_at: datetime
@@ -337,6 +352,8 @@ class CatalogSearchItem(BaseModel):
     variant_sku: str | None
     effective_price: Decimal | None
     stock_quantity: int | None
+    location_id: int | None = None
+    location_name: str | None = None
     options: dict[str, str]
     attributes: dict[str, JsonValue]
 

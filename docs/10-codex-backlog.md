@@ -27,6 +27,13 @@
 - Keep legacy color/size and CSV endpoints compatible; structured option filters match one actual variant.
 - Close the phase only after the migration and PostgreSQL-marked integration suite pass against a dedicated non-production database.
 
+## F2.2 — Workspace locations and catalog scope (implemented; PostgreSQL gate pending)
+- Keep one workspace-owned master product/variant identity; never duplicate products by location.
+- Store availability and inventory by `(location_id, variant_id)` with `NULL` distinct from zero; location price overrides fall back to existing variant/product pricing.
+- Add generic locations, catalog collections, location/collection-scoped search and explicit `location_code` import resolution.
+- Do not create agents or agent assignment tables. F3 owns agents and must compose its effective scope from these F2.2 primitives.
+- Close the phase only after migration and PostgreSQL integration tests verify stock backfill and composite tenant constraints.
+
 ## F3 — Knowledge / agent
 - Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; embedding adapter and pgvector; agents and KB link; typed tools over the F2.1 catalog/search contract.
 - Catalog tools accept generic option/attribute filters, preserve same-variant option semantics, and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.

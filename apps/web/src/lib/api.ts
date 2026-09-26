@@ -46,7 +46,56 @@ export type ProductVariant = {
   price_override: string | null;
   effective_price: string | null;
   stock_quantity: number | null;
+  availability: Array<{
+    location_id: number;
+    location_name: string;
+    location_code: string | null;
+    is_active: boolean;
+    quantity: number | null;
+    price_override: string | null;
+    effective_price: string | null;
+  }>;
   status: "active" | "archived";
+};
+
+export type Location = {
+  id: number;
+  name: string;
+  code: string | null;
+  type: "store" | "warehouse" | "showroom" | "service" | "online" | "other";
+  address: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  is_active: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LocationVariant = {
+  location_id: number;
+  location_name: string;
+  product_id: number;
+  product_name: string;
+  variant_id: number;
+  variant_sku: string | null;
+  is_active: boolean;
+  base_price: string | null;
+  price_override: string | null;
+  effective_price: string | null;
+  compare_at_price_override: string | null;
+  quantity: number | null;
+  updated_at: string;
+};
+
+export type CatalogCollection = {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  archived_at: string | null;
+  product_ids: number[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type ProductImage = {
@@ -211,6 +260,55 @@ export const api = {
   archiveVariant: (workspaceId: string, productId: number, variantId: number) =>
     request<void>(
       `/api/v1/workspaces/${workspaceId}/products/${productId}/variants/${variantId}`,
+      { method: "DELETE" },
+    ),
+  listLocations: (workspaceId: string, includeArchived = false) =>
+    request<Location[]>(
+      `/api/v1/workspaces/${workspaceId}/locations?include_archived=${includeArchived}`,
+    ),
+  createLocation: (workspaceId: string, payload: Record<string, unknown>) =>
+    request<Location>(`/api/v1/workspaces/${workspaceId}/locations`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  archiveLocation: (workspaceId: string, locationId: number) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/locations/${locationId}`, {
+      method: "DELETE",
+    }),
+  listLocationVariants: (workspaceId: string, locationId: number) =>
+    request<LocationVariant[]>(
+      `/api/v1/workspaces/${workspaceId}/locations/${locationId}/variants`,
+    ),
+  updateLocationVariant: (
+    workspaceId: string,
+    locationId: number,
+    variantId: number,
+    payload: Record<string, unknown>,
+  ) => request<LocationVariant>(
+    `/api/v1/workspaces/${workspaceId}/locations/${locationId}/variants/${variantId}`,
+    { method: "PUT", body: JSON.stringify(payload) },
+  ),
+  listCollections: (workspaceId: string, includeArchived = false) =>
+    request<CatalogCollection[]>(
+      `/api/v1/workspaces/${workspaceId}/catalog/collections?include_archived=${includeArchived}`,
+    ),
+  createCollection: (workspaceId: string, payload: Record<string, unknown>) =>
+    request<CatalogCollection>(`/api/v1/workspaces/${workspaceId}/catalog/collections`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  archiveCollection: (workspaceId: string, collectionId: number) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/catalog/collections/${collectionId}`, {
+      method: "DELETE",
+    }),
+  addCollectionProduct: (workspaceId: string, collectionId: number, productId: number) =>
+    request<void>(
+      `/api/v1/workspaces/${workspaceId}/catalog/collections/${collectionId}/products/${productId}`,
+      { method: "PUT" },
+    ),
+  removeCollectionProduct: (workspaceId: string, collectionId: number, productId: number) =>
+    request<void>(
+      `/api/v1/workspaces/${workspaceId}/catalog/collections/${collectionId}/products/${productId}`,
       { method: "DELETE" },
     ),
   putSizeGuide: (

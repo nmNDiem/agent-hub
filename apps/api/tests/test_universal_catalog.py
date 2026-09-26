@@ -112,3 +112,20 @@ def universal_csv() -> bytes:
         }
     )
     return output.getvalue().encode()
+
+
+def test_location_rows_share_master_variant_and_keep_null_distinct_from_zero() -> None:
+    content = (
+        b"Handle,Name,SKU,Location Code,Price,Quantity\n"
+        b"shirt,Shirt,SHIRT-M,HCM,100,NULL\n"
+        b"shirt,,SHIRT-M,HN,120,0\n"
+    )
+    analysis = analyze(content, "locations.csv")
+    assert not [issue for issue in analysis.issues if issue.issue_type == "DUPLICATE_VARIANT_SKU"]
+    variants = analysis.products[0].variants
+    assert len(variants) == 2
+    assert variants[0].fields["location_code"].value == "HCM"
+    assert variants[0].fields["stock_quantity"].state is CellState.EXPLICIT_NULL
+    assert variants[1].fields["stock_quantity"].value == 0
+    assert variants[0].fields["price"].state is CellState.MISSING
+    assert variants[0].fields["location_price"].value == 100

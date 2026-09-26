@@ -7,7 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from agent_hub_api.catalog.models import Product, ProductVariant
+from agent_hub_api.catalog.models import (
+    InventoryLevel,
+    Location,
+    LocationVariant,
+    Product,
+    ProductVariant,
+)
 from agent_hub_api.core.config import normalize_database_url
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.identity.models import User
@@ -78,14 +84,34 @@ def test_postgres_jsonb_uniqueness_transaction_and_tenant_scope() -> None:
                     )
                     session.add_all([product_a, product_b])
                     await session.flush()
-                    session.add(
-                        ProductVariant(
-                            workspace_id=workspace_a,
-                            product_id=product_a.id,
-                            variant_sku="PG-VARIANT",
-                            stock_quantity=0,
-                            attributes_json={"fragile": False},
-                        )
+                    variant = ProductVariant(
+                        workspace_id=workspace_a,
+                        product_id=product_a.id,
+                        variant_sku="PG-VARIANT",
+                        attributes_json={"fragile": False},
+                    )
+                    location = Location(
+                        workspace_id=workspace_a,
+                        name="PostgreSQL test",
+                        code="PG-TEST",
+                        type="store",
+                    )
+                    session.add_all([variant, location])
+                    await session.flush()
+                    session.add_all(
+                        [
+                            LocationVariant(
+                                workspace_id=workspace_a,
+                                location_id=location.id,
+                                variant_id=variant.id,
+                            ),
+                            InventoryLevel(
+                                workspace_id=workspace_a,
+                                location_id=location.id,
+                                variant_id=variant.id,
+                                quantity=0,
+                            ),
+                        ]
                     )
                     await session.flush()
 

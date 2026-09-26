@@ -178,6 +178,211 @@ def csv_row(index: int, *, variant: bool = True) -> dict[str, str]:
     }
 
 
+def test_location_inventory_price_collections_and_tenant_scope(
+    app_factory: AppFactory,
+) -> None:
+    app, _, _ = app_factory()
+    with TestClient(app) as client:
+        workspace = register_and_create_workspace(client, "scope@example.com", "scope-shop")
+        workspace_id = workspace["id"]
+        product = create_product(client, workspace_id, price="100.00")
+        variant_response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/products/{product['id']}/variants",
+            json={"variant_sku": "SCOPE-V1", "price_override": "120.00", "stock_quantity": 0},
+            headers=csrf_headers(client),
+        )
+        assert variant_response.status_code == 201, variant_response.text
+        variant = variant_response.json()
+        assert variant["stock_quantity"] == 0
+        assert variant["availability"][0]["location_code"] == "DEFAULT"
+        default_location_id = variant["availability"][0]["location_id"]
+        default_search = client.get(
+            f"/api/v1/workspaces/{workspace_id}/catalog/search",
+            params={"location_id": default_location_id},
+        )
+        assert default_search.status_code == 200, default_search.text
+        assert default_search.json()["items"][0]["effective_price"] == "120.00"
+
+        def create_location(name: str, code: str) -> dict[str, Any]:
+            response = client.post(
+                f"/api/v1/workspaces/{workspace_id}/locations",
+                json={"name": name, "code": code, "type": "store"},
+                headers=csrf_headers(client),
+            )
+            assert response.status_code == 201, response.text
+            return cast(dict[str, Any], response.json())
+
+        hcm = create_location("Hồ Chí Minh", "HCM")
+        hanoi = create_location("Hà Nội", "HN")
+        hcm_inventory = client.put(
+            f"/api/v1/workspaces/{workspace_id}/locations/{hcm['id']}/variants/{variant['id']}",
+            json={"quantity": None, "price_override": "90.00"},
+            headers=csrf_headers(client),
+        )
+        assert hcm_inventory.status_code == 200, hcm_inventory.text
+        assert hcm_inventory.json()["quantity"] is None
+        assert hcm_inventory.json()["effective_price"] == "90.00"
+        hanoi_inventory = client.put(
+            f"/api/v1/workspaces/{workspace_id}/locations/{hanoi['id']}/variants/{variant['id']}",
+            json={"quantity": 0, "price_override": "110.00"},
+            headers=csrf_headers(client),
+        )
+        assert hanoi_inventory.status_code == 200, hanoi_inventory.text
+        assert hanoi_inventory.json()["quantity"] == 0
+
+        hcm_search = client.get(
+            f"/api/v1/workspaces/{workspace_id}/catalog/search",
+            params={"location_id": hcm["id"]},
+        )
+        assert hcm_search.status_code == 200, hcm_search.text
+        assert hcm_search.json()["items"][0]["effective_price"] == "90.00"
+        assert hcm_search.json()["items"][0]["stock_quantity"] is None
+
+        collection = client.post(
+            f"/api/v1/workspaces/{workspace_id}/catalog/collections",
+            json={"name": "Featured"},
+            headers=csrf_headers(client),
+        )
+        assert collection.status_code == 201, collection.text
+        collection_id = collection.json()["id"]
+        assigned = client.put(
+            f"/api/v1/workspaces/{workspace_id}/catalog/collections/{collection_id}/products/{product['id']}",
+            headers=csrf_headers(client),
+        )
+        assert assigned.status_code == 204, assigned.text
+        collection_products = client.get(
+            f"/api/v1/workspaces/{workspace_id}/catalog/collections/{collection_id}/products"
+        )
+        assert collection_products.status_code == 200, collection_products.text
+        assert [item["id"] for item in collection_products.json()] == [product["id"]]
+        second_collection = client.post(
+            f"/api/v1/workspaces/{workspace_id}/catalog/collections",
+            json={"name": "Sale"},
+            headers=csrf_headers(client),
+        )
+        assert second_collection.status_code == 201, second_collection.text
+        assert (
+            client.put(
+                f"/api/v1/workspaces/{workspace_id}/catalog/collections/{second_collection.json()['id']}/products/{product['id']}",
+                headers=csrf_headers(client),
+            ).status_code
+            == 204
+        )
+        scoped_search = client.get(
+            f"/api/v1/workspaces/{workspace_id}/catalog/search",
+            params={"location_id": hanoi["id"], "collection_id": collection_id},
+        )
+        assert scoped_search.status_code == 200, scoped_search.text
+        assert [item["id"] for item in scoped_search.json()["items"]] == [product["id"]]
+        deactivated = client.put(
+            f"/api/v1/workspaces/{workspace_id}/locations/{hanoi['id']}/variants/{variant['id']}",
+            json={"is_active": False},
+            headers=csrf_headers(client),
+        )
+        assert deactivated.status_code == 200, deactivated.text
+        hidden = client.get(
+            f"/api/v1/workspaces/{workspace_id}/catalog/search",
+            params={"location_id": hanoi["id"]},
+        )
+        assert hidden.json()["items"] == []
+
+        other_workspace = client.post(
+            "/api/v1/workspaces",
+            json={"display_name": "Other", "slug": "other-scope-shop"},
+            headers=csrf_headers(client),
+        )
+        assert other_workspace.status_code == 201, other_workspace.text
+        cross_workspace = client.put(
+            f"/api/v1/workspaces/{other_workspace.json()['id']}/locations/{hcm['id']}/variants/{variant['id']}",
+            json={"quantity": 99},
+            headers=csrf_headers(client),
+        )
+        assert cross_workspace.status_code == 404
+        cross_collection = client.put(
+            f"/api/v1/workspaces/{other_workspace.json()['id']}/catalog/collections/{collection_id}/products/{product['id']}",
+            headers=csrf_headers(client),
+        )
+        assert cross_collection.status_code == 404
+
+        archived = client.delete(
+            f"/api/v1/workspaces/{workspace_id}/locations/{hcm['id']}",
+            headers=csrf_headers(client),
+        )
+        assert archived.status_code == 204
+        assert (
+            client.get(f"/api/v1/workspaces/{workspace_id}/products/{product['id']}").status_code
+            == 200
+        )
+
+
+def test_location_aware_import_does_not_duplicate_product_or_variant(
+    app_factory: AppFactory,
+) -> None:
+    app, _, _ = app_factory()
+    with TestClient(app) as client:
+        workspace = register_and_create_workspace(
+            client, "location-import@example.com", "location-import"
+        )
+        workspace_id = workspace["id"]
+        locations: dict[str, int] = {}
+        for code in ("HCM", "HN"):
+            response = client.post(
+                f"/api/v1/workspaces/{workspace_id}/locations",
+                json={"name": code, "code": code, "type": "store"},
+                headers=csrf_headers(client),
+            )
+            assert response.status_code == 201, response.text
+            locations[code] = response.json()["id"]
+        content = (
+            b"Handle,Name,SKU,Location Code,Price,Quantity\n"
+            b"shirt,Shirt,SHIRT-M,HCM,100,NULL\n"
+            b"shirt,,SHIRT-M,HN,120,0\n"
+        )
+        analyzed = client.post(
+            f"/api/v1/workspaces/{workspace_id}/catalog/imports",
+            files={"file": ("locations.csv", content, "text/csv")},
+            headers=csrf_headers(client),
+        )
+        assert analyzed.status_code == 201, analyzed.text
+        assert analyzed.json()["status"] == "ready", analyzed.text
+        assert analyzed.json()["summary"]["variants"]["create"] == 1
+        committed = client.post(
+            f"/api/v1/workspaces/{workspace_id}/catalog/imports/{analyzed.json()['id']}/commit",
+            headers={**csrf_headers(client), "Idempotency-Key": "location-import-1"},
+        )
+        assert committed.status_code == 200, committed.text
+        assert committed.json()["products_created"] == 1
+        assert committed.json()["variants_created"] == 1
+        assert committed.json()["variants_unchanged"] == 0
+        for code, expected_price, expected_quantity in (
+            ("HCM", "100.00", None),
+            ("HN", "120.00", 0),
+        ):
+            search = client.get(
+                f"/api/v1/workspaces/{workspace_id}/catalog/search",
+                params={"location_id": locations[code]},
+            )
+            assert search.status_code == 200, search.text
+            assert len(search.json()["items"]) == 1
+            assert search.json()["items"][0]["effective_price"] == expected_price
+            assert search.json()["items"][0]["stock_quantity"] == expected_quantity
+
+        unknown = client.post(
+            f"/api/v1/workspaces/{workspace_id}/catalog/imports",
+            files={
+                "file": (
+                    "unknown.csv",
+                    b"Handle,Name,SKU,Location Code,Quantity\nshirt-2,Shirt 2,S-2,UNKNOWN,2\n",
+                    "text/csv",
+                )
+            },
+            headers=csrf_headers(client),
+        )
+        assert unknown.status_code == 201, unknown.text
+        assert unknown.json()["status"] == "needs_confirmation"
+        assert any(issue["issue_type"] == "UNKNOWN_LOCATION" for issue in unknown.json()["issues"])
+
+
 def test_catalog_preserves_null_and_zero_and_archived_skus_remain_reserved(
     app_factory: AppFactory,
 ) -> None:
@@ -220,9 +425,7 @@ def test_catalog_preserves_null_and_zero_and_archived_skus_remain_reserved(
         assert generic.status_code == 201, generic.text
         assert generic.json()["color"] == "Black"
         assert generic.json()["options"] == {"Storage": "256GB", "Color": "Black"}
-        detail = client.get(
-            f"/api/v1/workspaces/{workspace['id']}/products/{product['id']}"
-        )
+        detail = client.get(f"/api/v1/workspaces/{workspace['id']}/products/{product['id']}")
         generic_detail = next(
             item for item in detail.json()["variants"] if item["variant_sku"] == "GENERIC-1"
         )
