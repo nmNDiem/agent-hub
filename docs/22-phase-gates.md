@@ -9,7 +9,7 @@ This document is the release plan. It does **not** authorize implementing every 
 | F2 | Fashion product/variant/stock/image import | Shop catalog demo; price/stock authoritative |
 | F2.1 | Generic catalog and universal CSV/XLS/XLSX import/search | Migration + PostgreSQL integration suite; original XLS regression; atomic MERGE and same-variant option-search evidence |
 | F2.2 | Workspace locations, location inventory/pricing, collections and scoped import/search | Default-location migration; `NULL`/zero preservation; location/collection and cross-tenant regressions |
-| F3 | OpenAI adapter, knowledge/RAG, shop agent, typed read tools over the F2.1 catalog contract | Grounded answers with authoritative effective price/inventory and generic options; prompt injection and cost tests |
+| F3 | OpenAI generation/embedding adapters, Qdrant knowledge index, knowledge/RAG, shop agent, typed read tools over the F2.1 catalog contract | Grounded answers with authoritative effective price/inventory and generic options; Qdrant tenant isolation, prompt injection and cost tests |
 | F4 | Website widget, SSE, anonymous session, image input/product cards | End-to-end local widget demo using schema-neutral product cards, mobile/a11y checks |
 | F5 | History, consented leads, contact handoff, operational hardening | Local pilot acceptance, quotas, data handling review |
 | P6 | Multi-agent/workspace UX, invitations, exports/retention refinements | Migration & role tests; no broken existing tenants |

@@ -35,7 +35,8 @@
 - Close the phase only after migration and PostgreSQL integration tests verify stock backfill and composite tenant constraints.
 
 ## F3 — Knowledge / agent
-- Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; embedding adapter and pgvector; agents and KB link; typed tools over the F2.1 catalog/search contract.
+- Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; `EmbeddingProvider` with OpenAI as the initial implementation; Qdrant behind a `KnowledgeVectorIndex`; agents and KB link; typed tools over the F2.1 catalog/search contract.
+- Postgres owns documents/chunks/jobs and immutable embedding-profile metadata. Qdrant is a rebuildable derived index shared across tenants by profile, with mandatory server-injected workspace/source filters and Postgres result revalidation. Do not implement Gemini or another provider without a separately approved task.
 - Catalog tools accept generic option/attribute filters, preserve same-variant option semantics, and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
 - Done: scoped search, citation refs, no fabricated SKU/stock/discount, no cross-variant option joins, no fashion-only schema assumption and prompt-injection regression tests.
 

@@ -15,6 +15,8 @@ Use this as manual and automated test source, not as a claim that tests currentl
 - [ ] Product images show only authorized and intended public files; remote references are not fetched by import analysis or commit.
 - [ ] FAQ/PDF/TXT document ingestion reports pending/success/failed and preserves source reference.
 - [ ] Updated documentation does not mix old/new versions in retrieval.
+- [ ] Postgres remains authoritative for chunks/profile state; Qdrant indexing is idempotent, rebuildable and does not mark a document ready after a partial failure.
+- [ ] Embedding profile migration can backfill, validate and cut over between two fake providers/dimensions without mixing vector spaces; the previous profile remains available for controlled rollback.
 
 ## Visitor
 - [ ] Visitor can chat without account and receives streamed response/product cards.
@@ -25,11 +27,12 @@ Use this as manual and automated test source, not as a claim that tests currentl
 
 ## Negative/security
 - [ ] Workspace A cannot read/write B's products, documents, embeddings, leads or chat history.
+- [ ] Qdrant retrieval for workspace A always includes the server-injected tenant/source filter and cannot return identical text indexed for workspace B; every returned chunk is revalidated in Postgres.
 - [ ] Workspace A cannot read/resolve/commit B's import jobs, issues, mapping profiles, external references or structured search results.
 - [ ] Visitor session A cannot read visitor session B conversation.
 - [ ] A malicious workspace ID in URL/body/tool args cannot change access scope.
 - [ ] Unauthenticated user cannot get a signed URL for private doc/photo.
-- [ ] No Supabase secret/service key, JWT signing secret or model key in widget bundle.
+- [ ] No Supabase secret/service key, Qdrant credential, JWT signing secret or model key in widget bundle.
 - [ ] Password hashed; reset tokens one-time; refresh rotation/replay checked.
 - [ ] Oversized, forged MIME and corrupt uploads rejected.
 - [ ] Prompt-injection in user-uploaded policy cannot invoke unauthorized tool or reveal data.
@@ -38,7 +41,7 @@ Use this as manual and automated test source, not as a claim that tests currentl
 
 ## Operational launch
 - [ ] Tested migrations and rollback plan; staged/production separated.
-- [ ] Database backup/restore and storage recovery documented.
+- [ ] Database/Storage backup and restore are documented; Qdrant persistence is backed up or its deterministic rebuild is verified.
 - [ ] PII/image retention and user-facing privacy notice approved.
 - [ ] Cost caps, upload limits, session expiry and allowed origins configured.
 - [ ] Owner signs off on user-facing product/policy wording and contact destination.

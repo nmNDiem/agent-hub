@@ -1,13 +1,13 @@
 # 23 — Open decisions, ADRs and controlled change
 
 ## Immutable until owner changes them
-Repo/product `agent-hub`/AgentHub; Next.js + TypeScript frontend; FastAPI/Python backend; Supabase PostgreSQL + Supabase Storage; custom FastAPI-managed email/password authentication (not Supabase Auth); OpenAI provider; fashion-shop first MVP; website first channel; run **locally now**, Docker on **VPS later**. Do not reclassify any of these as PROPOSED.
+Repo/product `agent-hub`/AgentHub; Next.js + TypeScript frontend; FastAPI/Python backend; Supabase PostgreSQL + Supabase Storage; Qdrant vector index with Postgres as the authoritative knowledge store; custom FastAPI-managed email/password authentication (not Supabase Auth); OpenAI provider and provider-neutral embedding boundary; fashion-shop first MVP; website first channel; run **locally now**, Docker on **VPS later**. Do not reclassify any of these as PROPOSED.
 
 **Latest owner ID decision (2026-09-21):** UUIDv7 selectively, BIGINT IDENTITY internally; see `architecture/identifiers.md`. Technical naming convention `workspace`/`agent` prevents duplicate shop/bot persistence and API surfaces.
 
 ## Decisions that remain open
 - UI styling library (Tailwind/shadcn proposed in design handoff, not yet an explicit owner stack decision); ORM/DB driver/migration tooling; widget build packaging; optional queue, redis, orchestration framework.
-- Exact OpenAI chat/vision/embedding model IDs, version/pinning, budgets, eval fixtures and retry parameters.
+- Exact OpenAI chat/vision/embedding model IDs, dimensions, version/pinning, budgets, eval fixtures and retry parameters; Qdrant development/production placement.
 - Email delivery and verification mechanisms, password/session lifetimes and key rotation schedule.
 - Dev Supabase setup (separate hosted dev project vs local compatible stack), package manager and final developer commands.
 - Customer data retention windows, allowed file/domain policies, local pilot limits, pricing and customer agreements.

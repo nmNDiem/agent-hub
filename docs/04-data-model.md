@@ -36,7 +36,9 @@ Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary float
 - `knowledge_bases`: id, workspace_id, name, kind, status.
 - `agent_knowledge_bases`: workspace_id, agent_id, knowledge_base_id (join).
 - `knowledge_documents`: id, workspace_id, knowledge_base_id, filename, mime, storage_path, checksum, version, status, error_code, updated_at.
-- `knowledge_chunks`: id, workspace_id, document_id, content, position, embedding (dimension decided by selected model), source_locator, metadata_json.
+- `knowledge_chunks`: id, workspace_id, document_id, generation, content, content_sha256, position, source_locator, metadata_json. Chunk text is authoritative in Postgres; vectors are not stored in this table.
+- `embedding_profiles`: id, provider, model, dimensions, provider_model_revision nullable, pipeline_version, distance_metric, Qdrant collection, config_hash, status and timestamps. A profile is immutable once indexing begins.
+- `knowledge_chunk_embeddings`: id, workspace_id, chunk_id, embedding_profile_id, Qdrant point ID, content_hash, status, indexed_at and safe error code; unique per workspace/chunk/profile. Qdrant remains a rebuildable derived index.
 - `ingestion_jobs`: id, workspace_id, document_id, status, attempts, last_error_redacted, timestamps, idempotency_key.
 
 ## Conversations / usage
@@ -48,7 +50,7 @@ Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary float
 - `audit_logs`: id, workspace_id, actor_user_id nullable, action, resource_type, resource_id, metadata_redacted, occurred_at.
 
 ## Tenant isolation indexes / invariants
-- `products(workspace_id,status,category)`; `product_variants(workspace_id,product_id)`; `locations(workspace_id,is_active)`; location inventory and pricing by workspace/location/variant; collection membership by workspace/collection/product; option joins by variant/definition/value; external refs by workspace/source/external ID; import jobs by workspace/status; `messages(workspace_id,conversation_id,created_at)`; `knowledge_chunks(workspace_id,document_id)` plus vector index suited to chosen dimensions/index strategy.
-- No cross-workspace FK relationship; select/search/universal import/embedding jobs restricted to workspace.
+- `products(workspace_id,status,category)`; `product_variants(workspace_id,product_id)`; `locations(workspace_id,is_active)`; location inventory and pricing by workspace/location/variant; collection membership by workspace/collection/product; option joins by variant/definition/value; external refs by workspace/source/external ID; import jobs by workspace/status; `messages(workspace_id,conversation_id,created_at)`; `knowledge_chunks(workspace_id,document_id)`; embedding index state by workspace/chunk/profile. Qdrant collections are shared by embedding profile, never created per workspace, and every point carries indexed `workspace_id` payload.
+- No cross-workspace FK relationship; select/search/universal import/embedding jobs restricted to workspace. Qdrant results are revalidated against ready Postgres documents/chunks before use.
 - Soft-archive products and agents; retention/purge policy for visitor content must be documented before production.
 - Use DB uniqueness and transactional updates for imports, refresh rotation and idempotent lead submissions.

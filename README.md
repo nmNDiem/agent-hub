@@ -12,8 +12,9 @@ Repository đã có nền tảng xác thực và tenant cùng generic catalog CR
 | Backend | Python 3.12 + FastAPI, SQLAlchemy async + Alembic |
 | Database | Supabase PostgreSQL |
 | File storage | Supabase Storage |
+| Vector index | Qdrant; Postgres remains the authoritative knowledge/chunk store |
 | Authentication | FastAPI-managed email + password, **not** Supabase Auth |
-| LLM provider | OpenAI (exact chat/vision/embedding models are configuration decisions) |
+| Model providers | OpenAI for MVP generation/vision/embeddings behind provider-neutral interfaces; exact model IDs remain configuration decisions |
 | Current runtime | Local development |
 | Future runtime | Docker containers on a VPS; Supabase remains hosted DB/Storage |
 | Initial channel/use case | Embedded website chat for fashion shops |
@@ -43,7 +44,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật. Cấu hình Qdrant/embedding trong `.env.example` mới là contract dự kiến cho F3; runtime hiện tại chưa sử dụng các biến đó.
 
 ## Chạy local
 

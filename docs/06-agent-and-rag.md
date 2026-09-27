@@ -8,7 +8,7 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 2. Apply moderation/abuse budget, input normalization, attachment permission checks.
 3. Classify intent (product search / size / policy / stock / handoff / image similarity) with conservative fallback.
 4. Invoke allowlisted typed tools with server-injected workspace ID; tool schemas never expose arbitrary SQL or URL fetching.
-5. Search products with workspace-scoped structured filters over canonical catalog fields, generic options and attributes, then optionally apply semantic ranking. Retrieve relevant shop documentation via workspace-scoped pgvector search.
+5. Search products with workspace-scoped structured filters over canonical catalog fields, generic options and attributes, then optionally apply semantic ranking. Retrieve relevant shop documentation through Qdrant with a server-injected workspace filter and active embedding profile.
 6. Compose prompt with safe system rules and clearly delimited untrusted retrieved text.
 7. Stream response; validate product IDs are from tool results, attach authoritative product cards/links and real source references.
 8. Persist user and assistant messages, aggregate usage, record redacted tool events.
@@ -29,11 +29,11 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 - Photo analysis uses an OpenAI vision-capable model; exact OpenAI model ID remains deployment-configurable.
 
 ## Knowledge pipeline
-- Store original PDF/TXT in private Storage; parse and sanitize; chunk with source/position/version; embed; persist job status.
+- Store original PDF/TXT in private Storage; parse and sanitize; chunk with source/position/version; embed through `EmbeddingProvider`; index through `KnowledgeVectorIndex`; persist job and index status in Postgres.
 - CSV/XLS/XLSX catalog files use the universal structured importer, not the knowledge/RAG ingestion path.
 - Re-index updated docs, delete/expire old chunks transactionally; prevent stale document duplicates with checksums and idempotency.
-- Embedding dimension and vector index are selected together; never assume a universal dimension.
-- Apply workspace filter **inside** vector retrieval, not only after ranking; test absence of other-tenant hits.
+- Persist immutable embedding profiles containing provider, model, dimensions, provider revision, pipeline version and distance metric. Never infer dimension from a model string or compare vectors from different profiles.
+- Treat Qdrant as a rebuildable derived index. Apply workspace and allowed-source filters **inside** vector retrieval, then revalidate returned chunks against the active ready generation in Postgres; test absence of other-tenant hits.
 
 ## Answer rules
 - Current effective catalog price (location override, otherwise variant override, otherwise product price) and location-scoped structured inventory override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock. F3 resolves allowed agent locations/collections before calling the F2.2 scoped search contract.

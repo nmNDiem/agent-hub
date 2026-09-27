@@ -12,14 +12,17 @@ flowchart LR
  U[Upload validated] --> S[Private Storage]
  S --> J[Persist queued job]
  J --> P[Parse and normalize]
- P --> C[Chunk and embed]
- C --> I[Persist chunks atomically]
- I --> R[Mark ready]
+ P --> C[Persist new chunk generation]
+ C --> E[Embed through provider]
+ E --> Q[Idempotent Qdrant upsert]
+ Q --> I[Persist indexed state]
+ I --> R[Atomically mark generation ready]
  P -->|error| F[Failed + retry]
- C -->|error| F
+ E -->|error| F
+ Q -->|error| F
 ```
 
-Persist job **before** async processing and atomically link document. A simple local runner may poll Postgres and claim jobs with `FOR UPDATE SKIP LOCKED`, lease expiry and max attempts. Import pipeline is idempotent by document hash/version; use transactional swap/new generation to prevent partially indexed docs from being retrievable. PDF text extraction should not assume OCR; if scanned image-only, clearly mark extraction insufficient until OCR added. Never embed binary PDF raw into prompt.
+Persist job **before** async processing and atomically link document. A simple local runner may poll Postgres and claim jobs with `FOR UPDATE SKIP LOCKED`, lease expiry and max attempts. Persist authoritative chunks before external embedding/index calls; stable Qdrant point IDs make retries idempotent. Use transactional active-generation/profile cutover so partially indexed docs are never retrievable, and revalidate Qdrant hits in Postgres. PDF text extraction should not assume OCR; if scanned image-only, clearly mark extraction insufficient until OCR is added. Never embed binary PDF raw into a prompt.
 
 ## Retention and deletion
-Document deletion revokes `ready` status immediately then asynchronously cleans chunks/object; archive bot does not auto-delete conversations. User-uploaded chat image retention policy must be disclosed and implemented (example configurable 30 days), with scheduled expiry cleanup; backups/retention rules documented at deployment. Signed URLs expire; warn that a previously issued signed URL may remain valid until its expiry.
+Document deletion revokes `ready` status immediately, then asynchronously cleans Qdrant points, chunks and Storage objects; archive bot does not auto-delete conversations. User-uploaded chat image retention policy must be disclosed and implemented (example configurable 30 days), with scheduled expiry cleanup; backups/retention rules documented at deployment. Signed URLs expire; warn that a previously issued signed URL may remain valid until its expiry.

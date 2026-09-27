@@ -2,9 +2,10 @@
 
 ## Topology
 ```
-Local (NOW): Next.js dashboard + web widget -> FastAPI -> Supabase Postgres/Storage + OpenAI
+Local (NOW): Next.js dashboard + web widget -> FastAPI -> Supabase Postgres/Storage + Qdrant + OpenAI
 Docker/VPS (LATER): reverse proxy/TLS -> Next.js + FastAPI (+ worker when required)
                                   |-> managed Supabase Postgres/Storage
+                                  |-> Qdrant vector index
                                   `-> OpenAI API
 External channels (LATER) -> verified webhooks -> channel adapters -> conversation service
 ```
@@ -31,10 +32,11 @@ Use opaque IDs for workspace, user, agent, channel connection, conversation, sou
 - Synchronous read: visitor -> API -> request auth/scope -> catalog/knowledge retrieval -> OpenAI -> SSE answer and product cards.
 - Async ingest: file upload -> source row -> processing job -> parse/chunk/embed -> index -> atomic ready/failed state. Retry idempotently; add a durable worker only when workload measurements require one.
 - Channel delivery: signed webhook -> deduplicate event -> normalize -> conversation -> agent -> queue/retry outbound. Respect vendor rate limits and permission scopes.
-- Model access: single OpenAI adapter initially, config-driven model IDs and per-request budget; adapter seam is not permission to install other providers.
+- Model access: OpenAI generation/vision adapter initially, config-driven model IDs and per-request budget. Embeddings use a provider-neutral interface with OpenAI as the only F3 implementation; the seam is not permission to install other providers.
+- Vector retrieval: Qdrant behind a knowledge-index interface. Postgres owns chunks and active embedding profiles; Qdrant points are derived, tenant-filtered and rebuildable.
 
 ## Design contracts
 Define Pydantic DTOs for internal boundaries; publish OpenAPI for external API. Preserve normalized conversation record independent of channel payload. Include request ID/correlation ID for ingestion and outbound events. No shared mutable tenant context. Use additive migrations and compatibility windows for clients/widgets.
 
 ## Architecture evolution rules
-Prefer modular monolith within FastAPI until observed scale/team constraints justify separate services; do not build a microservice fleet in MVP. Redis/queue and dedicated vector store are optional future optimizations, not confirmed infrastructure. OpenAI may change model IDs without changing exposed business API. See `docs/14-channel-platform.md` and `docs/17-operations-deployment.md`.
+Prefer modular monolith within FastAPI until observed scale/team constraints justify separate services; do not build a microservice fleet in MVP. Redis/queue remain optional future optimizations; Qdrant is the confirmed vector index. OpenAI may change model IDs, and a future approved embedding provider may be re-indexed, without changing exposed business APIs. See `docs/14-channel-platform.md` and `docs/17-operations-deployment.md`.

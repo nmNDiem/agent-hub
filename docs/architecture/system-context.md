@@ -14,7 +14,9 @@ flowchart LR
   F --> CHAT[Conversations / chat]
   CHAT --> SEARCH[Catalog + RAG]
   F --> DOC[Ingestion jobs]
-  CHAT --> MODEL[OpenAI adapter]
+  CHAT --> MODEL[OpenAI generation adapter]
+  DOC --> EMBED[EmbeddingProvider]
+  SEARCH --> VECTOR[KnowledgeVectorIndex]
  end
  AUTH --> DB[(Supabase Postgres)]
  BOT --> DB
@@ -22,6 +24,8 @@ flowchart LR
  DOC --> DB
  DOC --> STORE[(Supabase Storage)]
  CHAT --> STORE
+ EMBED --> OAI
+ VECTOR --> QDRANT[(Qdrant)]
  MODEL --> OAI[OpenAI API]
  FUT[Future FB / Zalo webhooks] --> CHAT
 ```
@@ -85,7 +89,7 @@ Do not pre-create feature folders for later phases. The widget remains independe
 import the dashboard feature tree.
 
 ## Boundaries and failures
-- OpenAI/network failure does not corrupt conversation; store failed status and allow retry.
+- OpenAI or Qdrant failure does not corrupt conversations/documents; store failed index/generation status and allow idempotent retry.
 - Database failure returns typed 503; no sample result fallback.
 - Long document parsing is a persisted job, not a long request.
 - Embed script must load asynchronously and isolate CSS; failure must not break customer storefront.

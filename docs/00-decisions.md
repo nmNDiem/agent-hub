@@ -19,8 +19,9 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | ORM / migrations | SQLAlchemy 2 async + Alembic | CONFIRMED | PostgreSQL driver is asyncpg |
 | Foundation runtimes | Python 3.12, Node.js 24, pnpm workspace | CONFIRMED | Pinned in repository configuration |
 | Widget foundation | Independent TypeScript/Vite package scaffold | CONFIRMED | Package boundary only; functional embed/chat remains deferred |
-| Retrieval | pgvector in Supabase; Postgres structured search | PROPOSED | Verify vector dimension per embedding model |
+| Retrieval | Qdrant vector index + Postgres structured search | CONFIRMED | Postgres owns documents/chunks/jobs; Qdrant is a rebuildable derived index with mandatory tenant filters |
 | LLM provider | OpenAI | CONFIRMED | Server-side calls from FastAPI; exact model IDs are configurable |
+| Embedding provider architecture | Provider-neutral adapter; OpenAI is the initial MVP implementation | CONFIRMED | Persist provider/model/dimensions/revisions; other providers require a separately approved task |
 | OpenAI model IDs | Chat/vision/embeddings chosen by capability, price and testing | PROPOSED | Record deployed model IDs; no shop-owner choice in MVP |
 | Agent framework | Simple custom orchestration initially | PROPOSED | Evaluate frameworks only when warranted |
 | Async ingestion | Small background job mechanism; durable queue if needed | PROPOSED | Redis/BullMQ not necessary for Python MVP |
@@ -47,10 +48,11 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Future runtime | Docker containers on VPS | CONFIRMED | Prepare deployable boundaries, but deploy in a later phase |
 
 ## Open decisions to validate at scaffolding or deployment
-- Email delivery provider, exact OpenAI chat/vision/embedding model IDs and exact monthly usage limits.
+- Email delivery provider, exact OpenAI chat/vision/embedding model IDs, embedding dimensions and exact monthly usage limits.
 - Future live-commerce connector/provider, stock refresh policy and connector identity mapping; manual CRUD plus CSV/XLS/XLSX MERGE is already the confirmed file-import baseline.
 - User data retention periods, privacy notice, handoff destination, allowed domains and production secrets management.
 - Local connection strategy for Supabase services: use a remote development Supabase project or explicitly provision local equivalents; no live customer data in dev.
+- Qdrant local/development hosting strategy and future production placement; all environments use the same server API contract and isolated non-production data.
 - VPS provider, sizing, reverse proxy, domain, SMTP provider and backup location when production deployment is scheduled.
 
 ## Implementation status

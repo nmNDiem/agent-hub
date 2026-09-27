@@ -11,9 +11,9 @@
 ## Authorization and tenant separation
 - For owner API: authenticate -> membership lookup -> check role -> read/write workspace-scoped row. Never trust `workspace_id` just because supplied in URL/body.
 - For visitor API: published `agent_id` + short-lived scoped visitor session -> derive workspace/agent from server DB, verify conversation belongs to that session.
-- All SQL (including semantic vector and background tasks) filters workspace. Use constrained Postgres roles and RLS where feasible as defense in depth; beware elevated roles bypass RLS.
+- All SQL and background tasks filter workspace. Every Qdrant request injects the validated workspace/allowed-source filter server-side, and returned chunk IDs are revalidated against active Postgres rows before use. Qdrant is never reachable from browser/widget code.
 - With custom auth and direct server-side SQL, Supabase `auth.uid()` is not automatically the FastAPI user ID. Do not write RLS policies assuming otherwise. If applying transaction-local tenant context, set it only after validated auth and use a DB role without RLS-bypass privileges.
-- Do not expose `service_role` or Supabase secret API keys. Server-side privileged Storage access requires *app-side checks* before every action; elevated key bypasses RLS.
+- Do not expose `service_role`, Supabase secret API keys or Qdrant credentials. Server-side privileged Storage/Qdrant access requires *app-side checks* before every action; elevated credentials bypass client-facing controls.
 
 ## Storage and uploads
 - Store private knowledge docs and visitor photos in private buckets; server authorizes any signed URL and uses short expiry. Public product images only if shop elects to publish them.
@@ -28,7 +28,7 @@
 - Redact API keys, passwords, tokens, contact info and private file links from error logs/traces where practical.
 
 ## Test requirements
-- Login/token rotation/password reset tests; wrong user/workspace access to each resource; tenant filter in tool/vector retrieval; unauthorized signed-URL attempt; malformed image and oversized PDF; widget replay, rate limits and consent; prompt injection from uploaded docs; safe error behavior.
+- Login/token rotation/password reset tests; wrong user/workspace access to each resource; mandatory Qdrant tenant/source filters plus Postgres result revalidation; unauthorized signed-URL attempt; malformed image and oversized PDF; widget replay, rate limits and consent; prompt injection from uploaded docs; safe error behavior.
 
 ## Authoritative implementation reading
 - FastAPI JWT and password hashing: https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/
