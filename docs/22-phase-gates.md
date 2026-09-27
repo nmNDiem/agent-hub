@@ -20,6 +20,8 @@ This document is the release plan. It does **not** authorize implementing every 
 | P11 | Billing/subscriptions and expanded commerce integrations | Signed payment webhooks, ledger reconciliation, action authorization |
 | P12 | Generalized non-commerce agents, connectors and workflow tools | No catalog dependency; security and tenant regression suite |
 
+F3.1 through F3.5 in `architecture/implementation-plan.md` and `10-codex-backlog.md` are ordered implementation slices, not independent release phases. F3 closes only when all five slices pass together and the F3 exit evidence above is satisfied.
+
 ## Gates common to all phases
 A named task/PR has acceptance criteria and owner approval; tests run and are reported; migrations/API changes documented; privacy/security effects reviewed; docs and example configuration updated. Any change of confirmed stack requires an explicit new owner decision recorded in `docs/00-decisions.md`.
 

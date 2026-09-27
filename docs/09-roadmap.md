@@ -17,7 +17,7 @@ Each phase should end in a runnable, reviewed increment. Architecture may antici
 Full target scope is specified in `12-full-product-scope.md` through `23-decision-and-change-control.md`. These do not authorize implementation beyond the current task.
 
 ## Dependencies
-F1 precedes private F2/F3 endpoints; F2.1 precedes F2.2; F2.2 location/collection-scoped search precedes F3 agent assignments and typed catalog tools; F3 precedes grounded F4 widget answers and product cards; F4 precedes pilot; F5 confirms usability and operations.
+F1 precedes private F2/F3 endpoints; F2.1 precedes F2.2; F2.2 location/collection-scoped search precedes F3 agent assignments and typed catalog tools. F3 is delivered through the ordered F3.1–F3.5 implementation slices defined in `10-codex-backlog.md`, but remains one roadmap phase and exit gate. F3 precedes grounded F4 widget answers and product cards; F4 precedes pilot; F5 confirms usability and operations.
 
 ## Not now
 Checkout/payment/order writes; drag-drop workflow editor; subscriptions; live staffed inbox; Facebook/Zalo; periodic website scraping; automatic inventory integrations. Add only under a separate approved scope and threat review.

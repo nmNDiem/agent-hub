@@ -16,6 +16,20 @@
 
 **F0 is only successful when local services actually boot and existing applicable tests pass.** Static visual quality alone is not an operational milestone; conversely do not demand a production AI end-to-end experience during F0.
 
+## F3 ordered implementation slices
+
+F3 remains one authoritative roadmap phase and one release gate. Implement it as the following ordered, reviewable slices; a completed slice does not by itself mark F3 complete or authorize F4 work.
+
+| Slice | Scope | Slice acceptance criteria |
+|---|---|---|
+| F3.1 agent foundation and catalog tools | Agent/config persistence, location/collection assignments, immutable allowed catalog scope and typed tools over `CatalogReadService`; no LLM call is required | Cross-workspace access is denied; query intent can only narrow authorized scope; tools preserve same-variant option semantics and authoritative effective price/inventory |
+| F3.2 knowledge persistence and ingestion | Shop profile/FAQ, knowledge bases and agent links, documents, chunks, ingestion jobs, immutable embedding-profile metadata, PDF/TXT extraction, chunking and retry/idempotency boundaries | Invalid or untrusted files fail safely; authoritative state remains in Postgres; unit tests use fake embedding/vector adapters and cover tenant isolation |
+| F3.3 embedding and Qdrant retrieval | OpenAI `EmbeddingProvider`, Qdrant `KnowledgeVectorIndex`, post-transactional indexing, rebuild/re-index flow, server-injected filters and Postgres result revalidation | Real non-production Qdrant integration proves cross-workspace isolation; stale/revoked generations cannot be retrieved; batching, citation references and failure behavior are covered |
+| F3.4 grounded agent runtime | OpenAI generation adapter, simple orchestration across retrieval and catalog tools, normalized product-card output, prompt-injection defenses and usage bounds | Answers do not fabricate SKU, price, stock, discounts or commitments; generic schemas and unknown inventory work; prompt-injection, cost/token/tool-call and safe-error regressions pass |
+| F3.5 dashboard knowledge UI and Playground | Knowledge upload/status/error UI, agent configuration UI and authenticated Playground SSE with stop/loading/error, grounded sources and schema-neutral product cards | Integrated dashboard flow is usable and accessible; SSE cancellation/errors are handled; source and product-card rendering works for product-only and multi-option fixtures |
+
+The F3 release gate in [`../22-phase-gates.md`](../22-phase-gates.md) closes only after F3.1 through F3.5 pass together. F3.2 must remain testable without external providers; F3.3 is the separately verifiable OpenAI/Qdrant integration boundary defined by [ADR-0002](adr/0002-qdrant-embedding-providers.md).
+
 ## Implementation status
 
 - F0 scaffold: completed.

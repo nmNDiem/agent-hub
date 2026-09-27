@@ -35,11 +35,40 @@
 - Close the phase only after migration and PostgreSQL integration tests verify stock backfill and composite tenant constraints.
 
 ## F3 — Knowledge / agent
-- Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; `EmbeddingProvider` with OpenAI as the initial implementation; Qdrant behind a `KnowledgeVectorIndex`; agents and KB link; typed tools over the F2.1 catalog/search contract.
-- Postgres owns documents/chunks/jobs and immutable embedding-profile metadata. Qdrant is a rebuildable derived index shared across tenants by profile, with mandatory server-injected workspace/source filters and Postgres result revalidation. Do not implement Gemini or another provider without a separately approved task.
-- Catalog tools accept generic option/attribute filters, preserve same-variant option semantics, and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
-- Resolve agent/widget/dashboard authorization into an allowed catalog scope before query execution. Query intent can only narrow that scope; use product-level candidate limiting plus batched variant/option/availability hydration and never pass dashboard `User` into the catalog query engine.
-- Done: scoped search, citation refs, no fabricated SKU/stock/discount, no cross-variant option joins, no fashion-only schema assumption and prompt-injection regression tests.
+
+F3 is one roadmap phase and release gate, implemented through the following ordered task briefs. Completing an individual task does not authorize F4 or mark F3 complete.
+
+### F3.1 — Agent foundation and catalog tools
+- Add agent/config persistence and location/collection assignments.
+- Resolve caller authorization into an immutable allowed catalog scope before query execution. Query intent can only narrow that scope; never pass dashboard `User` into the catalog query engine.
+- Build typed tools over `CatalogReadService`. Accept generic option/attribute filters, preserve same-variant option semantics and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
+- Done: cross-workspace and scope-narrowing tests pass; product candidates are limited before batched hydration; no cross-variant option joins or fashion-only schema assumptions.
+
+### F3.2 — Knowledge persistence and ingestion
+- Add shop profile/FAQ, knowledge bases and agent links, document, chunk and ingestion-job persistence plus immutable embedding-profile metadata in Postgres.
+- Implement safe PDF/TXT extraction, chunking, job status transitions and idempotent retry boundaries. Treat files and extracted content as untrusted data.
+- Keep the pipeline testable with fake embedding/vector adapters; do not require Qdrant or OpenAI for persistence and ingestion unit tests.
+- Done: invalid-file and retry behavior, active-generation rules and negative cross-workspace tests pass without external providers.
+
+### F3.3 — Embedding and Qdrant retrieval
+- Implement `EmbeddingProvider` with OpenAI as the initial implementation and Qdrant behind `KnowledgeVectorIndex`, following ADR-0002. Do not implement Gemini or another provider without a separately approved task.
+- Keep Qdrant a rebuildable derived index shared across tenants by profile. Index post-transactionally and idempotently; inject workspace/allowed-source filters server-side and revalidate results against active Postgres rows.
+- Add rebuild/re-index behavior, citation references, batched embedding/index operations and explicit vector-outage behavior.
+- Done: a real explicitly configured non-production Qdrant integration proves tenant isolation, stale/revoked points are rejected and indexing retries are safe.
+
+### F3.4 — Grounded agent runtime
+- Implement the OpenAI generation adapter and simple orchestration across knowledge retrieval and catalog tools.
+- Produce grounded source references and normalized schema-neutral product-card output for F4; catalog facts must come from typed tools at answer time.
+- Enforce prompt-injection defenses, bounded token/tool usage and safe errors without leaking prompts, credentials or private data.
+- Done: regressions prove no fabricated SKU/stock/price/discount or business commitment, correct unknown inventory behavior, generic option support and bounded usage/cost.
+
+### F3.5 — Dashboard knowledge UI and Playground
+- Add knowledge upload/status/error UI, agent configuration UI and an authenticated Playground using SSE.
+- Render grounded sources and schema-neutral product cards with loading, stop, empty and error states.
+- Done: the integrated dashboard flow passes accessibility and cancellation/error checks; source/card fixtures cover product-only and multi-option catalogs.
+
+### F3 phase completion
+- Close F3 only after F3.1 through F3.5 pass together and the F3 exit evidence in `22-phase-gates.md` is recorded.
 
 ## F4 — Widget / visitor / vision
 - Safe embeddable widget, agent publish/origin config, scoped anonymous sessions, conversations, SSE product cards and image upload/vision matching.
