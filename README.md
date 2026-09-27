@@ -77,6 +77,16 @@ pytest
 alembic upgrade head --sql
 ```
 
+Critical PostgreSQL integration tests reuse `DATABASE_URL` but isolate all objects in the exact schema `agenthub_test`. They drop and recreate that schema, migrate it, and clean it afterward, so opt in only against a local/test database:
+
+```powershell
+$env:RUN_POSTGRES_INTEGRATION_TESTS="true"
+pytest -m postgres
+Remove-Item Env:RUN_POSTGRES_INTEGRATION_TESTS
+```
+
+The suite refuses to run unless `APP_ENV` is `local` or `test`. It never uses or drops `public`.
+
 Lệnh Alembic trên là offline dry-run và không cần database. Online migration yêu cầu `DATABASE_URL` trong environment:
 
 ```powershell

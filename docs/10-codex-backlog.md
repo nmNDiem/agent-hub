@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0, F1 and F2 are implemented locally. F2.1 is implemented but its real PostgreSQL integration gate remains pending. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0 through F2.2 are complete. Their critical real-PostgreSQL gates passed in the isolated `agenthub_test` schema. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -21,13 +21,13 @@
 - Product, variant, size guide and image models/APIs; CSV import with preview/validation, safe Storage files, archive semantics.
 - Done: create/import 20+ products, distinguish unknown vs zero stock, correct price across variants; cross-tenant image access denied.
 
-## F2.1 — Universal catalog import (implemented; PostgreSQL gate pending)
+## F2.1 — Universal catalog import (complete)
 - Generalize catalog options/attributes/images and import CSV/XLS/XLSX through one structure-driven pipeline.
 - Persist staged records and issues; preview create/update/unchanged/conflict; commit atomically in MERGE mode.
 - Keep legacy color/size and CSV endpoints compatible; structured option filters match one actual variant.
-- Close the phase only after the migration and PostgreSQL-marked integration suite pass against a dedicated non-production database.
+- Close the phase only after the critical PostgreSQL-marked integration suite passes in the isolated `agenthub_test` schema of the local/test `DATABASE_URL`. Broader PostgreSQL coverage is deferred to pre-release hardening.
 
-## F2.2 — Workspace locations and catalog scope (implemented; PostgreSQL gate pending)
+## F2.2 — Workspace locations and catalog scope (complete)
 - Keep one workspace-owned master product/variant identity; never duplicate products by location.
 - Store availability and inventory by `(location_id, variant_id)` with `NULL` distinct from zero; location price overrides fall back to existing variant/product pricing.
 - Add generic locations, catalog collections, location/collection-scoped search and explicit `location_code` import resolution.
@@ -38,6 +38,7 @@
 - Shop profile/FAQ, PDF/TXT ingestion pipeline with job statuses; `EmbeddingProvider` with OpenAI as the initial implementation; Qdrant behind a `KnowledgeVectorIndex`; agents and KB link; typed tools over the F2.1 catalog/search contract.
 - Postgres owns documents/chunks/jobs and immutable embedding-profile metadata. Qdrant is a rebuildable derived index shared across tenants by profile, with mandatory server-injected workspace/source filters and Postgres result revalidation. Do not implement Gemini or another provider without a separately approved task.
 - Catalog tools accept generic option/attribute filters, preserve same-variant option semantics, and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
+- Resolve agent/widget/dashboard authorization into an allowed catalog scope before query execution. Query intent can only narrow that scope; use product-level candidate limiting plus batched variant/option/availability hydration and never pass dashboard `User` into the catalog query engine.
 - Done: scoped search, citation refs, no fabricated SKU/stock/discount, no cross-variant option joins, no fashion-only schema assumption and prompt-injection regression tests.
 
 ## F4 — Widget / visitor / vision

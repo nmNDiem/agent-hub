@@ -17,6 +17,15 @@ Master events: `message.start`, `message.delta`, `product.cards`, `source.refs`,
 - Persist incoming message before generation. On failure/cancel record final state and reconcile provider usage. Product cards contain only verified current catalog fields: safe public identifiers/references, approved links/images, effective decimal price, explicit inventory state and relevant generic options/attributes. They must not require fashion-only fields or expose private URLs, dashboard-only internal IDs, raw prompts or sensitive provider errors.
 - For cookie-auth admin writes enforce CSRF and correct same-origin forwarding. Widget endpoints derive workspace and agent exclusively from published agent + issued short-lived session; Origin allowlist is defense in depth, not an identity proof.
 
+## Catalog read boundary for agents
+
+- Authorization resolves an `AuthorizedCatalogScope` first; catalog query code never accepts a dashboard `User` and never trusts workspace/location/collection IDs supplied by a model or browser.
+- `CatalogQuery` is search intent only. Requested location IDs form a union, requested collection IDs form a union, and location scope intersects collection scope. A request may narrow an authorized scope but cannot widen it.
+- The internal read contract is product-centric: `search_products`, `get_product_detail` and `get_variant_availability`. Search limits candidate products before batch hydration; variants, options and location availability are loaded in bounded queries rather than queries inside loops.
+- Without a selected location, price is `exact`, `range` or `unknown`; inventory is a count of `in_stock`, `out_of_stock` and `unknown` locations. Never choose an arbitrary location price or sum inventory quantities across locations.
+- Per-location availability includes authoritative effective price, nullable quantity, explicit inventory state and `inventory_updated_at`. F3 maps these domain read models to tool output; F4 owns the separate public product-card DTO.
+- The authenticated dashboard search route retains its existing optional singular `location_id` and `collection_id` parameters as a compatibility facade. Multi-scope input is introduced only on agent-owned contracts.
+
 ## Request examples
 ```json
 {

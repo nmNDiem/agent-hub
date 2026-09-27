@@ -21,3 +21,5 @@ coverage/
 .vscode/
 .DS_Store
 Thumbs.db
+
+assets/test-files/

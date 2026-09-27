@@ -43,7 +43,7 @@ where = ["src"]
 addopts = "-q"
 pythonpath = ["src"]
 testpaths = ["tests"]
-markers = ["postgres: tests that require TEST_DATABASE_URL and migrated PostgreSQL"]
+markers = ["postgres: opt-in tests that recreate agenthub_test in DATABASE_URL"]
 
 [tool.ruff]
 line-length = 100

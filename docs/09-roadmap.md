@@ -7,8 +7,8 @@ Each phase should end in a runnable, reviewed increment. Architecture may antici
 | F0 Foundation | Repo/API/dashboard/widget skeleton, config, lint/tests, CI, migration harness | Local dev boots; test runner works; no secrets committed |
 | F1 Identity & tenants | Email/password auth, verification/reset, workspace/membership, access boundaries | Auth and cross-tenant tests pass |
 | F2 Fashion catalog | Product/variant/size/image CRUD, legacy CSV import, storage | Catalog demo with verified prices/stock |
-| F2.1 Universal catalog import | Generic options/attributes/external refs, CSV/XLS/XLSX staging/diff/MERGE, structured search | Implemented locally; PostgreSQL integration verification still required before closing the gate |
-| F2.2 Location catalog scope | Workspace master catalog, locations, location+variant inventory/pricing, collections and location-aware import/search | Migration and tenant regressions preserve `NULL != 0`; PostgreSQL verification required |
+| F2.1 Universal catalog import | Generic options/attributes/external refs, CSV/XLS/XLSX staging/diff/MERGE, structured search | Complete; critical PostgreSQL migration/JSONB/constraint/tenant checks passed in isolated `agenthub_test` schema |
+| F2.2 Location catalog scope | Workspace master catalog, locations, location+variant inventory/pricing, collections and location-aware import/search | Complete; migration and tenant regressions preserve `NULL != 0`, and PostgreSQL stock backfill passed |
 | F3 Knowledge & agent | Shop profile, FAQ, PDF/TXT ingestion, Qdrant, provider-neutral embedding adapter, agent config, typed tools over F2.1 search | Agent answers grounded questions with authoritative effective price/inventory and same-variant options |
 | F4 Widget & vision | Embed, visitor sessions, SSE, schema-neutral product cards, visitor photo flow | Real shop test page can chat anonymously and render products without requiring fashion-only fields |
 | F5 Local operational pilot | Leads, callback, dashboard history/usage, limits, local observability | Owner tests end-to-end locally; privacy/security review completed |

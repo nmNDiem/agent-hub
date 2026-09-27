@@ -7,20 +7,17 @@ from typing import Any, cast
 from uuid import UUID
 
 from fastapi import status
-from sqlalchemy import and_, delete, exists, func, or_, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.catalog.file_extractor import ExtractionError
 from agent_hub_api.catalog.import_pipeline import (
     analyze_catalog,
-    normalize_label,
     serialize_product,
 )
 from agent_hub_api.catalog.import_types import ImportIssueData
 from agent_hub_api.catalog.models import (
-    CatalogCollection,
-    CatalogCollectionProduct,
     CatalogImport,
     CatalogImportIssue,
     CatalogImportMappingProfile,
@@ -30,12 +27,11 @@ from agent_hub_api.catalog.models import (
     LocationVariant,
     Product,
     ProductImage,
-    ProductOptionDefinition,
-    ProductOptionValue,
     ProductVariant,
-    VariantOptionValue,
 )
 from agent_hub_api.catalog.options import set_variant_options
+from agent_hub_api.catalog.read_models import AuthorizedCatalogScope, CatalogQuery
+from agent_hub_api.catalog.read_service import CatalogReadService
 from agent_hub_api.catalog.schemas import (
     CatalogImportResponse,
     CatalogSearchItem,
@@ -880,191 +876,45 @@ class UniversalCatalogService:
         collection_id: int | None = None,
     ) -> CatalogSearchResponse:
         await self._authorize(user, workspace_id)
-        if location_id is not None:
-            location_exists = await self.session.scalar(
-                select(Location.id).where(
-                    Location.workspace_id == workspace_id,
-                    Location.id == location_id,
-                    Location.is_active.is_(True),
-                )
-            )
-            if location_exists is None:
-                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy location.")
-        if collection_id is not None:
-            collection_exists = await self.session.scalar(
-                select(CatalogCollection.id).where(
-                    CatalogCollection.workspace_id == workspace_id,
-                    CatalogCollection.id == collection_id,
-                    CatalogCollection.is_active.is_(True),
-                )
-            )
-            if collection_exists is None:
-                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy collection.")
-        stmt = (
-            select(Product, ProductVariant, LocationVariant, InventoryLevel, Location)
-            .join(
-                ProductVariant,
-                and_(
-                    ProductVariant.workspace_id == Product.workspace_id,
-                    ProductVariant.product_id == Product.id,
+        products = await CatalogReadService(self.session).search_products(
+            AuthorizedCatalogScope(workspace_id=workspace_id),
+            CatalogQuery(
+                text=text,
+                brand=brand,
+                price_min=price_min,
+                price_max=price_max,
+                in_stock=in_stock,
+                options=tuple(options),
+                attributes=tuple(attributes),
+                requested_location_ids=(
+                    frozenset({location_id}) if location_id is not None else None
                 ),
-            )
-            .join(
-                LocationVariant,
-                and_(
-                    LocationVariant.workspace_id == ProductVariant.workspace_id,
-                    LocationVariant.variant_id == ProductVariant.id,
+                requested_collection_ids=(
+                    frozenset({collection_id}) if collection_id is not None else None
                 ),
-            )
-            .join(
-                Location,
-                and_(
-                    Location.workspace_id == LocationVariant.workspace_id,
-                    Location.id == LocationVariant.location_id,
-                ),
-            )
-            .outerjoin(
-                InventoryLevel,
-                and_(
-                    InventoryLevel.workspace_id == LocationVariant.workspace_id,
-                    InventoryLevel.location_id == LocationVariant.location_id,
-                    InventoryLevel.variant_id == LocationVariant.variant_id,
-                ),
-            )
-            .where(
-                Product.workspace_id == workspace_id,
-                Product.status == "active",
-                ProductVariant.status == "active",
-                LocationVariant.is_active.is_(True),
-                Location.is_active.is_(True),
-            )
+                limit=limit,
+            ),
         )
-        if location_id is not None:
-            stmt = stmt.where(LocationVariant.location_id == location_id)
-        if collection_id is not None:
-            stmt = stmt.where(
-                exists(
-                    select(1).where(
-                        CatalogCollectionProduct.workspace_id == workspace_id,
-                        CatalogCollectionProduct.collection_id == collection_id,
-                        CatalogCollectionProduct.product_id == Product.id,
-                    )
-                )
-            )
-        if text:
-            stmt = stmt.where(
-                or_(Product.name.ilike(f"%{text}%"), Product.product_sku.ilike(f"%{text}%"))
-            )
-        if brand:
-            stmt = stmt.where(Product.brand.ilike(brand))
-        effective = func.coalesce(
-            LocationVariant.price_override, ProductVariant.price_override, Product.price
-        )
-        if price_min is not None:
-            stmt = stmt.where(effective >= price_min)
-        if price_max is not None:
-            stmt = stmt.where(effective <= price_max)
-        if in_stock is True:
-            stmt = stmt.where(InventoryLevel.quantity > 0)
-        for raw in attributes:
-            if ":" not in raw:
-                raise ApiError(
-                    status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    "INVALID_ATTRIBUTE_FILTER",
-                    "Thuộc tính phải có dạng Tên:Giá trị.",
-                )
-            name, value = raw.split(":", 1)
-            stmt = stmt.where(Product.attributes_json[name.strip()].as_string() == value.strip())
-        parsed_options = []
-        for raw in options:
-            if ":" not in raw:
-                raise ApiError(
-                    status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    "INVALID_OPTION_FILTER",
-                    "Option phải có dạng Tên:Giá trị.",
-                )
-            name, value = raw.split(":", 1)
-            parsed_options.append((normalize_label(name), value.strip().casefold()))
-        for name, value in parsed_options:
-            stmt = stmt.where(
-                exists(
-                    select(1)
-                    .select_from(VariantOptionValue)
-                    .join(
-                        ProductOptionDefinition,
-                        and_(
-                            ProductOptionDefinition.workspace_id == VariantOptionValue.workspace_id,
-                            ProductOptionDefinition.id == VariantOptionValue.option_definition_id,
-                        ),
-                    )
-                    .join(
-                        ProductOptionValue,
-                        and_(
-                            ProductOptionValue.workspace_id == VariantOptionValue.workspace_id,
-                            ProductOptionValue.id == VariantOptionValue.option_value_id,
-                        ),
-                    )
-                    .where(
-                        VariantOptionValue.workspace_id == workspace_id,
-                        VariantOptionValue.variant_id == ProductVariant.id,
-                        ProductOptionDefinition.normalized_name == name,
-                        ProductOptionValue.normalized_value == value,
-                    )
-                )
-            )
-        rows = (await self.session.execute(stmt.limit(limit))).all()
         items: list[CatalogSearchItem] = []
-        for product, variant, assignment, inventory, location in rows:
-            option_map: dict[str, str] = {}
-            if variant:
-                opt_rows = (
-                    await self.session.execute(
-                        select(ProductOptionDefinition.name, ProductOptionValue.value)
-                        .join(
-                            VariantOptionValue,
-                            and_(
-                                VariantOptionValue.workspace_id
-                                == ProductOptionDefinition.workspace_id,
-                                VariantOptionValue.option_definition_id
-                                == ProductOptionDefinition.id,
-                            ),
-                        )
-                        .join(
-                            ProductOptionValue,
-                            and_(
-                                ProductOptionValue.workspace_id == VariantOptionValue.workspace_id,
-                                ProductOptionValue.id == VariantOptionValue.option_value_id,
-                            ),
-                        )
-                        .where(
-                            VariantOptionValue.workspace_id == workspace_id,
-                            VariantOptionValue.variant_id == variant.id,
+        for product in products:
+            for variant in product.variants:
+                for availability in variant.availability:
+                    items.append(
+                        CatalogSearchItem(
+                            id=product.id,
+                            name=product.name,
+                            brand=product.brand,
+                            category=product.category,
+                            currency=product.currency,
+                            price=product.base_price,
+                            variant_id=variant.id,
+                            variant_sku=variant.sku,
+                            effective_price=availability.effective_price,
+                            stock_quantity=availability.quantity,
+                            location_id=availability.location_id,
+                            location_name=availability.location_name,
+                            options=dict(variant.options),
+                            attributes=cast(Any, product.attributes),
                         )
                     )
-                ).all()
-                option_map = {name: value for name, value in opt_rows}
-            items.append(
-                CatalogSearchItem(
-                    id=product.id,
-                    name=product.name,
-                    brand=product.brand,
-                    category=product.category,
-                    currency=product.currency,
-                    price=product.price,
-                    variant_id=variant.id if variant else None,
-                    variant_sku=variant.variant_sku if variant else None,
-                    effective_price=(
-                        assignment.price_override
-                        if assignment.price_override is not None
-                        else variant.price_override
-                        if variant.price_override is not None
-                        else product.price
-                    ),
-                    stock_quantity=inventory.quantity if inventory is not None else None,
-                    location_id=location.id,
-                    location_name=location.name,
-                    options=option_map,
-                    attributes=cast(Any, product.attributes_json or {}),
-                )
-            )
-        return CatalogSearchResponse(items=items)
+        return CatalogSearchResponse(items=items[:limit])
