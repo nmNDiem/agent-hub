@@ -12,7 +12,8 @@ Use **UUIDv7 only for `users.id`, `workspaces.id` and public IDs on externally a
 - `workspace_members`: id, workspace_id, user_id, role enum OWNER/ADMIN/MEMBER; unique(workspace_id,user_id).
 
 ## Agents / channels
-- `agents`: BIGINT id, UUIDv7 public_id, workspace_id, name, greeting, safe_instructions, default_locale, status DRAFT/PUBLISHED/PAUSED, model_config_ref (no keys), created_by.
+- `agents`: BIGINT id, UUIDv7 public_id, workspace_id, name, greeting, safe_instructions, default_locale, status DRAFT/PUBLISHED/PAUSED, explicit all-vs-selected catalog-scope flags and created_by. F3.1 does not persist provider secrets or expose status transitions.
+- `agent_locations`, `agent_catalog_collections`: workspace-scoped joins for selected catalog scope. `null` scope in the API means all active rows in that dimension; an empty selected set means no access. Composite tenant foreign keys prevent cross-workspace assignments.
 - `agent_channels`: id, workspace_id, agent_id, type WEB (later FACEBOOK/ZALO), config, enabled.
 - `widget_domains`: id, workspace_id, agent_id, normalized_origin; uniqueness per agent/origin.
 - `widget_sessions`: id, workspace_id, agent_id, token_hash or signed session id, expires_at, privacy/consent state, visitor_key_hash.

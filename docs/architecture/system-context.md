@@ -32,7 +32,7 @@ flowchart LR
 
 ## Backend packages
 
-Current identity and tenancy implementation:
+Current backend implementation:
 
 ```text
 apps/api/
@@ -60,6 +60,8 @@ apps/api/
       repository.py
       service.py
       router.py
+    catalog/                  # canonical catalog and scoped read boundary
+    agents/                   # agent config, scope resolver and typed catalog tools
   migrations/
   tests/
 ```
@@ -67,8 +69,8 @@ apps/api/
 Each domain follows `router -> service -> repository`: routers own HTTP concerns, services own
 business rules, authorization and transaction boundaries, and repositories own ORM queries without
 committing. `identity` does not depend on `workspaces`; workspace profile composition is owned by
-the workspace module. Future domains such as catalog, knowledge and conversations are added only
-when their approved phase requires them, following the same dependency direction.
+the workspace module. Catalog and agents follow the same dependency direction. Future domains such
+as knowledge and conversations are added only when their approved phase requires them.
 
 ## Frontend packages
 

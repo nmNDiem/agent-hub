@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant cùng generic catalog CRUD, universal CSV/XLS/XLSX import có staging/diff/commit, ảnh riêng tư trên Supabase Storage và catalog UI. RAG, OpenAI runtime và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, cùng F3.1 agent configuration và internal typed catalog tools. RAG, OpenAI runtime, Playground và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -93,7 +93,7 @@ Lệnh Alembic trên là offline dry-run và không cần database. Online migra
 pnpm db:migrate
 ```
 
-Các migration tạo identity/tenant tables, catalog canonical, generic options, external references và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog:
+Các migration tạo identity/tenant tables, catalog canonical, generic options, location/collection scope, agent configuration/assignments và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog hoặc agent APIs:
 
 ```powershell
 pnpm db:migrate
@@ -161,4 +161,4 @@ Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm vari
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy and catalog capabilities are implemented; do not implement knowledge/RAG, agent runtime, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy, catalog and F3.1 agent-scope/tool capabilities are implemented; do not implement knowledge/RAG, LLM orchestration, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.

@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0 through F2.2 are complete. Their critical real-PostgreSQL gates passed in the isolated `agenthub_test` schema. F3 and later entries remain future work and are not authorized without an explicit owner request. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0 through F2.2 and the F3.1 slice are complete. Their critical real-PostgreSQL gates passed in the isolated `agenthub_test` schema. F3.2 and later entries remain future work and are not authorized without an explicit owner request. F3 remains open until every F3 slice passes together. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -38,7 +38,7 @@
 
 F3 is one roadmap phase and release gate, implemented through the following ordered task briefs. Completing an individual task does not authorize F4 or mark F3 complete.
 
-### F3.1 — Agent foundation and catalog tools
+### F3.1 — Agent foundation and catalog tools (complete)
 - Add agent/config persistence and location/collection assignments.
 - Resolve caller authorization into an immutable allowed catalog scope before query execution. Query intent can only narrow that scope; never pass dashboard `User` into the catalog query engine.
 - Build typed tools over `CatalogReadService`. Accept generic option/attribute filters, preserve same-variant option semantics and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.

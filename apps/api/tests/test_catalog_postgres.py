@@ -11,7 +11,9 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
+from agent_hub_api.agents.models import Agent, AgentCatalogCollection, AgentLocation
 from agent_hub_api.catalog.models import (
+    CatalogCollection,
     InventoryLevel,
     Location,
     LocationVariant,
@@ -44,6 +46,12 @@ def migrate(revision: str) -> None:
     config = Config(str(API_ROOT / "alembic.ini"))
     config.attributes["target_schema"] = TEST_SCHEMA
     command.upgrade(config, revision)
+
+
+def downgrade(revision: str) -> None:
+    config = Config(str(API_ROOT / "alembic.ini"))
+    config.attributes["target_schema"] = TEST_SCHEMA
+    command.downgrade(config, revision)
 
 
 def reset_test_schema(database_url: str, *, create: bool) -> None:
@@ -141,8 +149,61 @@ def test_postgres_jsonb_uniqueness_transaction_and_tenant_scope() -> None:
                         code="PG-TEST",
                         type="store",
                     )
-                    session.add_all([variant, location])
+                    location_b = Location(
+                        workspace_id=workspace_b,
+                        name="Other PostgreSQL test",
+                        code="PG-OTHER",
+                        type="store",
+                    )
+                    collection_a = CatalogCollection(
+                        workspace_id=workspace_a,
+                        name="PG collection A",
+                    )
+                    collection_b = CatalogCollection(
+                        workspace_id=workspace_b,
+                        name="PG collection B",
+                    )
+                    agent = Agent(
+                        public_id=new_uuid_v7(),
+                        workspace_id=workspace_a,
+                        name="PG agent",
+                        created_by_user_id=user_id,
+                    )
+                    session.add_all(
+                        [
+                            variant,
+                            location,
+                            location_b,
+                            collection_a,
+                            collection_b,
+                            agent,
+                        ]
+                    )
                     await session.flush()
+
+                    invalid_location_assignment = await session.begin_nested()
+                    session.add(
+                        AgentLocation(
+                            workspace_id=workspace_a,
+                            agent_id=agent.id,
+                            location_id=location_b.id,
+                        )
+                    )
+                    with pytest.raises(IntegrityError):
+                        await session.flush()
+                    await invalid_location_assignment.rollback()
+
+                    invalid_collection_assignment = await session.begin_nested()
+                    session.add(
+                        AgentCatalogCollection(
+                            workspace_id=workspace_a,
+                            agent_id=agent.id,
+                            collection_id=collection_b.id,
+                        )
+                    )
+                    with pytest.raises(IntegrityError):
+                        await session.flush()
+                    await invalid_collection_assignment.rollback()
                     session.add_all(
                         [
                             LocationVariant(
@@ -203,6 +264,39 @@ def test_postgres_jsonb_uniqueness_transaction_and_tenant_scope() -> None:
 
     try:
         asyncio.run(exercise())
+    finally:
+        reset_test_schema(database_url, create=False)
+
+
+def test_agent_migration_round_trip_in_isolated_schema() -> None:
+    database_url = require_database_url()
+    reset_test_schema(database_url, create=True)
+    try:
+        migrate("head")
+
+        async def table_exists(table_name: str) -> bool:
+            engine = schema_engine(database_url)
+            try:
+                async with engine.connect() as connection:
+                    value = await connection.scalar(
+                        text("SELECT to_regclass(:qualified_name)"),
+                        {"qualified_name": f"{TEST_SCHEMA}.{table_name}"},
+                    )
+                    return value is not None
+            finally:
+                await engine.dispose()
+
+        assert asyncio.run(table_exists("agents"))
+        assert asyncio.run(table_exists("agent_locations"))
+        assert asyncio.run(table_exists("agent_catalog_collections"))
+
+        downgrade("20260925_0005")
+        assert not asyncio.run(table_exists("agents"))
+        assert not asyncio.run(table_exists("agent_locations"))
+        assert not asyncio.run(table_exists("agent_catalog_collections"))
+
+        migrate("head")
+        assert asyncio.run(table_exists("agents"))
     finally:
         reset_test_schema(database_url, create=False)
 

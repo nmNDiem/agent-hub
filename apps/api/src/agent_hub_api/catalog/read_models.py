@@ -9,6 +9,7 @@ from uuid import UUID
 
 InventoryState = Literal["in_stock", "out_of_stock", "unknown"]
 PriceSummaryKind = Literal["exact", "range", "unknown"]
+ImageReferenceKind = Literal["managed", "remote"]
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,22 @@ class CatalogAvailability:
 
 
 @dataclass(frozen=True)
+class CatalogImageReference:
+    id: int
+    variant_id: int | None
+    kind: ImageReferenceKind
+    alt_text: str | None
+    sort_order: int
+
+
+@dataclass(frozen=True)
+class CatalogSizeGuideReadModel:
+    title: str
+    content: Mapping[str, object]
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
 class CatalogVariantReadModel:
     id: int
     sku: str | None
@@ -70,6 +87,16 @@ class CatalogVariantReadModel:
     inventory_policy: str
     options: Mapping[str, str]
     attributes: Mapping[str, object]
+    legacy_color: str | None
+    legacy_size: str | None
+    availability: tuple[CatalogAvailability, ...]
+
+
+@dataclass(frozen=True)
+class CatalogVariantAvailabilityReadModel:
+    id: int
+    sku: str | None
+    inventory_policy: str
     availability: tuple[CatalogAvailability, ...]
 
 
@@ -78,6 +105,7 @@ class CatalogProductReadModel:
     id: int
     sku: str | None
     name: str
+    description: str | None
     brand: str | None
     category: str | None
     currency: str
@@ -87,4 +115,6 @@ class CatalogProductReadModel:
     price: CatalogPriceSummary
     availability: CatalogAvailabilitySummary
     variants: tuple[CatalogVariantReadModel, ...]
+    images: tuple[CatalogImageReference, ...]
+    size_guide: CatalogSizeGuideReadModel | None
     updated_at: datetime

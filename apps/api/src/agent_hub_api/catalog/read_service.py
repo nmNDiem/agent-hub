@@ -3,10 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
+from urllib.parse import urlparse
+from uuid import UUID
 
 from fastapi import status
 from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from agent_hub_api.catalog.import_pipeline import normalize_label
 from agent_hub_api.catalog.models import (
@@ -16,9 +19,11 @@ from agent_hub_api.catalog.models import (
     Location,
     LocationVariant,
     Product,
+    ProductImage,
     ProductOptionDefinition,
     ProductOptionValue,
     ProductVariant,
+    SizeGuide,
     VariantOptionValue,
 )
 from agent_hub_api.catalog.options import load_variant_options
@@ -26,10 +31,14 @@ from agent_hub_api.catalog.read_models import (
     AuthorizedCatalogScope,
     CatalogAvailability,
     CatalogAvailabilitySummary,
+    CatalogImageReference,
     CatalogPriceSummary,
     CatalogProductReadModel,
     CatalogQuery,
+    CatalogSizeGuideReadModel,
+    CatalogVariantAvailabilityReadModel,
     CatalogVariantReadModel,
+    ImageReferenceKind,
     InventoryState,
 )
 from agent_hub_api.core.errors import ApiError
@@ -100,11 +109,11 @@ class CatalogReadService:
         variant_id: int,
         *,
         location_ids: frozenset[int] | None = None,
-    ) -> tuple[CatalogAvailability, ...]:
+    ) -> CatalogVariantAvailabilityReadModel | None:
         query = CatalogQuery(requested_location_ids=location_ids)
         effective_scope = await self._resolve_scope(scope, query)
         if self._scope_is_empty(effective_scope):
-            return ()
+            return None
         stmt = self._join_catalog_rows(
             select(Product, ProductVariant, LocationVariant, InventoryLevel, Location)
         )
@@ -112,9 +121,17 @@ class CatalogReadService:
             ProductVariant.id == variant_id
         )
         rows = (await self.session.execute(stmt.order_by(Location.id))).all()
-        return tuple(
-            self._availability(product, variant, assignment, inventory, location)
-            for product, variant, assignment, inventory, location in rows
+        if not rows:
+            return None
+        variant = rows[0][1]
+        return CatalogVariantAvailabilityReadModel(
+            id=variant.id,
+            sku=variant.variant_sku,
+            inventory_policy=variant.inventory_policy,
+            availability=tuple(
+                self._availability(product, row_variant, assignment, inventory, location)
+                for product, row_variant, assignment, inventory, location in rows
+            ),
         )
 
     async def _resolve_scope(
@@ -373,6 +390,10 @@ class CatalogReadService:
         ).all()
         variant_ids = list({variant.id for _, variant, _, _, _ in rows})
         option_maps = await load_variant_options(self.session, scope.workspace_id, variant_ids)
+        images_by_product = await self._load_images(
+            scope.workspace_id, product_ids, frozenset(variant_ids)
+        )
+        guides_by_product = await self._load_size_guides(scope.workspace_id, product_ids)
 
         products: dict[int, Product] = {}
         variants: dict[int, ProductVariant] = {}
@@ -403,6 +424,12 @@ class CatalogReadService:
                     attributes=MappingProxyType(
                         dict(variants[variant_id].attributes_json or {})
                     ),
+                    legacy_color=self._compatibility_option(
+                        option_maps.get(variant_id, {}), "Color", variants[variant_id].color
+                    ),
+                    legacy_size=self._compatibility_option(
+                        option_maps.get(variant_id, {}), "Size", variants[variant_id].size
+                    ),
                     availability=tuple(availability[variant_id]),
                 )
                 for variant_id in product_variant_ids[product_id]
@@ -415,6 +442,7 @@ class CatalogReadService:
                     id=product.id,
                     sku=product.product_sku,
                     name=product.name,
+                    description=product.description_text or product.description,
                     brand=product.brand,
                     category=product.category,
                     currency=product.currency,
@@ -424,10 +452,98 @@ class CatalogReadService:
                     price=self._price_summary(all_availability),
                     availability=self._availability_summary(all_availability),
                     variants=variant_models,
+                    images=images_by_product.get(product.id, ()),
+                    size_guide=guides_by_product.get(product.id),
                     updated_at=product.updated_at,
                 )
             )
         return tuple(result)
+
+    async def _load_images(
+        self,
+        workspace_id: UUID,
+        product_ids: list[int],
+        variant_ids: frozenset[int],
+    ) -> dict[int, tuple[CatalogImageReference, ...]]:
+        variant_filter: ColumnElement[bool] = ProductImage.variant_id.is_(None)
+        if variant_ids:
+            variant_filter = or_(variant_filter, ProductImage.variant_id.in_(variant_ids))
+        images = list(
+            (
+                await self.session.scalars(
+                    select(ProductImage)
+                    .where(
+                        ProductImage.workspace_id == workspace_id,
+                        ProductImage.product_id.in_(product_ids),
+                        ProductImage.status == "active",
+                        variant_filter,
+                    )
+                    .order_by(ProductImage.product_id, ProductImage.sort_order, ProductImage.id)
+                )
+            ).all()
+        )
+        result: dict[int, list[CatalogImageReference]] = {}
+        for item in images:
+            safe_url = self._safe_http_url(item.source_url)
+            if item.object_key is not None:
+                kind: ImageReferenceKind = "managed"
+            elif safe_url is not None:
+                kind = "remote"
+            else:
+                continue
+            result.setdefault(item.product_id, []).append(
+                CatalogImageReference(
+                    id=item.id,
+                    variant_id=item.variant_id,
+                    kind=kind,
+                    alt_text=item.alt_text,
+                    sort_order=item.sort_order,
+                )
+            )
+        return {product_id: tuple(items) for product_id, items in result.items()}
+
+    async def _load_size_guides(
+        self, workspace_id: UUID, product_ids: list[int]
+    ) -> dict[int, CatalogSizeGuideReadModel]:
+        guides = list(
+            (
+                await self.session.scalars(
+                    select(SizeGuide).where(
+                        SizeGuide.workspace_id == workspace_id,
+                        SizeGuide.product_id.in_(product_ids),
+                    )
+                )
+            ).all()
+        )
+        return {
+            guide.product_id: CatalogSizeGuideReadModel(
+                title=guide.title,
+                content=MappingProxyType(dict(guide.content)),
+                updated_at=guide.updated_at,
+            )
+            for guide in guides
+        }
+
+    @staticmethod
+    def _safe_http_url(value: str | None) -> str | None:
+        if value is None:
+            return None
+        parsed = urlparse(value)
+        return value if parsed.scheme in {"http", "https"} and parsed.netloc else None
+
+    @staticmethod
+    def _compatibility_option(
+        options: dict[str, str], name: str, fallback: str | None
+    ) -> str | None:
+        normalized_name = normalize_label(name)
+        return next(
+            (
+                value
+                for option_name, value in options.items()
+                if normalize_label(option_name) == normalized_name
+            ),
+            fallback,
+        )
 
     @staticmethod
     def _availability(

@@ -25,9 +25,11 @@ Registration creates the user and session but does not silently create a workspa
 |---|---|---|
 | GET/POST | `/workspaces` | List memberships / create workspace |
 | GET/PATCH | `/workspaces/{workspace_id}` | Membership and role enforced |
-| GET/POST/PATCH | `/workspaces/{workspace_id}/agents` | List, create, update; check status transitions |
-| POST | `/workspaces/{workspace_id}/agents/{agent_id}/publish` | Requires complete configuration |
-| GET/PUT | `/workspaces/{workspace_id}/agents/{agent_id}/widget` | Branding + domain allowlist + embed snippet |
+| GET/POST | `/workspaces/{workspace_id}/agents` | List/create draft agents; owner/admin create, members may read |
+| GET/PATCH | `/workspaces/{workspace_id}/agents/{public_agent_id}` | Read/update validated core configuration; F3.1 does not expose status transitions |
+| PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/catalog-scope` | Atomically replace allowed location/collection scope; `null` means all, `[]` means none |
+| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/publish` | Future F4 route; requires complete configuration and an immutable revision |
+| GET/PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/widget` | Future F4 branding + domain allowlist + embed snippet |
 | CRUD | `/workspaces/{workspace_id}/products` | Filtering, pagination, validation |
 | CRUD | `/workspaces/{workspace_id}/products/{product_id}/variants` | SKU, generic options, legacy color/size compatibility, price and stock |
 | PUT/DELETE | `/workspaces/{workspace_id}/products/{product_id}/size-guide` | Optional validated JSON guide |
@@ -80,3 +82,5 @@ New clients use the import-job routes. The universal importer detects structure 
 F2.2 adds authenticated workspace routes for locations, location variants/inventory/price overrides and catalog collections. Location and collection IDs are always resolved inside the authorized workspace. `GET .../catalog/search` retains optional singular `location_id` and `collection_id` parameters for dashboard compatibility; effective price is location override, then variant override, then product price. Search stock comes only from `inventory_levels`. Universal imports may map an explicit `location_code`; unknown codes are validation errors and never create locations implicitly. Agents and agent assignments are not part of this contract until F3.
 
 F3 uses an internal product-centric catalog contract rather than the dashboard `User` DTO: a trusted authorization resolver produces workspace plus allowed location/collection IDs, then a separate query may only narrow that scope. Multiple locations are unioned, multiple collections are unioned, and the two dimensions intersect. No-location results expose exact/range/unknown price and counts for in-stock/out-of-stock/unknown availability; only the detail availability contract exposes per-location quantity, effective price and freshness. F3 owns the tool mapper and F4 owns the public product-card DTO.
+
+F3.1 implements `search_products`, `get_product_detail` and `check_stock` as internal typed tools, not browser endpoints. They accept only an immutable server-resolved `AuthorizedCatalogScope`, expose generic options/attributes and authoritative price/inventory facts, and use color/size only as compatibility projections. Images are returned as opaque catalog image IDs plus safe metadata; Storage object keys, signed URLs and recorded remote URLs are never part of tool output. F4 owns the separately authorized public image-delivery policy.

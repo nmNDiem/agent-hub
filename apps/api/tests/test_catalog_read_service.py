@@ -203,7 +203,7 @@ def test_product_centric_search_batches_rows_and_enforces_authorized_scope(
                         limit=1,
                     ),
                 )
-                assert query_count == 5
+                assert query_count == 7
                 assert [item.id for item in products] == [product.id]
                 assert products[0].price.kind == "range"
                 assert products[0].price.minimum == Decimal("90")

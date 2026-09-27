@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agent_hub_api.agents.router import router as agents_router
 from agent_hub_api.catalog.router import router as catalog_router
 from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
@@ -124,6 +125,7 @@ def create_app(
     application.include_router(auth_router)
     application.include_router(profile_router)
     application.include_router(workspaces_router)
+    application.include_router(agents_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     if runtime_settings.email_delivery_enabled:
