@@ -18,7 +18,7 @@ def normalize_database_url(value: str) -> str:
 
 
 class Settings(BaseSettings):
-    """Runtime settings loaded from server-side environment variables."""
+    """Application defaults with server-side environment overrides."""
 
     model_config = SettingsConfigDict(
         env_file=".env",

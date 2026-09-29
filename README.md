@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. Giữ `EMAIL_DELIVERY_ENABLED=false` cho tới khi backend có provider gửi mail thật. Cấu hình Qdrant/embedding trong `.env.example` mới là contract dự kiến cho F3; runtime hiện tại chưa sử dụng các biến đó.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import, thời hạn signed URL và import lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Cấu hình Qdrant/embedding trong `.env.example` mới là contract dự kiến cho F3; runtime hiện tại chưa sử dụng các biến đó.
 
 ## Chạy local
 

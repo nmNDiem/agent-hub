@@ -5,7 +5,7 @@
 
 ## Local setup contract
 - Document prerequisites and actual verified start commands in README after scaffold; no fictional scripts.
-- Provide `.env.example` for `DATABASE_URL`, server-side Supabase URL/key, Qdrant URL/key/collection prefix, embedding provider/profile, OpenAI API key/model IDs, token signing key and app/widget URLs with placeholder values only.
+- Provide `.env.example` for deployment-specific endpoints, resource namespaces, model/profile selections and server-side secrets with placeholder values only. Keep stable application policy, limits and internal version defaults in typed config instead of duplicating them in `.env.example`.
 - Keep `.env*` with secrets out of version control; fail startup clearly for missing required settings.
 - Use migrations against a **development** DB only; seed fake shop/catalog data, never real customer records.
 - Make frontend/backend/widget local CORS, cookie, SSE and upload paths explicit; document whichever Supabase local/hosted-dev strategy actually works.

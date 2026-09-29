@@ -20,21 +20,17 @@ OPENAI_API_KEY=REPLACE_ME_SERVER_ONLY
 QDRANT_URL=http://127.0.0.1:6333
 QDRANT_API_KEY=
 QDRANT_COLLECTION_PREFIX=agenthub_knowledge
-EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=REPLACE_WITH_VERIFIED_MODEL
 EMBEDDING_DIMENSIONS=REPLACE_WITH_VERIFIED_DIMENSIONS
-EMBEDDING_PIPELINE_VERSION=v1
 JWT_SIGNING_KEY=REPLACE_WITH_HIGH_ENTROPY_SECRET
 APP_PUBLIC_BASE_URL=http://localhost:3000
 ALLOWED_ADMIN_ORIGINS=http://localhost:3000
 ALLOWED_WIDGET_ORIGINS=http://localhost:3000,http://localhost:5500
-MAX_CHAT_IMAGE_BYTES=5242880
-MAX_DOCUMENT_BYTES=10485760
 # Next.js public only
 NEXT_PUBLIC_APP_ORIGIN=http://localhost:3000
 NEXT_PUBLIC_API_PATH=/api/v1
 ```
-Never commit live `.env`; provide `.env.example` and check missing env at startup. Same-origin route `/api/v1` forwarded to `localhost:8000` for browser cookies/SSE; Next server can call internal backend URL and forward cookies server-side. Verify CORS/CSRF/HTTPS cookies based on local/prod mode explicitly.
+Never commit live `.env`; provide `.env.example` and check missing env at startup. Keep stable policy, size limits, TTLs and internal pipeline/provider defaults in typed application config; environment variables are reserved for secrets, deployment-specific endpoints/resource names and intentional overrides. Same-origin route `/api/v1` forwarded to `localhost:8000` for browser cookies/SSE; Next server can call internal backend URL and forward cookies server-side. Verify CORS/CSRF/HTTPS cookies based on local/prod mode explicitly.
 
 ## Local startup target
 1. Supply and validate required env, provision private/public buckets and a non-production Qdrant endpoint; verify configured embedding dimensions against the selected model/profile.
