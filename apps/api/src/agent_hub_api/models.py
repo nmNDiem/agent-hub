@@ -22,6 +22,20 @@ from agent_hub_api.catalog.models import (
 )
 from agent_hub_api.core.database import Base
 from agent_hub_api.identity.models import AuthSession, EmailToken, User
+from agent_hub_api.knowledge.models import (
+    AgentKnowledgeBase,
+    EmbeddingProfile,
+    IngestionJob,
+    IngestionJobAttempt,
+    KnowledgeBase,
+    KnowledgeChunk,
+    KnowledgeChunkEmbedding,
+    KnowledgeDocument,
+    KnowledgeDocumentActiveGeneration,
+    KnowledgeDocumentVersion,
+    KnowledgeGeneration,
+    MediaAsset,
+)
 from agent_hub_api.workspaces.models import Workspace, WorkspaceMember
 
 __all__ = [
@@ -38,9 +52,20 @@ __all__ = [
     "CatalogImportMappingProfile",
     "CatalogImportStagedRecord",
     "EmailToken",
+    "EmbeddingProfile",
     "InventoryLevel",
+    "IngestionJob",
+    "IngestionJobAttempt",
+    "KnowledgeBase",
+    "KnowledgeChunk",
+    "KnowledgeChunkEmbedding",
+    "KnowledgeDocument",
+    "KnowledgeDocumentActiveGeneration",
+    "KnowledgeDocumentVersion",
+    "KnowledgeGeneration",
     "Location",
     "LocationVariant",
+    "MediaAsset",
     "Product",
     "ProductImage",
     "ProductOptionDefinition",
@@ -49,6 +74,7 @@ __all__ = [
     "SizeGuide",
     "VariantOptionValue",
     "User",
+    "AgentKnowledgeBase",
     "Workspace",
     "WorkspaceMember",
 ]
