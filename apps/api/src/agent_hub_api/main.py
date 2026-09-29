@@ -19,6 +19,8 @@ from agent_hub_api.identity.dependencies import LoginRateLimiter
 from agent_hub_api.identity.email_delivery import EmailDelivery
 from agent_hub_api.identity.router import email_router
 from agent_hub_api.identity.router import router as auth_router
+from agent_hub_api.knowledge.router import router as knowledge_router
+from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
 
@@ -29,6 +31,7 @@ def create_app(
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     email_delivery: EmailDelivery | None = None,
     catalog_storage: CatalogStorage | None = None,
+    knowledge_storage: KnowledgeStorage | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
@@ -38,6 +41,15 @@ def create_app(
         and runtime_settings.supabase_service_role_key is not None
     ):
         catalog_storage = SupabaseCatalogStorage(
+            base_url=runtime_settings.supabase_url,
+            service_key=runtime_settings.supabase_service_role_key,
+            bucket=runtime_settings.storage_private_bucket,
+        )
+    if knowledge_storage is None and (
+        runtime_settings.supabase_url is not None
+        and runtime_settings.supabase_service_role_key is not None
+    ):
+        knowledge_storage = SupabaseKnowledgeStorage(
             base_url=runtime_settings.supabase_url,
             service_key=runtime_settings.supabase_service_role_key,
             bucket=runtime_settings.storage_private_bucket,
@@ -64,6 +76,7 @@ def create_app(
     application.state.session_factory = session_factory
     application.state.email_delivery = email_delivery
     application.state.catalog_storage = catalog_storage
+    application.state.knowledge_storage = knowledge_storage
     application.state.login_rate_limiter = LoginRateLimiter()
 
     @application.middleware("http")
@@ -128,6 +141,7 @@ def create_app(
     application.include_router(agents_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
+    application.include_router(knowledge_router)
     if runtime_settings.email_delivery_enabled:
         application.include_router(email_router)
     return application

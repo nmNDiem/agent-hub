@@ -59,6 +59,36 @@ class Settings(BaseSettings):
     catalog_csv_max_rows: int = 20_000
     storage_signed_url_seconds: int = 300
     catalog_import_lease_seconds: int = 300
+    knowledge_document_max_bytes: int = 10 * 1024 * 1024
+    knowledge_manual_max_chars: int = 100_000
+    knowledge_pdf_max_pages: int = 200
+    knowledge_extracted_max_chars: int = 1_000_000
+    knowledge_max_chunks_per_generation: int = 1_000
+    knowledge_chunk_size: int = 1_200
+    knowledge_chunk_overlap: int = 150
+    knowledge_workspace_storage_bytes: int = 100 * 1024 * 1024
+    knowledge_workspace_max_documents: int = 100
+    knowledge_workspace_max_chunks: int = 20_000
+    knowledge_upload_window_minutes: int = 10
+    knowledge_uploads_per_window: int = 10
+    knowledge_workspace_active_jobs: int = 2
+    knowledge_job_lease_seconds: int = 120
+    knowledge_job_heartbeat_seconds: int = 30
+    knowledge_job_max_attempts: int = 5
+    knowledge_retry_base_seconds: int = 5
+    knowledge_retry_max_seconds: int = 900
+    knowledge_parser_wall_seconds: int = 30
+    knowledge_parser_cpu_seconds: int = 20
+    knowledge_parser_memory_bytes: int = 512 * 1024 * 1024
+    knowledge_parser_output_bytes: int = 4 * 1024 * 1024
+
+    @model_validator(mode="after")
+    def validate_knowledge_limits(self) -> "Settings":
+        if self.knowledge_chunk_overlap >= self.knowledge_chunk_size:
+            raise ValueError("Knowledge chunk overlap must be smaller than chunk size")
+        if self.knowledge_job_heartbeat_seconds >= self.knowledge_job_lease_seconds:
+            raise ValueError("Knowledge heartbeat must be shorter than the job lease")
+        return self
 
     @field_validator("database_url")
     @classmethod
