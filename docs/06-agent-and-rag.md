@@ -31,9 +31,15 @@ For fashion retail, **structured catalog search is primary for facts**; RAG supp
 ## Knowledge pipeline
 - Store original PDF/TXT in private Storage; parse and sanitize; chunk with source/position/version; embed through `EmbeddingProvider`; index through `KnowledgeVectorIndex`; persist job and index status in Postgres.
 - CSV/XLS/XLSX catalog files use the universal structured importer, not the knowledge/RAG ingestion path.
-- Re-index updated docs, delete/expire old chunks transactionally; prevent stale document duplicates with checksums and idempotency.
+- The API only validates/stages uploads and persists jobs. A separate worker process claims PostgreSQL jobs with `FOR UPDATE SKIP LOCKED`, bounded workspace concurrency, expiring leases, fencing tokens and heartbeats; the API process is not the durability mechanism.
+- PDF extraction runs with strict `pypdf==6.19.0` parsing in an isolated child process with wall-clock, CPU, memory and output limits. Encrypted and scan/image-only PDFs are explicitly unsupported; OCR is not silently attempted.
+- Chunk generations record the versioned chunker and parameters. Persist chunks before external calls, use deterministic vector point IDs, then atomically activate only a fully indexed generation. Deletion/archive revokes authoritative Postgres state before asynchronous Storage/vector cleanup.
+- Retry only transient Storage/provider/network failures with capped exponential backoff and full jitter. Invalid content, unsupported PDF classes, hash mismatch, dimension mismatch and quota failures are permanent until the source or configuration changes.
 - Persist immutable embedding profiles containing provider, model, dimensions, provider revision, pipeline version and distance metric. Never infer dimension from a model string or compare vectors from different profiles.
+- The platform operator/provider bootstrap owns profile creation; workspaces never submit arbitrary model identifiers. A model change creates a new immutable profile and target collection, re-embeds every active source as a new generation, verifies coverage/isolation, and atomically changes the active profile. No profile is seeded when the exact model/dimensions are unapproved; documents remain `awaiting_profile` rather than using a guessed model.
 - Treat Qdrant as a rebuildable derived index. Apply workspace and allowed-source filters **inside** vector retrieval, then revalidate returned chunks against the active ready generation in Postgres; test absence of other-tenant hits.
+
+Uploaded and retrieved text remains untrusted data. Ingestion normalization does not make prompt injection safe; the actual instruction/data boundary, tool authorization and adversarial prompt tests belong to the grounded runtime before any content reaches a model.
 
 ## Answer rules
 - Current effective catalog price (location override, otherwise variant override, otherwise product price) and location-scoped structured inventory override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock. F3 resolves allowed agent locations/collections before calling the F2.2 scoped search contract.

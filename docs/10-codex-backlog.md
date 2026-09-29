@@ -44,7 +44,7 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 - Build typed tools over `CatalogReadService`. Accept generic option/attribute filters, preserve same-variant option semantics and return authoritative effective price, inventory policy/unknown state, safe image references and legacy color/size only as compatibility projections.
 - Done: cross-workspace and scope-narrowing tests pass; product candidates are limited before batched hydration; no cross-variant option joins or fashion-only schema assumptions.
 
-### F3.2 — Knowledge persistence and ingestion
+### F3.2 — Knowledge persistence and ingestion (complete)
 - Add shop profile/FAQ, knowledge bases and agent links, document, chunk and ingestion-job persistence plus immutable embedding-profile metadata in Postgres.
 - Implement safe PDF/TXT extraction, chunking, job status transitions and idempotent retry boundaries. Treat files and extracted content as untrusted data.
 - Keep the pipeline testable with fake embedding/vector adapters; do not require Qdrant or OpenAI for persistence and ingestion unit tests.

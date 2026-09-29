@@ -18,6 +18,7 @@
 ## Storage and uploads
 - Store private knowledge docs and visitor photos in private buckets; server authorizes any signed URL and uses short expiry. Public product images only if shop elects to publish them.
 - Enforce allowlist MIME + file signature and decoded format, bounded upload bytes/pixels/pages, safe filenames, path constraints, per-workspace quotas and scan/isolated parsing as needed.
+- Treat PDF parsing as hostile execution: use strict parsing in a subprocess with wall/CPU/memory/output limits and fail closed if resource isolation cannot be installed. Application page/text limits do not replace decoder-level isolation.
 - Never use uploaded document or image metadata as executable code; no unrestricted URL fetching. Prefer blocking SSRF via allowlisting if crawling added later.
 - Document retention and deletion for visitor images/chat/PII prior to production; default to minimum necessary retention and protect backups appropriately.
 
@@ -26,6 +27,7 @@
 - Fixed tool allowlist, validated arguments, least privilege, cost/token caps per request/workspace, provider timeouts and concurrency limits.
 - No payment/checkout/order mutation from an LLM. No speculation about stock, private order status or unsupported size guarantees.
 - Redact API keys, passwords, tokens, contact info and private file links from error logs/traces where practical.
+- Knowledge workers log job/workspace identifiers and stable error codes only; never log uploaded bytes, extracted/chunk text or parser tracebacks. Ingestion merely preserves text as untrusted data—prompt-injection defenses are enforced later when grounded context is assembled and tools execute.
 
 ## Test requirements
 - Login/token rotation/password reset tests; wrong user/workspace access to each resource; mandatory Qdrant tenant/source filters plus Postgres result revalidation; unauthorized signed-URL attempt; malformed image and oversized PDF; widget replay, rate limits and consent; prompt injection from uploaded docs; safe error behavior.

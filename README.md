@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, cùng F3.1 agent configuration và internal typed catalog tools. RAG, OpenAI runtime, Playground và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, cùng knowledge persistence và durable ingestion core. Concrete OpenAI/Qdrant retrieval, grounded generation, Playground và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import, thời hạn signed URL và import lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Cấu hình Qdrant/embedding trong `.env.example` mới là contract dự kiến cho F3; runtime hiện tại chưa sử dụng các biến đó.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import/knowledge, thời hạn signed URL và job lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Knowledge API/worker core đã dùng Storage và persisted jobs; Qdrant/embedding variables vẫn là contract cho concrete adapters ở bước kế tiếp và chưa được runtime hiện tại đọc.
 
 ## Chạy local
 
@@ -93,13 +93,15 @@ Lệnh Alembic trên là offline dry-run và không cần database. Online migra
 pnpm db:migrate
 ```
 
-Các migration tạo identity/tenant tables, catalog canonical, generic options, location/collection scope, agent configuration/assignments và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog hoặc agent APIs:
+Các migration tạo identity/tenant tables, catalog canonical, generic options, location/collection scope, agent configuration/assignments, knowledge versions/generations/jobs và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog, agent hoặc knowledge APIs:
 
 ```powershell
 pnpm db:migrate
 ```
 
 Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage. Để upload/xem ảnh catalog, tạo private bucket `agent-hub-private` trong Supabase Storage và cấu hình `SUPABASE_URL` cùng `SUPABASE_SERVICE_ROLE_KEY` chỉ ở backend. CRUD sản phẩm và CSV vẫn hoạt động khi Storage chưa được cấu hình; thao tác ảnh sẽ trả lỗi 503 rõ ràng.
+
+Knowledge nhận manual text hoặc PDF/TXT private qua API, nhưng parsing/embedding không chạy trong process FastAPI. Job được lưu bền vững để một worker process riêng claim bằng lease + fencing token. Core worker hiện dùng provider-neutral interfaces và fake adapters trong test; chỉ chạy worker production sau khi concrete OpenAI/Qdrant composition, embedding profile đã xác minh và health/deployment wiring của F3.3 hoàn tất. PDF dùng strict `pypdf==6.19.0` trong subprocess giới hạn CPU/RAM/thời gian; PDF mã hóa và scan ảnh không OCR trả error code riêng.
 
 Importer mới nhận CSV, XLS và XLSX, tự suy luận cấu trúc từ header/row shape, hỗ trợ nhiều sheet và không yêu cầu chọn vendor. Luồng mới là `Upload → Analyze → Resolve (nếu cần) → Preview diff → Commit`.
 
@@ -161,4 +163,4 @@ Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm vari
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy, catalog and F3.1 agent-scope/tool capabilities are implemented; do not implement knowledge/RAG, LLM orchestration, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy, catalog, agent-scope/tools and knowledge persistence/ingestion core are implemented; do not implement concrete semantic retrieval, LLM orchestration, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.

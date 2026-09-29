@@ -41,9 +41,15 @@ Registration creates the user and session but does not silently create a workspa
 | POST | `/workspaces/{workspace_id}/catalog/imports/{import_id}/issues/{issue_id}/resolve` | Resolve a persisted ambiguity |
 | POST | `/workspaces/{workspace_id}/catalog/imports/{import_id}/commit` | Atomic, idempotent MERGE commit; requires `Idempotency-Key` |
 | GET | `/workspaces/{workspace_id}/catalog/search` | Structured text/brand/price/stock/options/attributes search |
-| CRUD | `/workspaces/{workspace_id}/knowledge-bases` | Knowledge grouping |
-| POST | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents` | Server-validated file upload |
-| GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Per-tenant status |
+| GET/POST | `/workspaces/{workspace_id}/knowledge-bases` | Cursor list/create; members read, owner/admin create |
+| PATCH/DELETE | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}` | Owner/admin update or archive; archive cancels active jobs and prevents cutover |
+| GET/PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/knowledge-bases` | Read or atomically replace workspace-scoped assignments |
+| GET | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents` | Cursor list active sources and their latest ingestion state |
+| POST | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents/text` | Idempotent manual profile/FAQ/policy/size-guidance source |
+| POST | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents` | Streaming PDF/TXT upload with MIME/signature, quota and rate validation |
+| DELETE | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents/{document_id}` | Revoke source first; cancel jobs and schedule derived-data cleanup |
+| GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Workspace-scoped status and safe error code |
+| POST | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}/retry` | Owner/admin retry only for classified transient failures |
 | GET | `/workspaces/{workspace_id}/conversations` | Pagination and redacted export policy |
 | GET | `/workspaces/{workspace_id}/leads` | PII accessible only to roles allowed |
 | GET | `/workspaces/{workspace_id}/usage` | Proposed internal usage, not billing |
@@ -84,3 +90,5 @@ F2.2 adds authenticated workspace routes for locations, location variants/invent
 F3 uses an internal product-centric catalog contract rather than the dashboard `User` DTO: a trusted authorization resolver produces workspace plus allowed location/collection IDs, then a separate query may only narrow that scope. Multiple locations are unioned, multiple collections are unioned, and the two dimensions intersect. No-location results expose exact/range/unknown price and counts for in-stock/out-of-stock/unknown availability; only the detail availability contract exposes per-location quantity, effective price and freshness. F3 owns the tool mapper and F4 owns the public product-card DTO.
 
 F3.1 implements `search_products`, `get_product_detail` and `check_stock` as internal typed tools, not browser endpoints. They accept only an immutable server-resolved `AuthorizedCatalogScope`, expose generic options/attributes and authoritative price/inventory facts, and use color/size only as compatibility projections. Images are returned as opaque catalog image IDs plus safe metadata; Storage object keys, signed URLs and recorded remote URLs are never part of tool output. F4 owns the separately authorized public image-delivery policy.
+
+F3.2 knowledge resources use authenticated dashboard BIGINT IDs only after membership resolution; they are never public widget identifiers. Cross-workspace access returns non-leaking `404`, while a same-workspace member attempting a mutation receives `403`. Document creation requires `Idempotency-Key`. Jobs expose `awaiting_profile`, `queued`, `processing`, `retry_scheduled`, `succeeded`, `failed` or `cancelled`; only provider/storage/network-class transient failures retry automatically. Corrupt, encrypted, image-only or limit-exceeding PDFs return stable permanent error codes. Raw document text, file contents, Storage keys and parser tracebacks are not returned.

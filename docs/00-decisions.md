@@ -24,8 +24,8 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Embedding provider architecture | Provider-neutral adapter; OpenAI is the initial MVP implementation | CONFIRMED | Persist provider/model/dimensions/revisions; other providers require a separately approved task |
 | OpenAI model IDs | Chat/vision/embeddings chosen by capability, price and testing | PROPOSED | Record deployed model IDs; no shop-owner choice in MVP |
 | Agent framework | Simple custom orchestration initially | PROPOSED | Evaluate frameworks only when warranted |
-| Async ingestion | Small background job mechanism; durable queue if needed | PROPOSED | Redis/BullMQ not necessary for Python MVP |
-| Multiple knowledge bases per agent | Yes at schema level | PROPOSED | Start with product catalog + shop information |
+| Async ingestion | PostgreSQL-backed durable jobs processed by a dedicated Python worker process | CONFIRMED | Fenced leases, heartbeat, classified retry and reconciliation; no Redis dependency for MVP |
+| Multiple knowledge bases per agent | Yes at schema and API level | CONFIRMED | Workspace-scoped many-to-many assignment; catalog facts remain structured |
 | LLM choice by shop owner | Not exposed in first MVP | PROPOSED | Server-configured provider/model |
 | Agent tools | Read-only catalog/stock + opt-in lead capture | PROPOSED | Tools use explicit tenant context |
 | Drag-and-drop workflow builder | After MVP | DEFERRED | |
@@ -37,11 +37,11 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Anonymous visitor chat | Yes, scoped anonymous session | PROPOSED | Rate limits and origin controls |
 | Capture visitor contact | Optional with consent | PROPOSED | Email/phone are not prerequisites to chat |
 | Human handoff | Contact CTA / callback lead, not live-agent inbox | PROPOSED | Live inbox deferred |
-| Knowledge sources | Manual shop text and PDF/TXT FAQ; catalog remains structured data | PROPOSED | Catalog uses manual CRUD or the confirmed CSV/XLS/XLSX importer; images use Storage or recorded remote references |
+| Knowledge sources | Manual shop text and PDF/TXT documents; catalog remains structured data | CONFIRMED | No OCR for scanned or encrypted PDFs; catalog uses the confirmed structured importer |
 | Catalog architecture | Generic options and a structure-driven CSV/XLS/XLSX importer | CONFIRMED | F2.1; no vendor-specific parser, default import mode is MERGE |
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
-| Upload and usage quotas | Yes | PROPOSED | Set numbers during deployment/configuration |
+| Upload and usage quotas | Server-enforced workspace limits and rate windows | CONFIRMED | Initial knowledge defaults are recorded in ADR F3.2 and remain deployment-overridable |
 | Customer image input | Basic vision analysis + catalog matching | PROPOSED | Not specialized image-to-image search |
 | Orders/payments/refunds | No execution in MVP | DEFERRED | Read-only integrations later if approved |
 | Current runtime | Local development only | CONFIRMED | Do not claim VPS deployment or require Docker for day-one boot |
