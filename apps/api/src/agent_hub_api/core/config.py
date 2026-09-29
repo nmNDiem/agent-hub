@@ -81,13 +81,48 @@ class Settings(BaseSettings):
     knowledge_parser_cpu_seconds: int = 20
     knowledge_parser_memory_bytes: int = 512 * 1024 * 1024
     knowledge_parser_output_bytes: int = 4 * 1024 * 1024
+    knowledge_embedding_batch_size: int = 64
+    knowledge_orphan_grace_seconds: int = 3_600
+    knowledge_worker_poll_seconds: int = 2
 
     @model_validator(mode="after")
     def validate_knowledge_limits(self) -> "Settings":
+        positive_fields = (
+            "knowledge_document_max_bytes",
+            "knowledge_manual_max_chars",
+            "knowledge_pdf_max_pages",
+            "knowledge_extracted_max_chars",
+            "knowledge_max_chunks_per_generation",
+            "knowledge_chunk_size",
+            "knowledge_workspace_storage_bytes",
+            "knowledge_workspace_max_documents",
+            "knowledge_workspace_max_chunks",
+            "knowledge_upload_window_minutes",
+            "knowledge_uploads_per_window",
+            "knowledge_workspace_active_jobs",
+            "knowledge_job_lease_seconds",
+            "knowledge_job_heartbeat_seconds",
+            "knowledge_job_max_attempts",
+            "knowledge_retry_base_seconds",
+            "knowledge_retry_max_seconds",
+            "knowledge_parser_wall_seconds",
+            "knowledge_parser_cpu_seconds",
+            "knowledge_parser_memory_bytes",
+            "knowledge_parser_output_bytes",
+            "knowledge_embedding_batch_size",
+            "knowledge_orphan_grace_seconds",
+            "knowledge_worker_poll_seconds",
+        )
+        if any(getattr(self, field_name) < 1 for field_name in positive_fields):
+            raise ValueError("Knowledge limits must be positive")
+        if self.knowledge_chunk_overlap < 0:
+            raise ValueError("Knowledge chunk overlap cannot be negative")
         if self.knowledge_chunk_overlap >= self.knowledge_chunk_size:
             raise ValueError("Knowledge chunk overlap must be smaller than chunk size")
         if self.knowledge_job_heartbeat_seconds >= self.knowledge_job_lease_seconds:
             raise ValueError("Knowledge heartbeat must be shorter than the job lease")
+        if self.knowledge_retry_base_seconds > self.knowledge_retry_max_seconds:
+            raise ValueError("Knowledge retry base cannot exceed its maximum")
         return self
 
     @field_validator("database_url")

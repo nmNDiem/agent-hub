@@ -117,6 +117,7 @@ class KnowledgeService:
             kind=cast(KnowledgeBaseKind, base.kind),
             status=cast(Literal["active", "archived"], base.status),
             active_embedding_profile_id=base.active_embedding_profile_id,
+            target_embedding_profile_id=base.target_embedding_profile_id,
             document_count=document_count,
             created_at=base.created_at,
             updated_at=base.updated_at,

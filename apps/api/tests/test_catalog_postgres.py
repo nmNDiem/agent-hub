@@ -7,8 +7,8 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
-from sqlalchemy import select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text, update
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from agent_hub_api.agents.models import Agent, AgentCatalogCollection, AgentLocation
@@ -23,6 +23,14 @@ from agent_hub_api.catalog.models import (
 from agent_hub_api.core.config import normalize_database_url
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.identity.models import User
+from agent_hub_api.knowledge.models import (
+    EmbeddingProfile,
+    IngestionJob,
+    KnowledgeBase,
+    KnowledgeDocument,
+    KnowledgeDocumentVersion,
+    KnowledgeGeneration,
+)
 from agent_hub_api.workspaces.models import Workspace, WorkspaceMember
 
 pytestmark = pytest.mark.postgres
@@ -367,5 +375,189 @@ def test_location_migration_backfills_stock_in_isolated_schema() -> None:
                 await engine.dispose()
 
         asyncio.run(verify_backfill())
+    finally:
+        reset_test_schema(database_url, create=False)
+
+
+def test_knowledge_constraints_fence_document_graph_in_postgres() -> None:
+    database_url = require_database_url()
+    reset_test_schema(database_url, create=True)
+    migrate("head")
+
+    async def exercise() -> None:
+        engine = schema_engine(database_url)
+        try:
+            async with engine.connect() as connection:
+                transaction = await connection.begin()
+                session = AsyncSession(bind=connection, expire_on_commit=False)
+                try:
+                    user_id = new_uuid_v7()
+                    workspace_id = new_uuid_v7()
+                    session.add(
+                        User(
+                            id=user_id,
+                            normalized_email=f"knowledge-pg-{user_id}@example.test",
+                            password_hash="test",
+                            status="active",
+                        )
+                    )
+                    session.add(
+                        Workspace(
+                            id=workspace_id,
+                            slug=f"knowledge-pg-{workspace_id}",
+                            display_name="Knowledge PostgreSQL",
+                            status="active",
+                        )
+                    )
+                    profile = EmbeddingProfile(
+                        provider="test",
+                        model="test-3d",
+                        dimensions=3,
+                        pipeline_version="test-v1",
+                        distance_metric="cosine",
+                        qdrant_collection=f"knowledge-{workspace_id}",
+                        config_hash=f"{workspace_id.hex}{'0' * 32}",
+                        status="active",
+                    )
+                    session.add(profile)
+                    await session.flush()
+                    knowledge_base = KnowledgeBase(
+                        workspace_id=workspace_id,
+                        name="Knowledge constraints",
+                        kind="general",
+                        active_embedding_profile_id=profile.id,
+                    )
+                    session.add(knowledge_base)
+                    await session.flush()
+                    document_a = KnowledgeDocument(
+                        workspace_id=workspace_id,
+                        knowledge_base_id=knowledge_base.id,
+                        title="A",
+                        kind="faq",
+                    )
+                    document_b = KnowledgeDocument(
+                        workspace_id=workspace_id,
+                        knowledge_base_id=knowledge_base.id,
+                        title="B",
+                        kind="faq",
+                    )
+                    session.add_all([document_a, document_b])
+                    await session.flush()
+                    version_a = KnowledgeDocumentVersion(
+                        workspace_id=workspace_id,
+                        document_id=document_a.id,
+                        version_no=1,
+                        source_kind="manual",
+                        source_text="A",
+                        content_sha256="a" * 64,
+                        mime_type="text/plain",
+                        byte_size=1,
+                        created_by_user_id=user_id,
+                    )
+                    version_b = KnowledgeDocumentVersion(
+                        workspace_id=workspace_id,
+                        document_id=document_b.id,
+                        version_no=1,
+                        source_kind="manual",
+                        source_text="B",
+                        content_sha256="b" * 64,
+                        mime_type="text/plain",
+                        byte_size=1,
+                        created_by_user_id=user_id,
+                    )
+                    session.add_all([version_a, version_b])
+                    await session.flush()
+
+                    invalid_generation = await session.begin_nested()
+                    session.add(
+                        KnowledgeGeneration(
+                            workspace_id=workspace_id,
+                            document_id=document_a.id,
+                            document_version_id=version_b.id,
+                            embedding_profile_id=profile.id,
+                            generation_no=1,
+                            chunker_version="test-v1",
+                            chunk_size=100,
+                            chunk_overlap=10,
+                            pipeline_config_hash="c" * 64,
+                        )
+                    )
+                    with pytest.raises(IntegrityError):
+                        await session.flush()
+                    await invalid_generation.rollback()
+
+                    generation = KnowledgeGeneration(
+                        workspace_id=workspace_id,
+                        document_id=document_a.id,
+                        document_version_id=version_a.id,
+                        embedding_profile_id=profile.id,
+                        generation_no=1,
+                        chunker_version="test-v1",
+                        chunk_size=100,
+                        chunk_overlap=10,
+                        pipeline_config_hash="d" * 64,
+                    )
+                    session.add(generation)
+                    await session.flush()
+                    first_job = IngestionJob(
+                        workspace_id=workspace_id,
+                        document_id=document_a.id,
+                        document_version_id=version_a.id,
+                        target_generation_id=generation.id,
+                        status="queued",
+                        idempotency_key="first",
+                        request_sha256="e" * 64,
+                    )
+                    session.add(first_job)
+                    await session.flush()
+
+                    duplicate_active_job = await session.begin_nested()
+                    session.add(
+                        IngestionJob(
+                            workspace_id=workspace_id,
+                            document_id=document_a.id,
+                            document_version_id=version_a.id,
+                            target_generation_id=generation.id,
+                            status="retry_scheduled",
+                            idempotency_key="second",
+                            request_sha256="f" * 64,
+                        )
+                    )
+                    with pytest.raises(IntegrityError):
+                        await session.flush()
+                    await duplicate_active_job.rollback()
+
+                    wrong_document_job = await session.begin_nested()
+                    session.add(
+                        IngestionJob(
+                            workspace_id=workspace_id,
+                            document_id=document_b.id,
+                            document_version_id=version_b.id,
+                            target_generation_id=generation.id,
+                            status="queued",
+                            idempotency_key="wrong-generation",
+                            request_sha256="1" * 64,
+                        )
+                    )
+                    with pytest.raises(IntegrityError):
+                        await session.flush()
+                    await wrong_document_job.rollback()
+
+                    immutable_profile = await session.begin_nested()
+                    with pytest.raises(DBAPIError):
+                        await session.execute(
+                            update(EmbeddingProfile)
+                            .where(EmbeddingProfile.id == profile.id)
+                            .values(model="mutated")
+                        )
+                    await immutable_profile.rollback()
+                finally:
+                    await session.close()
+                    await transaction.rollback()
+        finally:
+            await engine.dispose()
+
+    try:
+        asyncio.run(exercise())
     finally:
         reset_test_schema(database_url, create=False)

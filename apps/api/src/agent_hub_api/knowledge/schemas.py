@@ -55,6 +55,7 @@ class KnowledgeBaseResponse(BaseModel):
     kind: KnowledgeBaseKind
     status: Literal["active", "archived"]
     active_embedding_profile_id: int | None
+    target_embedding_profile_id: int | None
     document_count: int
     created_at: datetime
     updated_at: datetime

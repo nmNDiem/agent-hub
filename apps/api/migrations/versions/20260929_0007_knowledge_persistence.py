@@ -68,6 +68,12 @@ def upgrade() -> None:
             sa.ForeignKey("embedding_profiles.id"),
             nullable=True,
         ),
+        sa.Column(
+            "target_embedding_profile_id",
+            sa.BigInteger(),
+            sa.ForeignKey("embedding_profiles.id"),
+            nullable=True,
+        ),
         sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
         *timestamps(),
         sa.CheckConstraint("length(trim(name)) > 0", name="ck_knowledge_bases_name_nonempty"),
@@ -122,6 +128,7 @@ def upgrade() -> None:
         sa.Column("deletion_due_at", sa.DateTime(timezone=True), nullable=True),
         *timestamps(),
         sa.CheckConstraint("byte_size >= 0", name="ck_media_assets_byte_size"),
+        sa.CheckConstraint("visibility = 'private'", name="ck_media_assets_private"),
         sa.CheckConstraint(
             "status IN ('reserved','available','delete_pending','deleted','failed')",
             name="ck_media_assets_status",
@@ -204,6 +211,12 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "workspace_id", "id", name="uq_knowledge_document_versions_workspace_id_id"
         ),
+        sa.UniqueConstraint(
+            "workspace_id",
+            "document_id",
+            "id",
+            name="uq_document_versions_workspace_document_id",
+        ),
         sa.UniqueConstraint("document_id", "version_no", name="uq_document_versions_number"),
     )
     op.create_index(
@@ -246,8 +259,12 @@ def upgrade() -> None:
             name="fk_generations_workspace_document",
         ),
         sa.ForeignKeyConstraint(
-            ["workspace_id", "document_version_id"],
-            ["knowledge_document_versions.workspace_id", "knowledge_document_versions.id"],
+            ["workspace_id", "document_id", "document_version_id"],
+            [
+                "knowledge_document_versions.workspace_id",
+                "knowledge_document_versions.document_id",
+                "knowledge_document_versions.id",
+            ],
             name="fk_generations_workspace_version",
         ),
         sa.CheckConstraint("generation_no > 0", name="ck_generations_number"),
@@ -260,9 +277,19 @@ def upgrade() -> None:
             name="ck_generations_chunk_overlap",
         ),
         sa.UniqueConstraint("workspace_id", "id", name="uq_knowledge_generations_workspace_id_id"),
+        sa.UniqueConstraint(
+            "workspace_id",
+            "document_id",
+            "id",
+            name="uq_generations_workspace_document_id",
+        ),
         sa.UniqueConstraint("document_id", "generation_no", name="uq_generations_document_number"),
     )
-    op.create_index("ix_knowledge_generations_workspace_id", "knowledge_generations", ["workspace_id"])
+    op.create_index(
+        "ix_knowledge_generations_workspace_id",
+        "knowledge_generations",
+        ["workspace_id"],
+    )
     op.create_index(
         "ix_generations_workspace_document_status",
         "knowledge_generations",
@@ -283,8 +310,12 @@ def upgrade() -> None:
             name="fk_active_generations_workspace_document",
         ),
         sa.ForeignKeyConstraint(
-            ["workspace_id", "generation_id"],
-            ["knowledge_generations.workspace_id", "knowledge_generations.id"],
+            ["workspace_id", "document_id", "generation_id"],
+            [
+                "knowledge_generations.workspace_id",
+                "knowledge_generations.document_id",
+                "knowledge_generations.id",
+            ],
             name="fk_active_generations_workspace_generation",
         ),
         sa.UniqueConstraint("generation_id", name="uq_active_generations_generation"),
@@ -394,13 +425,21 @@ def upgrade() -> None:
             name="fk_ingestion_jobs_workspace_document",
         ),
         sa.ForeignKeyConstraint(
-            ["workspace_id", "document_version_id"],
-            ["knowledge_document_versions.workspace_id", "knowledge_document_versions.id"],
+            ["workspace_id", "document_id", "document_version_id"],
+            [
+                "knowledge_document_versions.workspace_id",
+                "knowledge_document_versions.document_id",
+                "knowledge_document_versions.id",
+            ],
             name="fk_ingestion_jobs_workspace_version",
         ),
         sa.ForeignKeyConstraint(
-            ["workspace_id", "target_generation_id"],
-            ["knowledge_generations.workspace_id", "knowledge_generations.id"],
+            ["workspace_id", "document_id", "target_generation_id"],
+            [
+                "knowledge_generations.workspace_id",
+                "knowledge_generations.document_id",
+                "knowledge_generations.id",
+            ],
             name="fk_ingestion_jobs_workspace_generation",
         ),
         sa.CheckConstraint(

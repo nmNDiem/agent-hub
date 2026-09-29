@@ -76,6 +76,9 @@ class KnowledgeBase(Base):
     active_embedding_profile_id: Mapped[int | None] = mapped_column(
         ForeignKey("embedding_profiles.id"), nullable=True
     )
+    target_embedding_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("embedding_profiles.id"), nullable=True
+    )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -111,6 +114,7 @@ class MediaAsset(Base):
     __table_args__ = (
         UniqueConstraint("workspace_id", "id", name="uq_media_assets_workspace_id_id"),
         CheckConstraint("byte_size >= 0", name="ck_media_assets_byte_size"),
+        CheckConstraint("visibility = 'private'", name="ck_media_assets_private"),
         CheckConstraint(
             "status IN ('reserved','available','delete_pending','deleted','failed')",
             name="ck_media_assets_status",
@@ -181,6 +185,12 @@ class KnowledgeDocumentVersion(Base):
         UniqueConstraint(
             "workspace_id", "id", name="uq_knowledge_document_versions_workspace_id_id"
         ),
+        UniqueConstraint(
+            "workspace_id",
+            "document_id",
+            "id",
+            name="uq_document_versions_workspace_document_id",
+        ),
         UniqueConstraint("document_id", "version_no", name="uq_document_versions_number"),
         ForeignKeyConstraint(
             ["workspace_id", "document_id"],
@@ -227,6 +237,12 @@ class KnowledgeGeneration(Base):
     __tablename__ = "knowledge_generations"
     __table_args__ = (
         UniqueConstraint("workspace_id", "id", name="uq_knowledge_generations_workspace_id_id"),
+        UniqueConstraint(
+            "workspace_id",
+            "document_id",
+            "id",
+            name="uq_generations_workspace_document_id",
+        ),
         UniqueConstraint("document_id", "generation_no", name="uq_generations_document_number"),
         ForeignKeyConstraint(
             ["workspace_id", "document_id"],
@@ -234,8 +250,12 @@ class KnowledgeGeneration(Base):
             name="fk_generations_workspace_document",
         ),
         ForeignKeyConstraint(
-            ["workspace_id", "document_version_id"],
-            ["knowledge_document_versions.workspace_id", "knowledge_document_versions.id"],
+            ["workspace_id", "document_id", "document_version_id"],
+            [
+                "knowledge_document_versions.workspace_id",
+                "knowledge_document_versions.document_id",
+                "knowledge_document_versions.id",
+            ],
             name="fk_generations_workspace_version",
         ),
         CheckConstraint("generation_no > 0", name="ck_generations_number"),
@@ -281,8 +301,12 @@ class KnowledgeDocumentActiveGeneration(Base):
             name="fk_active_generations_workspace_document",
         ),
         ForeignKeyConstraint(
-            ["workspace_id", "generation_id"],
-            ["knowledge_generations.workspace_id", "knowledge_generations.id"],
+            ["workspace_id", "document_id", "generation_id"],
+            [
+                "knowledge_generations.workspace_id",
+                "knowledge_generations.document_id",
+                "knowledge_generations.id",
+            ],
             name="fk_active_generations_workspace_generation",
         ),
         UniqueConstraint("generation_id", name="uq_active_generations_generation"),
@@ -378,13 +402,21 @@ class IngestionJob(Base):
             name="fk_ingestion_jobs_workspace_document",
         ),
         ForeignKeyConstraint(
-            ["workspace_id", "document_version_id"],
-            ["knowledge_document_versions.workspace_id", "knowledge_document_versions.id"],
+            ["workspace_id", "document_id", "document_version_id"],
+            [
+                "knowledge_document_versions.workspace_id",
+                "knowledge_document_versions.document_id",
+                "knowledge_document_versions.id",
+            ],
             name="fk_ingestion_jobs_workspace_version",
         ),
         ForeignKeyConstraint(
-            ["workspace_id", "target_generation_id"],
-            ["knowledge_generations.workspace_id", "knowledge_generations.id"],
+            ["workspace_id", "document_id", "target_generation_id"],
+            [
+                "knowledge_generations.workspace_id",
+                "knowledge_generations.document_id",
+                "knowledge_generations.id",
+            ],
             name="fk_ingestion_jobs_workspace_generation",
         ),
         CheckConstraint(
