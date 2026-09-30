@@ -15,7 +15,7 @@ from agent_hub_api.knowledge.models import (
     KnowledgeGeneration,
     MediaAsset,
 )
-from agent_hub_api.knowledge.providers import KnowledgeVectorIndex
+from agent_hub_api.knowledge.providers import KnowledgeVectorIndex, ProviderTemporaryError
 from agent_hub_api.knowledge.storage import KnowledgeStorage
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,15 @@ class KnowledgeReconciler:
             mapping_ids = [mapping.id for mapping in mappings]
             point_ids = [mapping.qdrant_point_id for mapping in mappings]
             spec = profile_spec(profile)
-        await self.vector_index.delete(spec, point_ids)
+        try:
+            await self.vector_index.delete(spec, point_ids)
+        except ProviderTemporaryError:
+            logger.warning(
+                "knowledge_vector_cleanup_deferred profile_id=%s count=%s",
+                first.embedding_profile_id,
+                len(point_ids),
+            )
+            return False
         async with self.session_factory() as session, session.begin():
             await session.execute(
                 update(KnowledgeChunkEmbedding)

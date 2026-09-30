@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, cùng knowledge persistence và durable ingestion core. Concrete OpenAI/Qdrant retrieval, grounded generation, Playground và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, knowledge persistence/durable ingestion, concrete OpenAI embedding adapter và tenant-safe Qdrant retrieval. Grounded generation, Playground và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import/knowledge, thời hạn signed URL và job lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Knowledge API/worker core đã dùng Storage và persisted jobs; Qdrant/embedding variables vẫn là contract cho concrete adapters ở bước kế tiếp và chưa được runtime hiện tại đọc.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import/knowledge, thời hạn signed URL và job lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Qdrant Cloud được cấu hình cho non-production development; `OPENAI_API_KEY`, model và dimensions chỉ bắt buộc khi chạy ingestion worker thật.
 
 ## Chạy local
 
@@ -101,7 +101,7 @@ pnpm db:migrate
 
 Sau đó mở `http://127.0.0.1:3000/register`. Access/refresh token nằm trong cookie HttpOnly; trình duyệt không lưu bearer token trong localStorage. Để upload/xem ảnh catalog, tạo private bucket `agent-hub-private` trong Supabase Storage và cấu hình `SUPABASE_URL` cùng `SUPABASE_SERVICE_ROLE_KEY` chỉ ở backend. CRUD sản phẩm và CSV vẫn hoạt động khi Storage chưa được cấu hình; thao tác ảnh sẽ trả lỗi 503 rõ ràng.
 
-Knowledge nhận manual text hoặc PDF/TXT private qua API, nhưng parsing/embedding không chạy trong process FastAPI. Job được lưu bền vững để một worker process riêng claim bằng lease + fencing token. Core worker hiện dùng provider-neutral interfaces và fake adapters trong test; chỉ chạy worker production sau khi concrete OpenAI/Qdrant composition, embedding profile đã xác minh và health/deployment wiring của F3.3 hoàn tất. PDF dùng strict `pypdf==6.19.0` trong subprocess giới hạn CPU/RAM/thời gian; PDF mã hóa và scan ảnh không OCR trả error code riêng.
+Knowledge nhận manual text hoặc PDF/TXT private qua API, nhưng parsing/embedding không chạy trong process FastAPI. Job được lưu bền vững để worker riêng claim bằng lease + fencing token. Worker dùng concrete OpenAI/Qdrant adapters khi runtime thật và fake adapters trong test; không khởi động worker trước khi embedding profile đã được operator xác minh/kích hoạt. PDF dùng strict `pypdf==6.19.0` trong subprocess giới hạn CPU/RAM/thời gian; PDF mã hóa và scan ảnh không OCR trả error code riêng.
 
 Importer mới nhận CSV, XLS và XLSX, tự suy luận cấu trúc từ header/row shape, hỗ trợ nhiều sheet và không yêu cầu chọn vendor. Luồng mới là `Upload → Analyze → Resolve (nếu cần) → Preview diff → Commit`.
 
@@ -112,6 +112,37 @@ product_sku,name,description,category,currency,price,product_url,variant_sku,var
 ```
 
 Một `product_sku` có thể xuất hiện trên nhiều dòng để nhóm variants; `variant_sku` không được trùng. Chi tiết model, semantics và API mới nằm tại `docs/catalog-import.md`.
+
+## F3.3 embedding và Qdrant retrieval
+
+Backend đã có concrete OpenAI embedding adapter và Qdrant Cloud adapter. PostgreSQL vẫn là nguồn dữ liệu authoritative; mỗi truy vấn Qdrant bắt buộc có `workspace_id`, allowed knowledge-base IDs và embedding profile do server đưa vào, sau đó mọi point/citation được revalidate lại với active generation trong PostgreSQL.
+
+Qdrant Cloud có thể được kiểm chứng mà không gọi OpenAI. Test tạo một collection ngẫu nhiên chứa `_test_`, dùng vector deterministic, rồi chỉ xóa đúng collection đó:
+
+```powershell
+Set-Location apps\api
+$env:RUN_QDRANT_INTEGRATION_TESTS="true"
+pytest -m qdrant tests/test_qdrant_integration.py
+Remove-Item Env:RUN_QDRANT_INTEGRATION_TESTS
+Set-Location ..\..
+```
+
+Để tạo profile thật, operator phải điền rõ `EMBEDDING_MODEL` và `EMBEDDING_DIMENSIONS`; hệ thống không đoán hoặc seed model. Lệnh bootstrap chỉ kiểm tra/tạo Qdrant collection và lưu immutable profile, không gọi OpenAI:
+
+```powershell
+.\.venv\Scripts\python.exe -m agent_hub_api.knowledge.operator bootstrap-profile
+.\.venv\Scripts\python.exe -m agent_hub_api.knowledge.operator activate-unprofiled --profile-id <PROFILE_ID> --workspace-id <WORKSPACE_UUID>
+```
+
+Worker riêng chỉ chạy khi `OPENAI_API_KEY`, Database, Supabase Storage và Qdrant đều đã được cấu hình:
+
+```powershell
+pnpm dev:worker
+```
+
+Các operator command còn lại là `rebuild`, `start-migration` và `promote`. Mỗi rebuild/migration yêu cầu `--operation-id` ổn định để retry command không tạo job trùng. Profile cũ được giữ cho rollback có kiểm soát, nhưng point cũ không thể đi qua active-generation revalidation sau cutover.
+
+F3.3 không triển khai answer generation, prompt orchestration hay Playground; các phần đó thuộc F3.4/F3.5.
 
 ## Where to read first
 

@@ -41,3 +41,21 @@ def test_settings_use_unprefixed_environment_names(monkeypatch: MonkeyPatch) -> 
     assert settings.database_url == "postgresql+asyncpg://user:password@example.test/database"
     assert settings.jwt_signing_key == "x" * 32
     assert settings.catalog_csv_max_rows == 250
+
+
+def test_provider_placeholders_are_not_treated_as_credentials() -> None:
+    settings = EnvironmentOnlySettings.model_validate(
+        {
+            "openai_api_key": "REPLACE_ME_SERVER_ONLY",
+            "qdrant_api_key": "REPLACE_ME_SERVER_ONLY",
+            "qdrant_url": "https://<cluster>.cloud.qdrant.io",
+            "embedding_model": "REPLACE_WITH_VERIFIED_MODEL",
+            "embedding_dimensions": "REPLACE_WITH_VERIFIED_DIMENSIONS",
+        }
+    )
+
+    assert settings.openai_api_key is None
+    assert settings.qdrant_api_key is None
+    assert settings.qdrant_url is None
+    assert settings.embedding_model is None
+    assert settings.embedding_dimensions is None

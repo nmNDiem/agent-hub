@@ -25,6 +25,13 @@ class VectorPoint:
     payload: dict[str, str | int]
 
 
+@dataclass(frozen=True, slots=True)
+class VectorSearchHit:
+    point_id: UUID
+    score: float
+    payload: dict[str, str | int]
+
+
 class EmbeddingProvider(Protocol):
     async def embed(
         self, profile: EmbeddingProfileSpec, texts: list[str]
@@ -32,9 +39,21 @@ class EmbeddingProvider(Protocol):
 
 
 class KnowledgeVectorIndex(Protocol):
+    async def ensure_profile(self, profile: EmbeddingProfileSpec) -> None: ...
+
     async def upsert(
         self, profile: EmbeddingProfileSpec, points: list[VectorPoint]
     ) -> None: ...
+
+    async def search(
+        self,
+        profile: EmbeddingProfileSpec,
+        vector: tuple[float, ...],
+        *,
+        workspace_id: UUID,
+        allowed_knowledge_base_ids: tuple[int, ...],
+        limit: int,
+    ) -> list[VectorSearchHit]: ...
 
     async def delete(
         self, profile: EmbeddingProfileSpec, point_ids: list[UUID]
@@ -43,3 +62,7 @@ class KnowledgeVectorIndex(Protocol):
 
 class ProviderTemporaryError(RuntimeError):
     """An external provider operation can be retried safely."""
+
+
+class ProviderPermanentError(RuntimeError):
+    """An external provider rejected configuration or input permanently."""

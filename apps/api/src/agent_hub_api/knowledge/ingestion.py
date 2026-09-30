@@ -40,6 +40,7 @@ from agent_hub_api.knowledge.providers import (
     EmbeddingProfileSpec,
     EmbeddingProvider,
     KnowledgeVectorIndex,
+    ProviderPermanentError,
     ProviderTemporaryError,
     VectorPoint,
 )
@@ -272,6 +273,12 @@ class KnowledgeIngestionWorker:
             await self._record_failure(claim, exc.code, retryable=exc.retryable)
         except IngestionFailure as exc:
             await self._record_failure(claim, exc.code, retryable=exc.retryable)
+        except ProviderPermanentError:
+            await self._record_failure(
+                claim,
+                "INGESTION_PROVIDER_CONFIGURATION_INVALID",
+                retryable=False,
+            )
         except (KnowledgeStorageError, ProviderTemporaryError):
             await self._record_failure(claim, "INGESTION_PROVIDER_UNAVAILABLE", retryable=True)
         except Exception:
@@ -403,6 +410,7 @@ class KnowledgeIngestionWorker:
             raise IngestionFailure("DOCUMENT_TEXT_EMPTY", retryable=False)
         chunks = await self._persist_chunks(claim, context, parsed_chunks)
         spec = profile_spec(context.profile)
+        await self.vector_index.ensure_profile(spec)
         batch_size = self.settings.knowledge_embedding_batch_size
         for offset in range(0, len(chunks), batch_size):
             batch = chunks[offset : offset + batch_size]

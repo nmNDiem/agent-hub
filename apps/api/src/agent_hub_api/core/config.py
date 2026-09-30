@@ -47,6 +47,17 @@ class Settings(BaseSettings):
         default=None,
         repr=False,
     )
+    openai_api_key: str | None = Field(default=None, repr=False)
+    openai_timeout_seconds: int = 30
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = Field(default=None, repr=False)
+    qdrant_collection_prefix: str = "agenthub_knowledge"
+    qdrant_timeout_seconds: int = 30
+    embedding_model: str | None = None
+    embedding_dimensions: int | None = None
+    embedding_provider_revision: str | None = None
+    embedding_pipeline_version: str = "agenthub-rag-v1"
+    embedding_distance_metric: Literal["cosine", "dot", "euclid"] = "cosine"
     storage_private_bucket: str = "agent-hub-private"
     catalog_image_max_bytes: int = 5 * 1024 * 1024
     catalog_image_max_pixels: int = 20_000_000
@@ -112,6 +123,8 @@ class Settings(BaseSettings):
             "knowledge_embedding_batch_size",
             "knowledge_orphan_grace_seconds",
             "knowledge_worker_poll_seconds",
+            "openai_timeout_seconds",
+            "qdrant_timeout_seconds",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
             raise ValueError("Knowledge limits must be positive")
@@ -124,6 +137,45 @@ class Settings(BaseSettings):
         if self.knowledge_retry_base_seconds > self.knowledge_retry_max_seconds:
             raise ValueError("Knowledge retry base cannot exceed its maximum")
         return self
+
+    @field_validator(
+        "openai_api_key",
+        "qdrant_api_key",
+        "qdrant_url",
+        "embedding_model",
+        "embedding_provider_revision",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_provider_setting(cls, value: object) -> object:
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if (
+                not cleaned
+                or cleaned.startswith("REPLACE_")
+                or "<cluster>" in cleaned
+            ):
+                return None
+            return cleaned
+        return value
+
+    @field_validator("embedding_dimensions", mode="before")
+    @classmethod
+    def normalize_embedding_dimensions(cls, value: object) -> object:
+        if isinstance(value, str) and (not value.strip() or value.startswith("REPLACE_")):
+            return None
+        return value
+
+    @field_validator("qdrant_collection_prefix")
+    @classmethod
+    def validate_qdrant_collection_prefix(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned or len(cleaned) > 160:
+            raise ValueError("Qdrant collection prefix must contain 1-160 characters")
+        allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+        if any(character not in allowed for character in cleaned):
+            raise ValueError("Qdrant collection prefix contains unsupported characters")
+        return cleaned
 
     @field_validator("database_url")
     @classmethod

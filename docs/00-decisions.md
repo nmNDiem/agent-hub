@@ -20,6 +20,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Foundation runtimes | Python 3.12, Node.js 24, pnpm workspace | CONFIRMED | Pinned in repository configuration |
 | Widget foundation | Independent TypeScript/Vite package scaffold | CONFIRMED | Package boundary only; functional embed/chat remains deferred |
 | Retrieval | Qdrant vector index + Postgres structured search | CONFIRMED | Postgres owns documents/chunks/jobs; Qdrant is a rebuildable derived index with mandatory tenant filters |
+| Qdrant development runtime | Non-production Qdrant Cloud cluster | CONFIRMED | Credentials stay server-only; integration tests use isolated randomly named collections and delete only their own collection |
 | LLM provider | OpenAI | CONFIRMED | Server-side calls from FastAPI; exact model IDs are configurable |
 | Embedding provider architecture | Provider-neutral adapter; OpenAI is the initial MVP implementation | CONFIRMED | Persist provider/model/dimensions/revisions; other providers require a separately approved task |
 | OpenAI model IDs | Chat/vision/embeddings chosen by capability, price and testing | PROPOSED | Record deployed model IDs; no shop-owner choice in MVP |
@@ -52,7 +53,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 - Future live-commerce connector/provider, stock refresh policy and connector identity mapping; manual CRUD plus CSV/XLS/XLSX MERGE is already the confirmed file-import baseline.
 - User data retention periods, privacy notice, handoff destination, allowed domains and production secrets management.
 - Local connection strategy for Supabase services: use a remote development Supabase project or explicitly provision local equivalents; no live customer data in dev.
-- Qdrant local/development hosting strategy and future production placement; all environments use the same server API contract and isolated non-production data.
+- Future Qdrant production placement and backup policy; development uses the confirmed non-production Qdrant Cloud cluster.
 - VPS provider, sizing, reverse proxy, domain, SMTP provider and backup location when production deployment is scheduled.
 
 ## Implementation status

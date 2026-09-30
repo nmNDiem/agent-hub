@@ -2,6 +2,7 @@ import asyncio
 import os
 from decimal import Decimal
 from pathlib import Path
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
@@ -24,12 +25,25 @@ from agent_hub_api.core.config import normalize_database_url
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.identity.models import User
 from agent_hub_api.knowledge.models import (
+    AgentKnowledgeBase,
     EmbeddingProfile,
     IngestionJob,
     KnowledgeBase,
+    KnowledgeChunk,
+    KnowledgeChunkEmbedding,
     KnowledgeDocument,
+    KnowledgeDocumentActiveGeneration,
     KnowledgeDocumentVersion,
     KnowledgeGeneration,
+)
+from agent_hub_api.knowledge.providers import (
+    EmbeddingProfileSpec,
+    VectorPoint,
+    VectorSearchHit,
+)
+from agent_hub_api.knowledge.retrieval import (
+    KnowledgeRetrievalService,
+    resolve_agent_knowledge_scope,
 )
 from agent_hub_api.workspaces.models import Workspace, WorkspaceMember
 
@@ -551,6 +565,215 @@ def test_knowledge_constraints_fence_document_graph_in_postgres() -> None:
                             .values(model="mutated")
                         )
                     await immutable_profile.rollback()
+                finally:
+                    await session.close()
+                    await transaction.rollback()
+        finally:
+            await engine.dispose()
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        reset_test_schema(database_url, create=False)
+
+
+def test_knowledge_retrieval_revalidates_active_generation_in_postgres() -> None:
+    database_url = require_database_url()
+    reset_test_schema(database_url, create=True)
+    migrate("head")
+
+    class FakeEmbeddingProvider:
+        async def embed(
+            self, profile: EmbeddingProfileSpec, texts: list[str]
+        ) -> list[tuple[float, ...]]:
+            return [(1.0, 0.0, 0.0) for _ in texts]
+
+    class FakeVectorIndex:
+        def __init__(self, hit: VectorSearchHit) -> None:
+            self.hit = hit
+
+        async def ensure_profile(self, profile: EmbeddingProfileSpec) -> None:
+            pass
+
+        async def upsert(
+            self, profile: EmbeddingProfileSpec, points: list[VectorPoint]
+        ) -> None:
+            pass
+
+        async def search(
+            self,
+            profile: EmbeddingProfileSpec,
+            vector: tuple[float, ...],
+            *,
+            workspace_id: UUID,
+            allowed_knowledge_base_ids: tuple[int, ...],
+            limit: int,
+        ) -> list[VectorSearchHit]:
+            return [self.hit]
+
+        async def delete(
+            self, profile: EmbeddingProfileSpec, point_ids: list[UUID]
+        ) -> None:
+            pass
+
+    async def exercise() -> None:
+        engine = schema_engine(database_url)
+        try:
+            async with engine.connect() as connection:
+                transaction = await connection.begin()
+                session = AsyncSession(bind=connection, expire_on_commit=False)
+                try:
+                    user_id = new_uuid_v7()
+                    workspace_id = new_uuid_v7()
+                    agent_public_id = new_uuid_v7()
+                    point_id = uuid4()
+                    session.add(
+                        User(
+                            id=user_id,
+                            normalized_email=f"retrieval-pg-{user_id}@example.test",
+                            password_hash="test",
+                            status="active",
+                        )
+                    )
+                    session.add(
+                        Workspace(
+                            id=workspace_id,
+                            slug=f"retrieval-pg-{workspace_id}",
+                            display_name="Retrieval PostgreSQL",
+                            status="active",
+                        )
+                    )
+                    profile = EmbeddingProfile(
+                        provider="openai",
+                        model="test-3d",
+                        dimensions=3,
+                        pipeline_version="test-v1",
+                        distance_metric="cosine",
+                        qdrant_collection=f"retrieval-pg-{workspace_id}",
+                        config_hash=f"{workspace_id.hex}{'0' * 32}",
+                        status="active",
+                    )
+                    session.add(profile)
+                    await session.flush()
+                    knowledge_base = KnowledgeBase(
+                        workspace_id=workspace_id,
+                        name="Retrieval base",
+                        kind="general",
+                        active_embedding_profile_id=profile.id,
+                    )
+                    agent = Agent(
+                        public_id=agent_public_id,
+                        workspace_id=workspace_id,
+                        name="Retrieval agent",
+                        default_locale="vi",
+                        created_by_user_id=user_id,
+                    )
+                    session.add_all([knowledge_base, agent])
+                    await session.flush()
+                    session.add(
+                        AgentKnowledgeBase(
+                            workspace_id=workspace_id,
+                            agent_id=agent.id,
+                            knowledge_base_id=knowledge_base.id,
+                        )
+                    )
+                    document = KnowledgeDocument(
+                        workspace_id=workspace_id,
+                        knowledge_base_id=knowledge_base.id,
+                        title="Return policy",
+                        kind="policy",
+                    )
+                    session.add(document)
+                    await session.flush()
+                    version = KnowledgeDocumentVersion(
+                        workspace_id=workspace_id,
+                        document_id=document.id,
+                        version_no=1,
+                        source_kind="manual",
+                        source_text="Returns within seven days.",
+                        content_sha256="a" * 64,
+                        mime_type="text/plain",
+                        byte_size=26,
+                        created_by_user_id=user_id,
+                    )
+                    session.add(version)
+                    await session.flush()
+                    generation = KnowledgeGeneration(
+                        workspace_id=workspace_id,
+                        document_id=document.id,
+                        document_version_id=version.id,
+                        embedding_profile_id=profile.id,
+                        generation_no=1,
+                        status="ready",
+                        chunker_version="test-v1",
+                        chunk_size=100,
+                        chunk_overlap=10,
+                        pipeline_config_hash="b" * 64,
+                    )
+                    session.add(generation)
+                    await session.flush()
+                    chunk = KnowledgeChunk(
+                        workspace_id=workspace_id,
+                        generation_id=generation.id,
+                        position=0,
+                        content="Returns within seven days.",
+                        content_sha256="c" * 64,
+                        source_locator=f"document:{document.id}:version:1:chars:0-26",
+                        metadata_json={},
+                    )
+                    session.add(chunk)
+                    await session.flush()
+                    session.add_all(
+                        [
+                            KnowledgeChunkEmbedding(
+                                workspace_id=workspace_id,
+                                chunk_id=chunk.id,
+                                embedding_profile_id=profile.id,
+                                qdrant_point_id=point_id,
+                                content_hash=chunk.content_sha256,
+                                status="indexed",
+                            ),
+                            KnowledgeDocumentActiveGeneration(
+                                workspace_id=workspace_id,
+                                document_id=document.id,
+                                generation_id=generation.id,
+                            ),
+                        ]
+                    )
+                    await session.flush()
+                    hit = VectorSearchHit(
+                        point_id=point_id,
+                        score=0.9,
+                        payload={
+                            "workspace_id": str(workspace_id),
+                            "knowledge_base_id": knowledge_base.id,
+                            "document_id": document.id,
+                            "document_version_id": version.id,
+                            "generation_id": generation.id,
+                            "generation": generation.generation_no,
+                            "chunk_id": chunk.id,
+                            "embedding_profile_id": profile.id,
+                            "content_hash": chunk.content_sha256,
+                        },
+                    )
+                    scope = await resolve_agent_knowledge_scope(
+                        session,
+                        workspace_id=workspace_id,
+                        public_agent_id=agent_public_id,
+                    )
+                    retrieval = KnowledgeRetrievalService(
+                        session,
+                        embedding_provider=FakeEmbeddingProvider(),
+                        vector_index=FakeVectorIndex(hit),
+                    )
+                    results = await retrieval.search(scope, "return policy")
+                    assert [result.content for result in results] == [
+                        "Returns within seven days."
+                    ]
+
+                    generation.status = "revoked"
+                    await session.flush()
+                    assert await retrieval.search(scope, "return policy") == []
                 finally:
                     await session.close()
                     await transaction.rollback()

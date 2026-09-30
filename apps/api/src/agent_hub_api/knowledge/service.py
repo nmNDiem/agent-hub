@@ -26,6 +26,7 @@ from agent_hub_api.knowledge.models import (
     KnowledgeGeneration,
     MediaAsset,
 )
+from agent_hub_api.knowledge.pipeline import create_generation
 from agent_hub_api.knowledge.repository import KnowledgeRepository
 from agent_hub_api.knowledge.schemas import (
     AgentKnowledgeBasesRequest,
@@ -309,19 +310,6 @@ class KnowledgeService:
             knowledge_base_ids=await self.repository.agent_base_ids(workspace_id, agent.id),
         )
 
-    def _pipeline_hash(self, profile_id: int) -> str:
-        payload = json.dumps(
-            {
-                "profile_id": profile_id,
-                "chunker_version": "char-paragraph-v1",
-                "chunk_size": self.settings.knowledge_chunk_size,
-                "chunk_overlap": self.settings.knowledge_chunk_overlap,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(payload.encode()).hexdigest()
-
     async def _generation_for(
         self,
         knowledge_base: KnowledgeBase,
@@ -330,28 +318,13 @@ class KnowledgeService:
     ) -> KnowledgeGeneration | None:
         if knowledge_base.active_embedding_profile_id is None:
             return None
-        generation_no = int(
-            await self.session.scalar(
-                select(func.max(KnowledgeGeneration.generation_no)).where(
-                    KnowledgeGeneration.document_id == document.id
-                )
-            )
-            or 0
-        ) + 1
-        generation = KnowledgeGeneration(
-            workspace_id=document.workspace_id,
-            document_id=document.id,
-            document_version_id=version.id,
+        return await create_generation(
+            self.session,
+            document=document,
+            version=version,
             embedding_profile_id=knowledge_base.active_embedding_profile_id,
-            generation_no=generation_no,
-            chunker_version="char-paragraph-v1",
-            chunk_size=self.settings.knowledge_chunk_size,
-            chunk_overlap=self.settings.knowledge_chunk_overlap,
-            pipeline_config_hash=self._pipeline_hash(knowledge_base.active_embedding_profile_id),
+            settings=self.settings,
         )
-        self.session.add(generation)
-        await self.session.flush()
-        return generation
 
     async def _new_job(
         self,

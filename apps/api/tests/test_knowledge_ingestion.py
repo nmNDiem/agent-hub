@@ -25,7 +25,12 @@ from agent_hub_api.knowledge.models import (
     KnowledgeDocumentVersion,
     KnowledgeGeneration,
 )
-from agent_hub_api.knowledge.providers import EmbeddingProfileSpec, VectorPoint
+from agent_hub_api.knowledge.providers import (
+    EmbeddingProfileSpec,
+    ProviderTemporaryError,
+    VectorPoint,
+    VectorSearchHit,
+)
 from agent_hub_api.knowledge.reconcile import KnowledgeReconciler
 from agent_hub_api.models import Base
 from agent_hub_api.workspaces.models import Workspace
@@ -55,15 +60,17 @@ class FakeEmbeddingProvider:
         self.calls += 1
         if self.failures:
             self.failures -= 1
-            from agent_hub_api.knowledge.providers import ProviderTemporaryError
-
             raise ProviderTemporaryError("temporary test failure")
         return [tuple(float(index) for index in range(profile.dimensions)) for _ in texts]
 
 
 class FakeVectorIndex:
-    def __init__(self) -> None:
+    def __init__(self, *, delete_failures: int = 0) -> None:
         self.points: dict[object, VectorPoint] = {}
+        self.delete_failures = delete_failures
+
+    async def ensure_profile(self, profile: EmbeddingProfileSpec) -> None:
+        pass
 
     async def upsert(
         self, profile: EmbeddingProfileSpec, points: list[VectorPoint]
@@ -71,8 +78,22 @@ class FakeVectorIndex:
         self.points.update({point.point_id: point for point in points})
 
     async def delete(self, profile: EmbeddingProfileSpec, point_ids: list[UUID]) -> None:
+        if self.delete_failures:
+            self.delete_failures -= 1
+            raise ProviderTemporaryError("temporary delete failure")
         for point_id in point_ids:
             self.points.pop(point_id, None)
+
+    async def search(
+        self,
+        profile: EmbeddingProfileSpec,
+        vector: tuple[float, ...],
+        *,
+        workspace_id: UUID,
+        allowed_knowledge_base_ids: tuple[int, ...],
+        limit: int,
+    ) -> list[VectorSearchHit]:
+        return []
 
 
 async def seed_job(
@@ -351,6 +372,58 @@ def test_reconciler_deletes_vectors_from_revoked_generation(tmp_path: Path) -> N
                     )
                 )
                 assert statuses and set(statuses) == {"deleted"}
+        finally:
+            await engine.dispose()
+
+    asyncio.run(exercise())
+
+
+def test_reconciler_defers_vector_cleanup_during_qdrant_outage(tmp_path: Path) -> None:
+    async def exercise() -> None:
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'outage.db'}")
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(Base.metadata.create_all)
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            workspace_id, _ = await seed_job(session_factory, content="Deferred cleanup.")
+            vectors = FakeVectorIndex(delete_failures=1)
+            settings = Settings(
+                app_env="test",
+                jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+            )
+            worker = KnowledgeIngestionWorker(
+                session_factory=session_factory,
+                settings=settings,
+                storage=FakeStorage(),
+                embedding_provider=FakeEmbeddingProvider(),
+                vector_index=vectors,
+            )
+            assert await worker.run_once() is True
+            async with session_factory() as session, session.begin():
+                generation = await session.scalar(
+                    select(KnowledgeGeneration).where(
+                        KnowledgeGeneration.workspace_id == workspace_id
+                    )
+                )
+                assert generation is not None
+                generation.status = "revoked"
+            reconciler = KnowledgeReconciler(
+                session_factory=session_factory,
+                settings=settings,
+                storage=FakeStorage(),
+                vector_index=vectors,
+            )
+            assert await reconciler.run_once() is False
+            async with session_factory() as session:
+                statuses = set(
+                    await session.scalars(
+                        select(KnowledgeChunkEmbedding.status).where(
+                            KnowledgeChunkEmbedding.workspace_id == workspace_id
+                        )
+                    )
+                )
+                assert statuses == {"deleting"}
+            assert await reconciler.run_once() is True
         finally:
             await engine.dispose()
 

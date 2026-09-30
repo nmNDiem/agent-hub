@@ -15,6 +15,7 @@ dependencies = [
     "httpx==0.28.1",
     "charset-normalizer==3.4.3",
     "nh3==0.3.2",
+    "openai==3.20.0",
     "openpyxl==3.1.5",
     "pillow==11.3.0",
     "pypdf==6.19.0",
@@ -23,6 +24,7 @@ dependencies = [
     "pydantic-settings==2.15.0",
     "python-multipart==0.0.20",
     "python-dotenv==1.2.3",
+    "qdrant-client==1.19.1",
     "sqlalchemy[asyncio]==2.0.54",
     "uuid6==2025.0.1",
     "uvicorn[standard]==0.37.0",
@@ -44,7 +46,10 @@ where = ["src"]
 addopts = "-q"
 pythonpath = ["src"]
 testpaths = ["tests"]
-markers = ["postgres: opt-in tests that recreate agenthub_test in DATABASE_URL"]
+markers = [
+    "postgres: opt-in tests that recreate agenthub_test in DATABASE_URL",
+    "qdrant: opt-in tests that use an isolated non-production Qdrant collection",
+]
 
 [tool.ruff]
 line-length = 100
