@@ -49,6 +49,17 @@ class Settings(BaseSettings):
     )
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_timeout_seconds: int = 30
+    generation_model: str | None = None
+    agent_runtime_max_question_chars: int = 4_000
+    agent_runtime_max_knowledge_chunks: int = 5
+    agent_runtime_max_knowledge_chars: int = 12_000
+    agent_runtime_max_prompt_chars: int = 60_000
+    agent_runtime_max_tool_result_chars: int = 24_000
+    agent_runtime_max_output_tokens: int = 800
+    agent_runtime_max_total_tokens: int = 8_000
+    agent_runtime_max_model_calls: int = 5
+    agent_runtime_max_tool_calls: int = 4
+    agent_runtime_catalog_result_limit: int = 8
     qdrant_url: str | None = None
     qdrant_api_key: str | None = Field(default=None, repr=False)
     qdrant_collection_prefix: str = "agenthub_knowledge"
@@ -124,6 +135,16 @@ class Settings(BaseSettings):
             "knowledge_orphan_grace_seconds",
             "knowledge_worker_poll_seconds",
             "openai_timeout_seconds",
+            "agent_runtime_max_question_chars",
+            "agent_runtime_max_knowledge_chunks",
+            "agent_runtime_max_knowledge_chars",
+            "agent_runtime_max_prompt_chars",
+            "agent_runtime_max_tool_result_chars",
+            "agent_runtime_max_output_tokens",
+            "agent_runtime_max_total_tokens",
+            "agent_runtime_max_model_calls",
+            "agent_runtime_max_tool_calls",
+            "agent_runtime_catalog_result_limit",
             "qdrant_timeout_seconds",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
@@ -136,6 +157,12 @@ class Settings(BaseSettings):
             raise ValueError("Knowledge heartbeat must be shorter than the job lease")
         if self.knowledge_retry_base_seconds > self.knowledge_retry_max_seconds:
             raise ValueError("Knowledge retry base cannot exceed its maximum")
+        if self.agent_runtime_max_knowledge_chunks > 20:
+            raise ValueError("Agent knowledge retrieval cannot exceed 20 chunks")
+        if self.agent_runtime_catalog_result_limit > 100:
+            raise ValueError("Agent catalog result limit cannot exceed 100 products")
+        if self.agent_runtime_max_output_tokens >= self.agent_runtime_max_total_tokens:
+            raise ValueError("Agent output tokens must be smaller than its total token budget")
         return self
 
     @field_validator(
@@ -144,6 +171,7 @@ class Settings(BaseSettings):
         "qdrant_url",
         "embedding_model",
         "embedding_provider_revision",
+        "generation_model",
         mode="before",
     )
     @classmethod

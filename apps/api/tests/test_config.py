@@ -51,6 +51,7 @@ def test_provider_placeholders_are_not_treated_as_credentials() -> None:
             "qdrant_url": "https://<cluster>.cloud.qdrant.io",
             "embedding_model": "REPLACE_WITH_VERIFIED_MODEL",
             "embedding_dimensions": "REPLACE_WITH_VERIFIED_DIMENSIONS",
+            "generation_model": "REPLACE_WITH_VERIFIED_MODEL",
         }
     )
 
@@ -59,3 +60,19 @@ def test_provider_placeholders_are_not_treated_as_credentials() -> None:
     assert settings.qdrant_url is None
     assert settings.embedding_model is None
     assert settings.embedding_dimensions is None
+    assert settings.generation_model is None
+
+
+def test_agent_runtime_limits_reject_unbounded_provider_configuration() -> None:
+    with pytest.raises(ValueError, match="total token budget"):
+        EnvironmentOnlySettings.model_validate(
+            {
+                "agent_runtime_max_output_tokens": 100,
+                "agent_runtime_max_total_tokens": 100,
+            }
+        )
+
+    with pytest.raises(ValueError, match="20 chunks"):
+        EnvironmentOnlySettings.model_validate(
+            {"agent_runtime_max_knowledge_chunks": 21}
+        )

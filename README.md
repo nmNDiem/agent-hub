@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, knowledge persistence/durable ingestion, concrete OpenAI embedding adapter và tenant-safe Qdrant retrieval. Grounded generation, Playground và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, knowledge persistence/durable ingestion, concrete OpenAI embedding adapter, tenant-safe Qdrant retrieval và grounded agent runtime nội bộ. Playground và widget chat chưa được triển khai.
 
 ## Công nghệ và môi trường
 
@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import/knowledge, thời hạn signed URL và job lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Qdrant Cloud được cấu hình cho non-production development; `OPENAI_API_KEY`, model và dimensions chỉ bắt buộc khi chạy ingestion worker thật.
+Không điền secret thật vào file được commit. `DATABASE_URL`, Supabase keys, Qdrant key, OpenAI key và `JWT_SIGNING_KEY` đều là server-only. JWT key phải có ít nhất 32 byte ngẫu nhiên. `.env.example` chỉ liệt kê secret và giá trị phụ thuộc môi trường triển khai; token TTL, tên bucket mặc định, giới hạn catalog/import/knowledge/agent runtime, thời hạn signed URL và job lease dùng default tập trung trong `apps/api/src/agent_hub_api/core/config.py`. Chỉ đặt biến môi trường tương ứng khi chủ động override các default đó. Email delivery mặc định tắt trong config và chỉ được override sau khi backend có provider gửi mail thật. Qdrant Cloud được cấu hình cho non-production development; ingestion thật cần explicit embedding model/dimensions, còn generation thật cần explicit `GENERATION_MODEL`. Hệ thống không đoán model ID.
 
 ## Chạy local
 
@@ -142,7 +142,11 @@ pnpm dev:worker
 
 Các operator command còn lại là `rebuild`, `start-migration` và `promote`. Mỗi rebuild/migration yêu cầu `--operation-id` ổn định để retry command không tạo job trùng. Profile cũ được giữ cho rollback có kiểm soát, nhưng point cũ không thể đi qua active-generation revalidation sau cutover.
 
-F3.3 không triển khai answer generation, prompt orchestration hay Playground; các phần đó thuộc F3.4/F3.5.
+## F3.4 grounded agent runtime
+
+Runtime nội bộ kết hợp retrieval đã revalidate với ba catalog tool tenant-safe. OpenAI chỉ được gọi qua `ModelGateway`; model phải dùng sequential tool calls và `submit_grounded_answer`. Product card được backend dựng từ catalog result hiện thời, không parse SKU/giá/tồn kho từ model prose. Knowledge answer chỉ nhận source alias đã thực sự retrieve và từng đoạn phải là extractive excerpt của source đó; prompt/document và agent instructions đều được đóng gói như untrusted data dưới platform policy cố định.
+
+Mỗi lượt bị giới hạn question/context/tool-result chars, output/total tokens, model calls, tool calls và số catalog result. `NULL` inventory tiếp tục là `unknown`; generic options/attributes và product-only records không cần fashion-only fields. Automated tests dùng fake gateway, không phát sinh paid OpenAI request. F3.4 chưa đăng ký endpoint hay SSE; Playground thuộc F3.5.
 
 ## Where to read first
 

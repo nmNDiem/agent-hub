@@ -50,4 +50,4 @@ Uploaded and retrieved text remains untrusted data. Ingestion normalization does
 - If OpenAI is unavailable, show a transparent friendly error and optional human contact instead of inventing a response.
 
 ## Orchestration decision
-Custom deterministic router + typed tools is PROPOSED for MVP. Reassess LangGraph after genuine branching/state requirements appear; no drag-and-drop builder now.
+Custom deterministic bounded orchestration + typed tools is CONFIRMED for the MVP grounded runtime. Reassess LangGraph only after genuine branching/state requirements appear; no drag-and-drop builder now. The model selects evidence references, while the server validates them, requires knowledge paragraphs to be extractive from retrieved chunks, and constructs catalog product cards from current typed-tool results.

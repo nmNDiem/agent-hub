@@ -8,6 +8,15 @@ from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models
 
+from agent_hub_api.agents.generation import (
+    ModelAssistantMessage,
+    ModelRequest,
+    ModelToolCall,
+    ModelToolDefinition,
+    ModelToolResultMessage,
+    ModelUserMessage,
+)
+from agent_hub_api.agents.openai_generation import OpenAIGenerationGateway
 from agent_hub_api.knowledge.openai_embeddings import OpenAIEmbeddingProvider
 from agent_hub_api.knowledge.providers import (
     EmbeddingProfileSpec,
@@ -57,6 +66,65 @@ class FakeOpenAIClient:
         self.embeddings = FakeEmbeddingsResource(response)
 
 
+@dataclass
+class FakeGenerationFunction:
+    name: str
+    arguments: str
+
+
+@dataclass
+class FakeGenerationToolCall:
+    id: str
+    function: FakeGenerationFunction
+    type: str = "function"
+
+
+@dataclass
+class FakeGenerationMessage:
+    content: str | None
+    tool_calls: list[FakeGenerationToolCall]
+    refusal: str | None = None
+
+
+@dataclass
+class FakeGenerationChoice:
+    message: FakeGenerationMessage
+    finish_reason: str = "tool_calls"
+
+
+@dataclass
+class FakeGenerationUsage:
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+@dataclass
+class FakeGenerationResponse:
+    choices: list[FakeGenerationChoice]
+    usage: FakeGenerationUsage | None
+
+
+class FakeCompletionsResource:
+    def __init__(self, response: FakeGenerationResponse) -> None:
+        self.response = response
+        self.kwargs: dict[str, object] = {}
+
+    async def create(self, **kwargs: object) -> FakeGenerationResponse:
+        self.kwargs = kwargs
+        return self.response
+
+
+class FakeChatResource:
+    def __init__(self, response: FakeGenerationResponse) -> None:
+        self.completions = FakeCompletionsResource(response)
+
+
+class FakeGenerationClient:
+    def __init__(self, response: FakeGenerationResponse) -> None:
+        self.chat = FakeChatResource(response)
+
+
 def test_openai_embedding_adapter_batches_and_enforces_profile_dimensions() -> None:
     async def exercise() -> None:
         client = FakeOpenAIClient(
@@ -82,6 +150,83 @@ def test_openai_embedding_adapter_batches_and_enforces_profile_dimensions() -> N
         )
         with pytest.raises(ProviderPermanentError):
             await provider.embed(profile(), ["invalid dimension"])
+
+    asyncio.run(exercise())
+
+
+def test_openai_generation_adapter_uses_bounded_required_tool_calls() -> None:
+    async def exercise() -> None:
+        client = FakeGenerationClient(
+            FakeGenerationResponse(
+                choices=[
+                    FakeGenerationChoice(
+                        message=FakeGenerationMessage(
+                            content=None,
+                            tool_calls=[
+                                FakeGenerationToolCall(
+                                    id="final-1",
+                                    function=FakeGenerationFunction(
+                                        name="submit_grounded_answer",
+                                        arguments='{"kind":"cannot_verify"}',
+                                    ),
+                                )
+                            ],
+                        )
+                    )
+                ],
+                usage=FakeGenerationUsage(
+                    prompt_tokens=21,
+                    completion_tokens=7,
+                    total_tokens=28,
+                ),
+            )
+        )
+        gateway = OpenAIGenerationGateway(
+            model="verified-test-model",
+            client=cast(AsyncOpenAI, client),
+        )
+        response = await gateway.generate(
+            ModelRequest(
+                system_prompt="System boundary",
+                messages=(
+                    ModelUserMessage("Question"),
+                    ModelAssistantMessage(
+                        content=None,
+                        tool_calls=(
+                            ModelToolCall(
+                                id="search-1",
+                                name="search_products",
+                                arguments_json='{"query":"linen"}',
+                            ),
+                        ),
+                    ),
+                    ModelToolResultMessage(
+                        tool_call_id="search-1",
+                        content='{"items":[]}',
+                    ),
+                ),
+                tools=(
+                    ModelToolDefinition(
+                        name="submit_grounded_answer",
+                        description="Finish safely",
+                        parameters={
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": False,
+                        },
+                    ),
+                ),
+                max_output_tokens=123,
+            )
+        )
+
+        assert response.tool_calls[0].name == "submit_grounded_answer"
+        assert response.usage.total_tokens == 28
+        assert client.chat.completions.kwargs["model"] == "verified-test-model"
+        assert client.chat.completions.kwargs["tool_choice"] == "required"
+        assert client.chat.completions.kwargs["parallel_tool_calls"] is False
+        assert client.chat.completions.kwargs["max_completion_tokens"] == 123
+        assert client.chat.completions.kwargs["store"] is False
 
     asyncio.run(exercise())
 

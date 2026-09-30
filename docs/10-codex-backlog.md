@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0 through F2.2 and F3.1 through F3.3 are complete. Critical PostgreSQL gates use the isolated `agenthub_test` schema; F3.3 also passed against an explicitly configured non-production Qdrant Cloud collection. F3.4 and later entries remain future work and are not authorized without an explicit owner request. F3 remains open until every F3 slice passes together. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0 through F2.2 and F3.1 through F3.4 are complete. Critical PostgreSQL gates use the isolated `agenthub_test` schema; F3.3 also passed against an explicitly configured non-production Qdrant Cloud collection. F3.5 and later entries remain future work and are not authorized without an explicit owner request. F3 remains open until every F3 slice passes together. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -56,7 +56,7 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 - Add rebuild/re-index behavior, citation references, batched embedding/index operations and explicit vector-outage behavior.
 - Done: a real explicitly configured non-production Qdrant integration proves tenant isolation, stale/revoked points are rejected and indexing retries are safe.
 
-### F3.4 — Grounded agent runtime
+### F3.4 — Grounded agent runtime (complete)
 - Implement the OpenAI generation adapter and simple orchestration across knowledge retrieval and catalog tools.
 - Produce grounded source references and normalized schema-neutral product-card output for F4; catalog facts must come from typed tools at answer time.
 - Enforce prompt-injection defenses, bounded token/tool usage and safe errors without leaking prompts, credentials or private data.

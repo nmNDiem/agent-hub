@@ -64,15 +64,24 @@ async def resolve_agent_knowledge_scope(
 ) -> AuthorizedKnowledgeScope:
     """Resolve immutable allowed sources after caller/session authorization."""
 
-    agent_id = await session.scalar(
-        select(Agent.id).where(
+    agent = await session.scalar(
+        select(Agent).where(
             Agent.workspace_id == workspace_id,
             Agent.public_id == public_agent_id,
             Agent.archived_at.is_(None),
         )
     )
-    if agent_id is None:
+    if agent is None:
         raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Khong tim thay agent.")
+    return await resolve_agent_knowledge_scope_for_agent(session, agent)
+
+
+async def resolve_agent_knowledge_scope_for_agent(
+    session: AsyncSession,
+    agent: Agent,
+) -> AuthorizedKnowledgeScope:
+    """Resolve active knowledge assignments for an already scoped agent."""
+
     base_ids = tuple(
         await session.scalars(
             select(AgentKnowledgeBase.knowledge_base_id)
@@ -84,14 +93,14 @@ async def resolve_agent_knowledge_scope(
                 ),
             )
             .where(
-                AgentKnowledgeBase.workspace_id == workspace_id,
-                AgentKnowledgeBase.agent_id == agent_id,
+                AgentKnowledgeBase.workspace_id == agent.workspace_id,
+                AgentKnowledgeBase.agent_id == agent.id,
                 KnowledgeBase.status == "active",
             )
             .order_by(AgentKnowledgeBase.knowledge_base_id)
         )
     )
-    return AuthorizedKnowledgeScope(workspace_id, base_ids)
+    return AuthorizedKnowledgeScope(agent.workspace_id, base_ids)
 
 
 class KnowledgeRetrievalService:
