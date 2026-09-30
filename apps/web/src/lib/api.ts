@@ -43,6 +43,7 @@ export type ProductVariant = {
   name: string | null;
   color: string | null;
   size: string | null;
+  options: Record<string, string>;
   price_override: string | null;
   effective_price: string | null;
   stock_quantity: number | null;
@@ -100,7 +101,8 @@ export type CatalogCollection = {
 
 export type ProductImage = {
   id: number;
-  original_filename: string;
+  variant_id: number | null;
+  original_filename: string | null;
   alt_text: string | null;
   status: "uploading" | "active" | "cleanup_pending" | "deleted";
   cleanup_attempts: number;
@@ -225,11 +227,12 @@ export const api = {
     request<Workspace>("/api/v1/workspaces", { method: "POST", body: JSON.stringify(payload) }),
   listProducts: (
     workspaceId: string,
-    filters: { query?: string; status?: string; cursor?: string } = {},
+    filters: { query?: string; status?: string; category?: string; cursor?: string } = {},
   ) => {
     const params = new URLSearchParams();
     if (filters.query) params.set("query", filters.query);
     if (filters.status) params.set("status", filters.status);
+    if (filters.category) params.set("category", filters.category);
     if (filters.cursor) params.set("cursor", filters.cursor);
     const suffix = params.size ? `?${params}` : "";
     return request<{ items: ProductSummary[]; next_cursor: string | null }>(
