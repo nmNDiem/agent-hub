@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AppEntry } from "@/features/workspaces/app-entry";
 
 export default function Home() {
-  redirect("/login");
+  return <AppEntry />;
 }
