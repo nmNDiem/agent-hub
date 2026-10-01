@@ -71,9 +71,15 @@ Platform rules have the highest priority:
   Every knowledge message paragraph must be copied exactly from a selected source excerpt;
   do not paraphrase. Separate excerpts from different sources with newlines.
 - Use submit_grounded_answer to finish. Never place a final answer in ordinary assistant text.
-- For catalog answers, put product IDs in submit_grounded_answer and leave message null; the
-  server renders commerce facts from authoritative tool results.
-- If evidence is absent or uncertain, use cannot_verify. Unknown inventory is not in stock.
+- For catalog answers, select only product IDs returned by catalog tools and include a concise,
+  natural, channel-neutral message that frames the structured results and may ask a helpful
+  follow-up question. Descriptive claims must come from the selected catalog tool results.
+  Do not restate exact price, SKU, options, stock, discounts, or links in message; channel
+  renderers present those authoritative fields from product cards.
+- For broad catalog browsing requests, search without a text query instead of using generic
+  words such as "products" or "items" as literal search terms.
+- If evidence is absent or uncertain, use cannot_verify with an honest, natural message that
+  may ask for clarification. Unknown inventory is not in stock.
 """
 
 _CATALOG_FACT_PATTERN = re.compile(
@@ -100,10 +106,29 @@ _PROMPT_INJECTION_PATTERN = re.compile(
 class SubmitGroundedAnswerInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["catalog", "knowledge", "general", "cannot_verify"]
-    message: str | None = Field(default=None, max_length=3_000)
-    product_ids: list[int] = Field(default_factory=list, max_length=20)
-    source_ids: list[str] = Field(default_factory=list, max_length=20)
+    kind: Literal["catalog", "knowledge", "general", "cannot_verify"] = Field(
+        description="The evidence class used for final server validation."
+    )
+    message: str | None = Field(
+        default=None,
+        max_length=3_000,
+        description=(
+            "Natural channel-neutral reply. Ground catalog descriptions in selected tool results "
+            "and leave exact commerce facts to structured product cards."
+        ),
+    )
+    product_ids: list[int] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Product IDs previously returned by catalog tools; catalog answers require them."
+        ),
+    )
+    source_ids: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Retrieved source aliases; only knowledge answers may include them.",
+    )
 
     @field_validator("message")
     @classmethod
@@ -131,16 +156,16 @@ class SubmitGroundedAnswerInput(BaseModel):
     @model_validator(mode="after")
     def validate_shape(self) -> SubmitGroundedAnswerInput:
         if self.kind == "catalog":
-            if not self.product_ids or self.message is not None or self.source_ids:
-                raise ValueError("Catalog answers require only grounded product IDs")
+            if not self.product_ids or self.source_ids:
+                raise ValueError("Catalog answers require grounded product IDs and no sources")
         elif self.kind == "knowledge":
-            if self.message is None or not self.source_ids:
-                raise ValueError("Knowledge answers require message text and sources")
+            if self.message is None or self.product_ids or not self.source_ids:
+                raise ValueError("Knowledge answers require message text and only sources")
         elif self.kind == "general":
             if self.message is None or self.product_ids or self.source_ids:
                 raise ValueError("General answers cannot claim products or sources")
-        elif self.message is not None or self.product_ids or self.source_ids:
-            raise ValueError("Cannot-verify answers are rendered by the server")
+        elif self.product_ids or self.source_ids:
+            raise ValueError("Cannot-verify answers cannot claim products or sources")
         return self
 
 
@@ -551,7 +576,13 @@ class GroundedAgentRuntime:
             ),
             ModelToolDefinition(
                 name="submit_grounded_answer",
-                description="Finish with validated evidence references or a safe fallback.",
+                description=(
+                    "Finish with a natural channel-neutral message plus validated evidence "
+                    "references. Catalog requires prior tool-returned product_ids, no source_ids, "
+                    "and a grounded reply that leaves exact commerce facts structured. Knowledge "
+                    "requires an extractive message and source_ids. General uses only message. "
+                    "Cannot_verify may use message but no product_ids or source_ids."
+                ),
                 parameters=cls._tool_schema(SubmitGroundedAnswerInput),
             ),
         )
@@ -578,7 +609,7 @@ class GroundedAgentRuntime:
                 [source_map[source_id].content for source_id in submission.source_ids],
             ):
                 raise self._safe_error("UNGROUNDED_KNOWLEDGE_CLAIM")
-            if submission.kind == "general" and _BUSINESS_POLICY_PATTERN.search(
+            if submission.kind != "knowledge" and _BUSINESS_POLICY_PATTERN.search(
                 submission.message
             ):
                 raise self._safe_error("UNGROUNDED_COMMITMENT")

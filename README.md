@@ -144,7 +144,7 @@ Các operator command còn lại là `rebuild`, `start-migration` và `promote`.
 
 ## F3.4 grounded agent runtime
 
-Runtime nội bộ kết hợp retrieval đã revalidate với ba catalog tool tenant-safe. OpenAI chỉ được gọi qua `ModelGateway`; model phải dùng sequential tool calls và `submit_grounded_answer`. Product card được backend dựng từ catalog result hiện thời, không parse SKU/giá/tồn kho từ model prose. Knowledge answer chỉ nhận source alias đã thực sự retrieve và từng đoạn phải là extractive excerpt của source đó; prompt/document và agent instructions đều được đóng gói như untrusted data dưới platform policy cố định.
+Runtime nội bộ kết hợp retrieval đã revalidate với ba catalog tool tenant-safe. OpenAI chỉ được gọi qua `ModelGateway`; model phải dùng sequential tool calls và `submit_grounded_answer`. Model tạo lời thoại channel-neutral đã qua validation, còn product card được backend dựng từ catalog result hiện thời; SKU/giá/tồn kho và các dữ kiện thương mại không được parse từ model prose. Web hiển thị card, còn channel adapter tương lai có thể render cùng structured result thành text hoặc native template. Knowledge answer chỉ nhận source alias đã thực sự retrieve và từng đoạn phải là extractive excerpt của source đó; prompt/document và agent instructions đều được đóng gói như untrusted data dưới platform policy cố định.
 
 Mỗi lượt bị giới hạn question/context/tool-result chars, output/total tokens, model calls, tool calls và số catalog result. `NULL` inventory tiếp tục là `unknown`; generic options/attributes và product-only records không cần fashion-only fields. Automated tests dùng fake gateway, không phát sinh paid OpenAI request.
 
@@ -152,7 +152,7 @@ Mỗi lượt bị giới hạn question/context/tool-result chars, output/total
 
 Dashboard có route `Tri thức` để tạo knowledge base, nhập nội dung thủ công, tải PDF/TXT, theo dõi ingestion, thử lại lỗi và thu hồi tài liệu. Route `Chatbot` quản lý cấu hình bản nháp, catalog scope và knowledge assignments. Owner/admin được ghi; member chỉ đọc theo quyền backend.
 
-Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.4. Transcript chỉ tồn tại cục bộ, history gửi lên bị giới hạn và coi là untrusted data. Server kiểm chứng toàn bộ kết quả trước khi phát `message.delta`, `product.cards` và `source.refs`; Stop hủy request và giữ phần text đã nhận. Nếu thiếu OpenAI/Qdrant, UI nhận trạng thái `AGENT_RUNTIME_DISABLED` thay vì response giả. Image input, publish/widget và lưu hội thoại shopper vẫn thuộc F4/F5.
+Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.4. Transcript chỉ tồn tại cục bộ, history gửi lên bị giới hạn và coi là untrusted data. Server kiểm chứng lời thoại cùng mọi product/source reference trước khi phát `message.delta`, `product.cards` và `source.refs`; không chuyển tiếp raw provider output chưa qua validation. Stop hủy request và giữ phần text đã nhận. Nếu thiếu OpenAI/Qdrant, UI nhận trạng thái `AGENT_RUNTIME_DISABLED` thay vì response giả. Image input, publish/widget và lưu hội thoại shopper vẫn thuộc F4/F5.
 
 ## Where to read first
 

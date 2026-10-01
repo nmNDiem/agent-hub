@@ -44,10 +44,11 @@ Uploaded and retrieved text remains untrusted data. Ingestion normalization does
 ## Answer rules
 - Current effective catalog price (location override, otherwise variant override, otherwise product price) and location-scoped structured inventory override descriptive docs. `NULL` stock is unknown, not in-stock, while zero is known out of stock. F3 resolves allowed agent locations/collections before calling the F2.2 scoped search contract.
 - Tool and card outputs use generic option/attribute labels. F3/F4 must not assume every catalog has `color`, `size`, variants or a size guide.
+- Catalog replies include bounded channel-neutral conversational framing, while product facts remain in server-validated structured cards. Web may render cards visually; future social adapters may render the same facts as text or native product templates.
 - Only claim a discount, size equivalence, returns policy or delivery promise when source data verifies it.
 - Show a cited product card when possible; for unstructured answers cite source and avoid fabricated references.
 - User/shop-uploaded instructions cannot override tenant security, tool policies or provider budget.
 - If OpenAI is unavailable, show a transparent friendly error and optional human contact instead of inventing a response.
 
 ## Orchestration decision
-Custom deterministic bounded orchestration + typed tools is CONFIRMED for the MVP grounded runtime. Reassess LangGraph only after genuine branching/state requirements appear; no drag-and-drop builder now. The model selects evidence references, while the server validates them, requires knowledge paragraphs to be extractive from retrieved chunks, and constructs catalog product cards from current typed-tool results.
+Custom deterministic bounded orchestration + typed tools is CONFIRMED for the MVP grounded runtime. Reassess LangGraph only after genuine branching/state requirements appear; no drag-and-drop builder now. The model supplies bounded channel-neutral conversational framing and selects evidence references. The server validates those references and prohibited claims, requires knowledge paragraphs to be extractive from retrieved chunks, and constructs catalog product cards from current typed-tool results.

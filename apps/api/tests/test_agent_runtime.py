@@ -213,7 +213,9 @@ def test_runtime_builds_schema_neutral_cards_from_authoritative_tools() -> None:
                     "submit_grounded_answer",
                     {
                         "kind": "catalog",
-                        "message": None,
+                        "message": (
+                            "I found a matching option. Would you like help choosing a variant?"
+                        ),
                         "product_ids": [7],
                         "source_ids": [],
                     },
@@ -231,7 +233,9 @@ def test_runtime_builds_schema_neutral_cards_from_authoritative_tools() -> None:
         ).run("Có áo linen dáng relaxed không?")
 
         assert tools.search_payloads[0].limit == 8
-        assert response.text == "Mình đã tìm thấy 1 sản phẩm phù hợp để bạn tham khảo."
+        assert response.text == (
+            "I found a matching option. Would you like help choosing a variant?"
+        )
         assert response.usage.model_calls == 2
         assert response.usage.tool_calls == 1
         assert response.product_cards[0].sku == "AUTH-7"
@@ -275,7 +279,7 @@ def test_runtime_supports_product_only_catalog_records() -> None:
                     "submit_grounded_answer",
                     {
                         "kind": "catalog",
-                        "message": None,
+                        "message": "I found a matching service. Would you like more details?",
                         "product_ids": [8],
                         "source_ids": [],
                     },
@@ -297,6 +301,126 @@ def test_runtime_supports_product_only_catalog_records() -> None:
         assert card.price.kind == "unknown"
         assert card.options == {}
         assert card.variants == []
+
+    asyncio.run(exercise())
+
+
+def test_runtime_returns_natural_catalog_message_with_grounded_product() -> None:
+    async def exercise() -> None:
+        product = product_fixture().model_copy(update={"name": "Dầu ăn Happi Koki 1 lít"})
+        gateway = FakeGateway(
+            [
+                model_call(
+                    "search_products",
+                    {"query": "dầu ăn", "in_stock": True},
+                    call_id="oil-search",
+                ),
+                model_call(
+                    "submit_grounded_answer",
+                    {
+                        "kind": "catalog",
+                        "message": (
+                            "Có nhé! Mình tìm thấy một lựa chọn phù hợp. "
+                            "Bạn muốn mình tư vấn thêm không?"
+                        ),
+                        "product_ids": [7],
+                        "source_ids": [],
+                    },
+                    call_id="oil-final",
+                ),
+            ]
+        )
+
+        response = await GroundedAgentRuntime(
+            gateway=gateway,
+            catalog_tools=FakeCatalogTools(product),
+            knowledge_searcher=FakeKnowledgeSearcher(),
+            budget=budget(),
+            locale="vi",
+            safe_instructions=None,
+        ).run("Có dầu ăn không?")
+
+        assert response.text == (
+            "Có nhé! Mình tìm thấy một lựa chọn phù hợp. "
+            "Bạn muốn mình tư vấn thêm không?"
+        )
+        assert [card.product_id for card in response.product_cards] == [7]
+        assert response.product_cards[0].name == "Dầu ăn Happi Koki 1 lít"
+
+    asyncio.run(exercise())
+
+
+def test_runtime_keeps_natural_cannot_verify_message() -> None:
+    async def exercise() -> None:
+        response = await GroundedAgentRuntime(
+            gateway=FakeGateway(
+                [
+                    model_call(
+                        "submit_grounded_answer",
+                        {
+                            "kind": "cannot_verify",
+                            "message": (
+                                "Mình chưa tìm thấy lựa chọn phù hợp. "
+                                "Bạn có thể mô tả rõ hơn nhu cầu không?"
+                            ),
+                            "product_ids": [],
+                            "source_ids": [],
+                        },
+                        call_id="cannot-verify-final",
+                    )
+                ]
+            ),
+            catalog_tools=FakeCatalogTools(product_fixture()),
+            knowledge_searcher=FakeKnowledgeSearcher(),
+            budget=budget(),
+            locale="vi",
+            safe_instructions=None,
+        ).run("Bạn có mẫu nào khác không?")
+
+        assert response.text == (
+            "Mình chưa tìm thấy lựa chọn phù hợp. "
+            "Bạn có thể mô tả rõ hơn nhu cầu không?"
+        )
+        assert response.product_cards == []
+        assert response.sources == []
+
+    asyncio.run(exercise())
+
+
+def test_runtime_rejects_commerce_facts_in_catalog_message() -> None:
+    async def exercise() -> None:
+        gateway = FakeGateway(
+            [
+                model_call(
+                    "search_products",
+                    {"query": "linen"},
+                    call_id="unsafe-catalog-search",
+                ),
+                model_call(
+                    "submit_grounded_answer",
+                    {
+                        "kind": "catalog",
+                        "message": "It is in stock and costs 99 VND.",
+                        "product_ids": [7],
+                        "source_ids": [],
+                    },
+                    call_id="unsafe-catalog-final",
+                ),
+            ]
+        )
+        runtime = GroundedAgentRuntime(
+            gateway=gateway,
+            catalog_tools=FakeCatalogTools(product_fixture()),
+            knowledge_searcher=FakeKnowledgeSearcher(),
+            budget=budget(),
+            locale="en",
+            safe_instructions=None,
+        )
+
+        with pytest.raises(AgentRuntimeError) as raised:
+            await runtime.run("Is the linen item available?")
+
+        assert raised.value.code == "UNGROUNDED_CATALOG_CLAIM"
 
     asyncio.run(exercise())
 

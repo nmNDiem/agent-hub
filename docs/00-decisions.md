@@ -25,6 +25,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Embedding provider architecture | Provider-neutral adapter; OpenAI is the initial MVP implementation | CONFIRMED | Persist provider/model/dimensions/revisions; other providers require a separately approved task |
 | OpenAI model IDs | Chat/vision/embeddings chosen by capability, price and testing | PROPOSED | Record deployed model IDs; no shop-owner choice in MVP |
 | Agent framework | Simple custom bounded orchestration | CONFIRMED | F3.4; typed tools and server-validated final output, no framework dependency |
+| Agent response contract | Channel-neutral conversational text plus server-validated structured evidence | CONFIRMED | Product facts remain structured so Web and future social adapters can render them without making the core runtime channel-specific |
 | Async ingestion | PostgreSQL-backed durable jobs processed by a dedicated Python worker process | CONFIRMED | Fenced leases, heartbeat, classified retry and reconciliation; no Redis dependency for MVP |
 | Multiple knowledge bases per agent | Yes at schema and API level | CONFIRMED | Workspace-scoped many-to-many assignment; catalog facts remain structured |
 | LLM choice by shop owner | Not exposed in first MVP | PROPOSED | Server-configured provider/model |

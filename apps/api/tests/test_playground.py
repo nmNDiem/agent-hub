@@ -120,6 +120,9 @@ def app_factory(tmp_path: Path) -> Iterator[Any]:
             settings=Settings(
                 app_env="test",
                 jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+                openai_api_key=None,
+                generation_model=None,
+                qdrant_url=None,
             ),
             session_factory=async_sessionmaker(engine, expire_on_commit=False),
             agent_runtime_factory=runtime_factory,
