@@ -154,7 +154,17 @@ def test_openai_embedding_adapter_batches_and_enforces_profile_dimensions() -> N
     asyncio.run(exercise())
 
 
-def test_openai_generation_adapter_uses_bounded_required_tool_calls() -> None:
+@pytest.mark.parametrize(
+    ("model", "reasoning_effort"),
+    [
+        ("verified-test-model", None),
+        ("gpt-6-luna", "none"),
+    ],
+)
+def test_openai_generation_adapter_uses_bounded_required_tool_calls(
+    model: str,
+    reasoning_effort: str | None,
+) -> None:
     async def exercise() -> None:
         client = FakeGenerationClient(
             FakeGenerationResponse(
@@ -182,7 +192,7 @@ def test_openai_generation_adapter_uses_bounded_required_tool_calls() -> None:
             )
         )
         gateway = OpenAIGenerationGateway(
-            model="verified-test-model",
+            model=model,
             client=cast(AsyncOpenAI, client),
         )
         response = await gateway.generate(
@@ -222,11 +232,15 @@ def test_openai_generation_adapter_uses_bounded_required_tool_calls() -> None:
 
         assert response.tool_calls[0].name == "submit_grounded_answer"
         assert response.usage.total_tokens == 28
-        assert client.chat.completions.kwargs["model"] == "verified-test-model"
+        assert client.chat.completions.kwargs["model"] == model
         assert client.chat.completions.kwargs["tool_choice"] == "required"
         assert client.chat.completions.kwargs["parallel_tool_calls"] is False
         assert client.chat.completions.kwargs["max_completion_tokens"] == 123
         assert client.chat.completions.kwargs["store"] is False
+        if reasoning_effort is None:
+            assert "reasoning_effort" not in client.chat.completions.kwargs
+        else:
+            assert client.chat.completions.kwargs["reasoning_effort"] == reasoning_effort
 
     asyncio.run(exercise())
 

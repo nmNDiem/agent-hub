@@ -11,6 +11,9 @@ from openai.types.chat import (
     ChatCompletionToolMessageParam,
     ChatCompletionToolParam,
 )
+from openai.types.chat.completion_create_params import (
+    CompletionCreateParamsNonStreaming,
+)
 from openai.types.shared_params import FunctionDefinition
 
 from agent_hub_api.agents.generation import (
@@ -66,16 +69,22 @@ class OpenAIGenerationGateway(ModelGateway):
         )
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
+        params = CompletionCreateParamsNonStreaming(
+            model=self.model,
+            messages=self._messages(request),
+            tools=[self._tool(tool) for tool in request.tools],
+            tool_choice="required",
+            parallel_tool_calls=False,
+            max_completion_tokens=request.max_output_tokens,
+            store=False,
+        )
+        if self.model == "gpt-6-luna":
+            # GPT-6 Luna supports Chat Completions function calling only when
+            # reasoning is disabled. Other configured models retain their native
+            # defaults rather than receiving a model-specific parameter.
+            params["reasoning_effort"] = "none"
         try:
-            response = await self._client.chat.completions.create(
-                model=self.model,
-                messages=self._messages(request),
-                tools=[self._tool(tool) for tool in request.tools],
-                tool_choice="required",
-                parallel_tool_calls=False,
-                max_completion_tokens=request.max_output_tokens,
-                store=False,
-            )
+            response = await self._client.chat.completions.create(**params)
         except openai.RateLimitError as exc:
             if _error_code(exc) == "credit_balance_exhausted":
                 raise ModelPermanentError("OpenAI credit balance is exhausted") from exc
