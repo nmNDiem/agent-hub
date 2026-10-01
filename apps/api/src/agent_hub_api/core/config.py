@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     openai_timeout_seconds: int = 30
     generation_model: str | None = None
     agent_runtime_max_question_chars: int = 4_000
+    agent_runtime_max_history_turns: int = 8
+    agent_runtime_max_history_chars: int = 12_000
     agent_runtime_max_knowledge_chunks: int = 5
     agent_runtime_max_knowledge_chars: int = 12_000
     agent_runtime_max_prompt_chars: int = 60_000
@@ -136,6 +138,8 @@ class Settings(BaseSettings):
             "knowledge_worker_poll_seconds",
             "openai_timeout_seconds",
             "agent_runtime_max_question_chars",
+            "agent_runtime_max_history_turns",
+            "agent_runtime_max_history_chars",
             "agent_runtime_max_knowledge_chunks",
             "agent_runtime_max_knowledge_chars",
             "agent_runtime_max_prompt_chars",

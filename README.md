@@ -146,7 +146,13 @@ Các operator command còn lại là `rebuild`, `start-migration` và `promote`.
 
 Runtime nội bộ kết hợp retrieval đã revalidate với ba catalog tool tenant-safe. OpenAI chỉ được gọi qua `ModelGateway`; model phải dùng sequential tool calls và `submit_grounded_answer`. Product card được backend dựng từ catalog result hiện thời, không parse SKU/giá/tồn kho từ model prose. Knowledge answer chỉ nhận source alias đã thực sự retrieve và từng đoạn phải là extractive excerpt của source đó; prompt/document và agent instructions đều được đóng gói như untrusted data dưới platform policy cố định.
 
-Mỗi lượt bị giới hạn question/context/tool-result chars, output/total tokens, model calls, tool calls và số catalog result. `NULL` inventory tiếp tục là `unknown`; generic options/attributes và product-only records không cần fashion-only fields. Automated tests dùng fake gateway, không phát sinh paid OpenAI request. F3.4 chưa đăng ký endpoint hay SSE; Playground thuộc F3.5.
+Mỗi lượt bị giới hạn question/context/tool-result chars, output/total tokens, model calls, tool calls và số catalog result. `NULL` inventory tiếp tục là `unknown`; generic options/attributes và product-only records không cần fashion-only fields. Automated tests dùng fake gateway, không phát sinh paid OpenAI request.
+
+## F3.5 knowledge dashboard and Playground
+
+Dashboard có route `Tri thức` để tạo knowledge base, nhập nội dung thủ công, tải PDF/TXT, theo dõi ingestion, thử lại lỗi và thu hồi tài liệu. Route `Chatbot` quản lý cấu hình bản nháp, catalog scope và knowledge assignments. Owner/admin được ghi; member chỉ đọc theo quyền backend.
+
+Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.4. Transcript chỉ tồn tại cục bộ, history gửi lên bị giới hạn và coi là untrusted data. Server kiểm chứng toàn bộ kết quả trước khi phát `message.delta`, `product.cards` và `source.refs`; Stop hủy request và giữ phần text đã nhận. Nếu thiếu OpenAI/Qdrant, UI nhận trạng thái `AGENT_RUNTIME_DISABLED` thay vì response giả. Image input, publish/widget và lưu hội thoại shopper vẫn thuộc F4/F5.
 
 ## Where to read first
 

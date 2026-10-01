@@ -2,6 +2,7 @@
 
 import {
   Bot,
+  BookOpen,
   Boxes,
   ChevronDown,
   CircleGauge,
@@ -23,8 +24,9 @@ import { api, type CurrentUser, type Workspace } from "@/lib/api";
 const navigation = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
   { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
-  { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: false },
+  { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: true },
   { label: "Catalog", icon: Boxes, segment: "catalog", enabled: true },
+  { label: "Tri thức", icon: BookOpen, segment: "knowledge", enabled: true },
   { label: "Locations", icon: MapPin, segment: "locations", enabled: true },
   { label: "Collections", icon: Layers3, segment: "catalog/collections", enabled: true },
 ];
@@ -35,7 +37,8 @@ function Navigation({ workspace }: { workspace: Workspace }) {
     <nav aria-label="Điều hướng chính" className="navigation">
       {navigation.map(({ label, icon: Icon, segment, enabled }) => {
         const href = `/app/${encodeURIComponent(workspace.slug)}/${segment}`;
-        const active = pathname === href;
+        const active = pathname === href
+          || (["chatbots", "knowledge"].includes(segment) && pathname.startsWith(`${href}/`));
         return enabled ? (
           <Link aria-current={active ? "page" : undefined} className="nav-item" href={href} key={label}>
             <Icon aria-hidden="true" size={19} /><span>{label}</span>

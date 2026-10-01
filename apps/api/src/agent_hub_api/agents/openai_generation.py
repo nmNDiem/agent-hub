@@ -133,6 +133,9 @@ class OpenAIGenerationGateway(ModelGateway):
             ),
         )
 
+    async def close(self) -> None:
+        await self._client.close()
+
     @staticmethod
     def _messages(request: ModelRequest) -> list[ChatCompletionMessageParam]:
         messages: list[ChatCompletionMessageParam] = [

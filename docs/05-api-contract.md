@@ -55,7 +55,7 @@ Registration creates the user and session but does not silently create a workspa
 | GET | `/workspaces/{workspace_id}/usage` | Proposed internal usage, not billing |
 | GET | `/workspaces/{workspace_id}/dashboard` | Proposed real KPIs/time-series; never return mock metrics as real data |
 | GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Proposed authorized conversation transcript |
-| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/playground/messages:stream` | Proposed draft preview via the same generation service, scoped and metered |
+| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/playground/messages:stream` | Implemented authenticated draft preview via the grounded runtime; CSRF and membership required |
 
 ## Widget / visitor
 | Method | Path | Notes |
@@ -70,6 +70,8 @@ Registration creates the user and session but does not silently create a workspa
 
 ## SSE example event taxonomy
 `message.start`, `message.delta`, `product.cards`, `source.refs`, `message.completed`, `message.error`, `heartbeat`. Stable event IDs if replay is implemented. Terminate streaming on session expiry, disconnect, exhausted budget or denied tool access. Avoid logging token deltas of personal content.
+
+The dashboard Playground request is `{ "message": string, "history": [{ "role": "user" | "assistant", "content": string }] }`. History is bounded, treated as untrusted context and not persisted as a shopper conversation. The server completes the guarded runtime before emitting text deltas, then emits validated `product.cards` and `source.refs`; it never forwards raw provider prose. `message.error` carries a safe `{code, message, retryable}` payload. If OpenAI generation or Qdrant is not configured, the endpoint fails before opening the stream with `503 AGENT_RUNTIME_DISABLED`.
 
 ## Error envelope proposal
 `{ "error": { "code": "NOT_FOUND", "message": "...", "request_id": "..." } }`.

@@ -95,3 +95,6 @@ class OpenAIEmbeddingProvider:
         if any(len(vector) != profile.dimensions for vector in vectors):
             raise ProviderPermanentError("OpenAI returned an unexpected embedding dimension")
         return vectors
+
+    async def close(self) -> None:
+        await self._client.close()

@@ -7,7 +7,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agent_hub_api.agents.openai_generation import create_openai_generation_gateway
+from agent_hub_api.agents.playground import AgentRuntimeFactory
+from agent_hub_api.agents.playground import router as playground_router
 from agent_hub_api.agents.router import router as agents_router
+from agent_hub_api.agents.runtime import AgentRuntimeBudget, AgentRuntimeService
 from agent_hub_api.catalog.router import router as catalog_router
 from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
@@ -20,6 +24,10 @@ from agent_hub_api.identity.email_delivery import EmailDelivery
 from agent_hub_api.identity.router import email_router
 from agent_hub_api.identity.router import router as auth_router
 from agent_hub_api.knowledge.router import router as knowledge_router
+from agent_hub_api.knowledge.runtime import (
+    create_openai_embedding_provider,
+    create_qdrant_index,
+)
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
@@ -32,6 +40,7 @@ def create_app(
     email_delivery: EmailDelivery | None = None,
     catalog_storage: CatalogStorage | None = None,
     knowledge_storage: KnowledgeStorage | None = None,
+    agent_runtime_factory: AgentRuntimeFactory | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
@@ -55,13 +64,46 @@ def create_app(
             bucket=runtime_settings.storage_private_bucket,
         )
     owned_engine = None
+    owned_generation_gateway = None
+    owned_embedding_provider = None
+    owned_vector_index = None
     if session_factory is None and runtime_settings.database_url is not None:
         owned_engine = create_database_engine(runtime_settings.database_url)
         session_factory = create_session_factory(owned_engine)
+    if agent_runtime_factory is None and all(
+        (
+            runtime_settings.openai_api_key,
+            runtime_settings.generation_model,
+            runtime_settings.qdrant_url,
+        )
+    ):
+        owned_generation_gateway = create_openai_generation_gateway(runtime_settings)
+        owned_embedding_provider = create_openai_embedding_provider(runtime_settings)
+        owned_vector_index = create_qdrant_index(runtime_settings)
+
+        def configured_runtime_factory(session: AsyncSession) -> AgentRuntimeService:
+            assert owned_generation_gateway is not None
+            assert owned_embedding_provider is not None
+            assert owned_vector_index is not None
+            return AgentRuntimeService(
+                session,
+                gateway=owned_generation_gateway,
+                embedding_provider=owned_embedding_provider,
+                vector_index=owned_vector_index,
+                budget=AgentRuntimeBudget.from_settings(runtime_settings),
+            )
+
+        agent_runtime_factory = configured_runtime_factory
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
+        if owned_generation_gateway is not None:
+            await owned_generation_gateway.close()
+        if owned_embedding_provider is not None:
+            await owned_embedding_provider.close()
+        if owned_vector_index is not None:
+            await owned_vector_index.close()
         if owned_engine is not None:
             await owned_engine.dispose()
 
@@ -77,6 +119,7 @@ def create_app(
     application.state.email_delivery = email_delivery
     application.state.catalog_storage = catalog_storage
     application.state.knowledge_storage = knowledge_storage
+    application.state.agent_runtime_factory = agent_runtime_factory
     application.state.login_rate_limiter = LoginRateLimiter()
 
     @application.middleware("http")
@@ -139,6 +182,7 @@ def create_app(
     application.include_router(profile_router)
     application.include_router(workspaces_router)
     application.include_router(agents_router)
+    application.include_router(playground_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

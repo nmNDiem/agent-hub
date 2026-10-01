@@ -170,6 +170,124 @@ export type UniversalImportResult = {
   replayed: boolean;
 };
 
+export type KnowledgeBase = {
+  id: number;
+  name: string;
+  kind: "shop" | "faq" | "policy" | "general";
+  status: "active" | "archived";
+  active_embedding_profile_id: number | null;
+  target_embedding_profile_id: number | null;
+  document_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IngestionStatus =
+  | "uploading"
+  | "awaiting_profile"
+  | "queued"
+  | "processing"
+  | "retry_scheduled"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export type IngestionJob = {
+  id: number;
+  document_id: number;
+  document_version_id: number;
+  target_generation_id: number | null;
+  status: IngestionStatus;
+  attempts: number;
+  last_error_code: string | null;
+  retryable: boolean;
+  scheduled_at: string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type KnowledgeDocument = {
+  id: number;
+  knowledge_base_id: number;
+  title: string;
+  kind: "profile" | "faq" | "policy" | "size_guidance" | "document";
+  status: "active" | "deleted";
+  source_kind: "manual" | "file";
+  version_no: number;
+  mime_type: string;
+  byte_size: number;
+  active_generation_id: number | null;
+  ingestion_job: IngestionJob;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Agent = {
+  public_id: string;
+  name: string;
+  greeting: string | null;
+  safe_instructions: string | null;
+  default_locale: string;
+  status: "draft" | "published" | "paused";
+  catalog_scope: {
+    location_ids: number[] | null;
+    collection_ids: number[] | null;
+  };
+  created_at: string;
+  updated_at: string;
+};
+
+export type GroundedProductCard = {
+  product_id: number;
+  sku: string | null;
+  name: string;
+  product_url: string | null;
+  currency: string;
+  price: { kind: "exact" | "range" | "unknown"; minimum: string | null; maximum: string | null };
+  availability: {
+    total_locations: number;
+    in_stock_locations: number;
+    out_of_stock_locations: number;
+    unknown_locations: number;
+  };
+  options: Record<string, string[]>;
+  attributes: Record<string, unknown>;
+  variants: Array<{
+    variant_id: number;
+    sku: string | null;
+    name: string | null;
+    options: Record<string, string>;
+    attributes: Record<string, unknown>;
+    inventory_state: "in_stock" | "out_of_stock" | "unknown";
+  }>;
+  images: Array<{
+    image_id: number;
+    variant_id: number | null;
+    kind: "managed" | "remote";
+    alt_text: string | null;
+    sort_order: number;
+  }>;
+};
+
+export type GroundedSource = {
+  source_id: string;
+  knowledge_base_id: number;
+  document_id: number;
+  document_title: string;
+  chunk_id: number;
+  source_locator: string;
+};
+
+export type PlaygroundStreamEvent =
+  | { type: "heartbeat"; data: Record<string, never> }
+  | { type: "message.start"; data: { message_id: string } }
+  | { type: "message.delta"; data: { text: string } }
+  | { type: "product.cards"; data: { items: GroundedProductCard[] } }
+  | { type: "source.refs"; data: { items: GroundedSource[] } }
+  | { type: "message.completed"; data: { message_id: string; usage: Record<string, number> } }
+  | { type: "message.error"; data: { code: string; message: string; retryable: boolean } };
+
 function cookieValue(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;
   return document.cookie
@@ -183,7 +301,11 @@ function isUnsafe(method: string): boolean {
   return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
 }
 
-async function request<T>(path: string, init: RequestInit = {}, allowRefresh = true): Promise<T> {
+async function authenticatedFetch(
+  path: string,
+  init: RequestInit = {},
+  allowRefresh = true,
+): Promise<Response> {
   const method = init.method ?? "GET";
   const headers = new Headers(init.headers);
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
@@ -197,8 +319,8 @@ async function request<T>(path: string, init: RequestInit = {}, allowRefresh = t
   const response = await fetch(path, { ...init, headers, credentials: "same-origin" });
   if (response.status === 401 && allowRefresh && !path.startsWith("/api/v1/auth/")) {
     try {
-      await request<unknown>("/api/v1/auth/refresh", { method: "POST" }, false);
-      return request<T>(path, init, false);
+      await authenticatedFetch("/api/v1/auth/refresh", { method: "POST" }, false);
+      return authenticatedFetch(path, init, false);
     } catch {
       throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập đã hết hạn.");
     }
@@ -212,8 +334,48 @@ async function request<T>(path: string, init: RequestInit = {}, allowRefresh = t
       payload.error?.details,
     );
   }
+  return response;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await authenticatedFetch(path, init);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+export async function parsePlaygroundEventStream(
+  response: Response,
+  onEvent: (event: PlaygroundStreamEvent) => void,
+): Promise<void> {
+  if (!response.body) throw new ApiError(502, "EMPTY_STREAM", "Playground không trả về dữ liệu.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  function dispatch(block: string) {
+    const lines = block.split("\n");
+    const eventName = lines.find((line) => line.startsWith("event:"))?.slice(6).trim();
+    const data = lines
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!eventName || !data) return;
+    onEvent({ type: eventName, data: JSON.parse(data) } as PlaygroundStreamEvent);
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    buffer = buffer.replaceAll("\r\n", "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      dispatch(buffer.slice(0, boundary));
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) dispatch(buffer);
 }
 
 export const api = {
@@ -390,4 +552,96 @@ export const api = {
       `/api/v1/workspaces/${workspaceId}/catalog/imports/${importId}/commit`,
       { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
     ),
+  listKnowledgeBases: (workspaceId: string) =>
+    request<{ items: KnowledgeBase[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/knowledge-bases?limit=100`,
+    ),
+  createKnowledgeBase: (
+    workspaceId: string,
+    payload: { name: string; kind: KnowledgeBase["kind"] },
+  ) => request<KnowledgeBase>(`/api/v1/workspaces/${workspaceId}/knowledge-bases`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  listKnowledgeDocuments: (workspaceId: string, baseId: number) =>
+    request<{ items: KnowledgeDocument[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents?limit=100`,
+    ),
+  createManualKnowledge: (
+    workspaceId: string,
+    baseId: number,
+    payload: { title: string; kind: "profile" | "faq" | "policy" | "size_guidance"; content: string },
+    idempotencyKey: string,
+  ) => request<KnowledgeDocument>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/text`,
+    { method: "POST", body: JSON.stringify(payload), headers: { "Idempotency-Key": idempotencyKey } },
+  ),
+  uploadKnowledgeDocument: (
+    workspaceId: string,
+    baseId: number,
+    form: FormData,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ) => request<KnowledgeDocument>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents`,
+    { method: "POST", body: form, signal, headers: { "Idempotency-Key": idempotencyKey } },
+  ),
+  deleteKnowledgeDocument: (workspaceId: string, baseId: number, documentId: number) =>
+    request<void>(
+      `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}`,
+      { method: "DELETE" },
+    ),
+  getIngestionJob: (workspaceId: string, jobId: number) =>
+    request<IngestionJob>(`/api/v1/workspaces/${workspaceId}/ingestion-jobs/${jobId}`),
+  retryIngestionJob: (workspaceId: string, jobId: number) =>
+    request<IngestionJob>(`/api/v1/workspaces/${workspaceId}/ingestion-jobs/${jobId}/retry`, {
+      method: "POST",
+    }),
+  listAgents: (workspaceId: string) =>
+    request<{ items: Agent[] }>(`/api/v1/workspaces/${workspaceId}/agents`),
+  createAgent: (workspaceId: string, payload: Pick<Agent, "name" | "default_locale">) =>
+    request<Agent>(`/api/v1/workspaces/${workspaceId}/agents`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getAgent: (workspaceId: string, publicAgentId: string) =>
+    request<Agent>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`),
+  updateAgent: (
+    workspaceId: string,
+    publicAgentId: string,
+    payload: Partial<Pick<Agent, "name" | "greeting" | "safe_instructions" | "default_locale">>,
+  ) => request<Agent>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
+  replaceAgentCatalogScope: (
+    workspaceId: string,
+    publicAgentId: string,
+    payload: { location_ids: number[] | null; collection_ids: number[] | null },
+  ) => request<Agent>(
+    `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/catalog-scope`,
+    { method: "PUT", body: JSON.stringify(payload) },
+  ),
+  getAgentKnowledgeBases: (workspaceId: string, publicAgentId: string) =>
+    request<{ public_agent_id: string; knowledge_base_ids: number[] }>(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/knowledge-bases`,
+    ),
+  replaceAgentKnowledgeBases: (workspaceId: string, publicAgentId: string, ids: number[]) =>
+    request<{ public_agent_id: string; knowledge_base_ids: number[] }>(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/knowledge-bases`,
+      { method: "PUT", body: JSON.stringify({ knowledge_base_ids: ids }) },
+    ),
+  streamPlaygroundMessage: async (
+    workspaceId: string,
+    publicAgentId: string,
+    payload: { message: string; history: Array<{ role: "user" | "assistant"; content: string }> },
+    onEvent: (event: PlaygroundStreamEvent) => void,
+    signal: AbortSignal,
+  ) => {
+    const response = await authenticatedFetch(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/playground/messages:stream`,
+      { method: "POST", body: JSON.stringify(payload), signal, headers: { Accept: "text/event-stream" } },
+    );
+    await parsePlaygroundEventStream(response, onEvent);
+  },
 };
