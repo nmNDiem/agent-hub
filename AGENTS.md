@@ -46,6 +46,7 @@ While implementing:
 
 Before claiming completion:
 - Run relevant lint, type, unit, integration and migration tests if their tooling exists; report exact commands/results. Never claim tests ran when they did not. Local boot is the foundation exit gate; Docker/VPS only when the rollout work is requested.
+- Do not run chatbot tests or manual chatbot flows that call paid external services (including paid LLM APIs). Provide the owner with manual test steps instead; the owner will run those tests. Tests that use mocks or local-only substitutes and cannot incur charges are allowed.
 - Cover a negative cross-workspace test for every newly exposed tenant-owned resource.
 - Update docs and `.env.example` when behavior/configuration changes.
 - Summarize files changed, migration/deployment impact, manual verification steps and known limitations.
