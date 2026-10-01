@@ -42,6 +42,7 @@ While implementing:
 - Add/modify migrations for schema changes; do not edit production DB manually.
 - Use UUIDv7 for users/workspaces and exposed agent/conversation public IDs only; BIGINT identity for internal tables. Generate v7 server-side; never quietly use v4 or assume PostgreSQL native uuidv7() is installed. `workspace` is the tenant and `agent` is the domain model (shop/chatbot are UI language).
 - Avoid introducing Redis, queue workers, LangGraph, billing, VPS provisioning or social-channel SDKs before a task requires them.
+- Keep `.env.example` minimal: include only secret placeholders, values without a safe application default, and settings that genuinely vary by deployment. Stable limits and tuning defaults belong in typed application configuration; do not duplicate them in `.env.example`. Document optional overrides without pre-populating them.
 
 Before claiming completion:
 - Run relevant lint, type, unit, integration and migration tests if their tooling exists; report exact commands/results. Never claim tests ran when they did not. Local boot is the foundation exit gate; Docker/VPS only when the rollout work is requested.
