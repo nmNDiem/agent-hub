@@ -301,11 +301,32 @@ function isUnsafe(method: string): boolean {
   return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
 }
 
+let refreshPromise: Promise<void> | undefined;
+let refreshGeneration = 0;
+
+function refreshSession(): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = authenticatedFetch(
+      "/api/v1/auth/refresh",
+      { method: "POST" },
+      false,
+    )
+      .then(() => {
+        refreshGeneration += 1;
+      })
+      .finally(() => {
+        refreshPromise = undefined;
+      });
+  }
+  return refreshPromise;
+}
+
 async function authenticatedFetch(
   path: string,
   init: RequestInit = {},
   allowRefresh = true,
 ): Promise<Response> {
+  const requestRefreshGeneration = refreshGeneration;
   const method = init.method ?? "GET";
   const headers = new Headers(init.headers);
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
@@ -319,7 +340,9 @@ async function authenticatedFetch(
   const response = await fetch(path, { ...init, headers, credentials: "same-origin" });
   if (response.status === 401 && allowRefresh && !path.startsWith("/api/v1/auth/")) {
     try {
-      await authenticatedFetch("/api/v1/auth/refresh", { method: "POST" }, false);
+      if (requestRefreshGeneration === refreshGeneration) {
+        await refreshSession();
+      }
       return authenticatedFetch(path, init, false);
     } catch {
       throw new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập đã hết hạn.");

@@ -1,6 +1,75 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parsePlaygroundEventStream, type PlaygroundStreamEvent } from "./api";
+import { api, parsePlaygroundEventStream, type PlaygroundStreamEvent } from "./api";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("authenticated requests", () => {
+  it("shares one refresh across concurrent unauthorized requests", async () => {
+    let profileRequests = 0;
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path === "/api/v1/auth/refresh") {
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      }
+      if (path === "/api/v1/me") {
+        profileRequests += 1;
+        if (profileRequests <= 2) {
+          return Promise.resolve(new Response("{}", { status: 401 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          user: { id: "user", email: "owner@example.com", email_verified: false },
+          workspaces: [],
+        }), { status: 200 }));
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([api.getMe(), api.getMe()]);
+
+    expect(fetchMock.mock.calls.filter(([path]) => path === "/api/v1/auth/refresh")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([path]) => path === "/api/v1/me")).toHaveLength(4);
+  });
+
+  it("does not refresh again for a stale unauthorized response", async () => {
+    let profileRequests = 0;
+    let resolveStaleResponse: ((response: Response) => void) | undefined;
+    const staleResponse = new Promise<Response>((resolve) => {
+      resolveStaleResponse = resolve;
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path === "/api/v1/auth/refresh") {
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      }
+      if (path === "/api/v1/me") {
+        profileRequests += 1;
+        if (profileRequests === 1) {
+          return Promise.resolve(new Response("{}", { status: 401 }));
+        }
+        if (profileRequests === 2) return staleResponse;
+        return Promise.resolve(new Response(JSON.stringify({
+          user: { id: "user", email: "owner@example.com", email_verified: false },
+          workspaces: [],
+        }), { status: 200 }));
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstRequest = api.getMe();
+    const staleRequest = api.getMe();
+    await firstRequest;
+    resolveStaleResponse?.(new Response("{}", { status: 401 }));
+    await staleRequest;
+
+    expect(fetchMock.mock.calls.filter(([path]) => path === "/api/v1/auth/refresh")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([path]) => path === "/api/v1/me")).toHaveLength(4);
+  });
+});
 
 describe("parsePlaygroundEventStream", () => {
   it("parses SSE events across arbitrary CRLF chunk boundaries", async () => {
