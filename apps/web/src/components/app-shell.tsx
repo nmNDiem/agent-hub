@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { api, type CurrentUser, type Workspace } from "@/lib/api";
+import { PalettePicker } from "@/components/palette-picker";
 
 const navigation = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
@@ -102,7 +103,8 @@ export function AppShell({
             <ChevronDown aria-hidden="true" size={17} />
           </label>
           <div className="account-menu">
-            <span><strong>{user.email}</strong><small>{workspace.role}</small></span>
+            <span className="account-identity"><strong>{user.email}</strong><small>{workspace.role}</small></span>
+            <PalettePicker />
             <button aria-label="Đăng xuất" disabled={loggingOut} onClick={logout} type="button"><LogOut aria-hidden="true" size={18} /></button>
           </div>
         </header>

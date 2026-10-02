@@ -13,12 +13,15 @@ const mocks = vi.hoisted(() => ({
   updateAgent: vi.fn(),
   replaceAgentCatalogScope: vi.fn(),
   replaceAgentKnowledgeBases: vi.fn(),
+  createAgent: vi.fn(),
+  streamPlaygroundMessage: vi.fn(),
   replace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceSlug: "fashion-shop" }),
   usePathname: () => "/app/fashion-shop/chatbots",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: mocks.replace, refresh: vi.fn() }),
 }));
 
@@ -70,9 +73,10 @@ describe("ChatbotsPage", () => {
 
   it("persists agent behavior, catalog scope and knowledge assignments", async () => {
     render(<ChatbotsPage />);
-    expect(await screen.findByRole("heading", { name: "Trợ lý" })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+    expect(screen.getByRole("heading", { name: "Thử chatbot" })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Giọng điệu và hướng dẫn an toàn"), {
+    fireEvent.change(await screen.findByLabelText("Giọng điệu và hướng dẫn an toàn"), {
       target: { value: "Thân thiện" },
     });
     fireEvent.click(screen.getByText("FAQ").closest("label")!.querySelector("input")!);

@@ -1,17 +1,17 @@
-# Screen: Chatbot Playground
+# Surface: Chatbot testing
 Reference: `../../../assets/reference/02-chatbot-playground.png`.
 
 ## Goal
-Owner tests the real backend assistant against the shop's approved knowledge before publishing. Playground **not** a fictional demo and **not** a production shopper session.
+Owner tests the real backend assistant against the shop's approved knowledge before publishing. This testing surface is embedded in the Chatbot management workbench; it is **not** a separate active page, a fictional demo or a production shopper session.
 
 ## Desktop layout
-- Breadcrumb `Chatbot / [Tên chatbot] / Playground`; assistant name + status; top-right `Lưu cấu hình` and `Xuất bản` only when available.
-- Left ~36–40%: assistant selector, `Tên / Mô tả`, tone options, knowledge source switches, preset prompts, model label read-only unless allowed. Keep scroll independent from chat where possible.
+- A compact selector strip above both columns identifies the chatbot and draft status without repeating that information inside each panel.
+- Left ~36–40%: `Tên / Mô tả`, tone options, knowledge source switches and catalog scope. Keep scroll independent from chat where possible.
 - Right ~60–64%: chat transcript with user/assistant bubbles, product recommendation cards, source chips and `Nguồn được sử dụng` drawer/panel; fixed input with upload image button, send and stop-generation.
 - On widths <1024 px use tabs `Cấu hình | Thử chatbot`, preserve unsent message and settings draft; on mobile full-width transcript.
 
 ## Functional specification
-1. Choose bot; fetch bot draft config, read enabled knowledge sources. UI must not turn documents into enabled sources until ingestion status `ready`.
+1. Choose bot from the shared selector; fetch bot draft config and enabled knowledge sources. UI must not turn documents into enabled sources until ingestion status `ready`.
 2. Change draft tone/source toggles; dirty badge and `Lưu thay đổi`; explicit test-mode label: `Đang thử bản nháp` and distinguish published version.
 3. Suggested prompts are buttons to populate input, not auto-submit unless clearly indicated. Send question or one image + optional question; client validates file then backend enforces.
 4. Stream actual assistant response (SSE), render structured product suggestions from tool output and retrieved sources from backend. `Dừng` aborts request and displays retained partial reply.
