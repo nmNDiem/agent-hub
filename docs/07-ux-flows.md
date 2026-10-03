@@ -7,7 +7,7 @@
 - Overview: agent status, conversation volume and recent leads.
 - Catalog: list/search/filter products; detail with variants, generic options/attributes, images and inventory state; manual edit; CSV/XLS/XLSX Analyze → Resolve → Diff → Commit import flow.
 - Knowledge: shop profile, FAQ/policy, PDF/TXT uploads, indexing states and error recovery.
-- Agents: greeting, tone/instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first).
+- Agents: editable greeting and personality/style instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first). New agents receive useful locale-aware defaults and require only a name before their first Playground test.
 - Channels > Web: branding, origin allowlist, embed snippet, preview and connection health.
 - Conversations: paginated threads with clearly labeled visitor-provided information.
 - Leads: consented contacts, callback status and safe CSV export (authorized roles only).

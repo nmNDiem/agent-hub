@@ -13,7 +13,6 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
   api,
-  ApiError,
   type Agent,
   type GroundedProductCard,
   type GroundedSource,
@@ -24,7 +23,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  state: "complete" | "streaming" | "error" | "canceled";
+  state: "complete" | "streaming" | "canceled";
   products: GroundedProductCard[];
   sources: GroundedSource[];
   includeInHistory: boolean;
@@ -35,10 +34,6 @@ const suggestions = [
   "Cửa hàng có chính sách đổi trả nào?",
   "Sản phẩm nào có nhiều tùy chọn?",
 ];
-
-function messageFrom(error: unknown) {
-  return error instanceof ApiError ? error.message : "Kết nối thử nghiệm bị gián đoạn.";
-}
 
 function greetingMessage(agent: Agent): ChatMessage[] {
   if (!agent.greeting) return [];
@@ -56,8 +51,7 @@ function greetingMessage(agent: Agent): ChatMessage[] {
 export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; workspaceId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => agent ? greetingMessage(agent) : []);
   const [input, setInput] = useState("");
-  const [streamState, setStreamState] = useState<"idle" | "connecting" | "streaming" | "canceled" | "failed">("idle");
-  const [error, setError] = useState<string>();
+  const [streamState, setStreamState] = useState<"idle" | "connecting" | "streaming" | "canceled">("idle");
   const controller = useRef<AbortController | undefined>(undefined);
   const transcript = useRef<HTMLDivElement>(null);
   const streaming = streamState === "connecting" || streamState === "streaming";
@@ -93,9 +87,12 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
       setStreamState("idle");
     }
     if (event.type === "message.error") {
-      updateAssistant(id, (message) => ({ ...message, state: "error" }));
-      setError(event.data.message);
-      setStreamState("failed");
+      updateAssistant(id, (message) => ({
+        ...message,
+        text: message.text || event.data.message,
+        state: "complete",
+      }));
+      setStreamState("idle");
     }
   }
 
@@ -129,7 +126,6 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
     };
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setInput("");
-    setError(undefined);
     setStreamState("connecting");
     controller.current = new AbortController();
     try {
@@ -145,9 +141,12 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
         updateAssistant(assistantId, (message) => ({ ...message, state: "canceled" }));
         setStreamState("canceled");
       } else {
-        updateAssistant(assistantId, (message) => ({ ...message, state: "error" }));
-        setError(messageFrom(caught));
-        setStreamState("failed");
+        updateAssistant(assistantId, (message) => ({
+          ...message,
+          text: message.text || "Mình chưa thể kết nối để kiểm tra thông tin ngay lúc này. Bạn thử lại sau một chút nhé.",
+          state: "complete",
+        }));
+        setStreamState("idle");
       }
     } finally {
       controller.current = undefined;
@@ -160,7 +159,6 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
       && !window.confirm("Xóa lịch sử thử nghiệm cục bộ?")) return;
     controller.current?.abort();
     setMessages(greetingMessage(agent));
-    setError(undefined);
     setStreamState("idle");
   }
 
@@ -177,12 +175,11 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
         </div>
         <div className="chat-toolbar-actions">
           <span className={`stream-indicator ${streamState}`} aria-live="polite">
-            {streamState === "connecting" ? "Đang kết nối" : streamState === "streaming" ? "Đang trả lời" : streamState === "canceled" ? "Đã dừng" : streamState === "failed" ? "Có lỗi" : "Sẵn sàng"}
+            {streamState === "connecting" ? "Đang kết nối" : streamState === "streaming" ? "Đang trả lời" : streamState === "canceled" ? "Đã dừng" : "Sẵn sàng"}
           </span>
           <button aria-label="Làm mới hội thoại" className="secondary-button icon-only-button" disabled={!agent} onClick={resetConversation} type="button"><RotateCcw aria-hidden="true" size={16} /></button>
         </div>
       </div>
-      {error && <p className="form-error playground-error" role="alert">{error}</p>}
       <div className="chat-transcript" aria-busy={streaming} aria-live="polite" ref={transcript} role="log">
         {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử chatbot" : "Chọn hoặc tạo chatbot"}</h2><p>{agent ? "Đặt câu hỏi về catalog hoặc tri thức đã gán." : "Bạn cần một chatbot trước khi bắt đầu thử nghiệm."}</p></div>}
         {messages.map((message) => <ChatBubble key={message.id} message={message} />)}
@@ -212,7 +209,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
 }
 
 function ChatBubble({ message }: { message: ChatMessage }) {
-  return <article className={`chat-message ${message.role}`}><span className="chat-avatar" aria-hidden="true">{message.role === "assistant" ? <Bot size={17} /> : <UserRound size={17} />}</span><div className="chat-message-body"><div className="chat-bubble">{message.text ? <p>{message.text}</p> : message.state === "streaming" ? <p className="typing-indicator"><span /><span /><span /><span className="sr-only">Đang tạo câu trả lời</span></p> : null}{message.state === "canceled" && <small>Đã dừng. Phần trả lời nhận được được giữ lại.</small>}{message.state === "error" && <small>Không thể hoàn tất câu trả lời.</small>}</div>{message.products.length > 0 && <div className="grounded-products">{message.products.map((card) => <ProductCard card={card} key={card.product_id} />)}</div>}{message.sources.length > 0 && <details className="grounded-sources"><summary>Nguồn được sử dụng ({message.sources.length})</summary><ul>{message.sources.map((source) => <li key={`${source.document_id}-${source.chunk_id}`}><strong>{source.document_title}</strong><span>{source.source_locator}</span></li>)}</ul></details>}</div></article>;
+  return <article className={`chat-message ${message.role}`}><span className="chat-avatar" aria-hidden="true">{message.role === "assistant" ? <Bot size={17} /> : <UserRound size={17} />}</span><div className="chat-message-body"><div className="chat-bubble">{message.text ? <p>{message.text}</p> : message.state === "streaming" ? <p className="typing-indicator"><span /><span /><span /><span className="sr-only">Đang tạo câu trả lời</span></p> : null}{message.state === "canceled" && <small>Đã dừng. Phần trả lời nhận được được giữ lại.</small>}</div>{message.products.length > 0 && <div className="grounded-products">{message.products.map((card) => <ProductCard card={card} key={card.product_id} />)}</div>}{message.sources.length > 0 && <details className="grounded-sources"><summary>Nguồn được sử dụng ({message.sources.length})</summary><ul>{message.sources.map((source) => <li key={`${source.document_id}-${source.chunk_id}`}><strong>{source.document_title}</strong><span>{source.source_locator}</span></li>)}</ul></details>}</div></article>;
 }
 
 function priceLabel(card: GroundedProductCard) {

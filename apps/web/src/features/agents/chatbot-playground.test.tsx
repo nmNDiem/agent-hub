@@ -104,4 +104,37 @@ describe("ChatbotPlayground", () => {
     expect(await screen.findByText("Đã dừng. Phần trả lời nhận được được giữ lại.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Đã dừng")).toBeInTheDocument());
   });
+
+  it("renders runtime and connection failures as natural assistant replies", async () => {
+    mocks.streamPlaygroundMessage
+      .mockImplementationOnce(async (
+        _workspaceId: string,
+        _agentId: string,
+        _payload: unknown,
+        onEvent: (event: PlaygroundStreamEvent) => void,
+      ) => {
+        onEvent({ type: "message.start", data: { message_id: "message-3" } });
+        onEvent({
+          type: "message.error",
+          data: {
+            code: "GENERATION_UNAVAILABLE",
+            message: "Mình chưa kiểm tra được thông tin này. Bạn thử lại sau nhé.",
+            retryable: true,
+          },
+        });
+      })
+      .mockRejectedValueOnce(new Error("network details must stay internal"));
+    render(<ChatbotPlayground agent={agent} workspaceId={workspaceId} />);
+
+    fireEvent.change(screen.getByLabelText("Tin nhắn thử nghiệm"), { target: { value: "Kiểm tra runtime" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi" }));
+    expect(await screen.findByText("Mình chưa kiểm tra được thông tin này. Bạn thử lại sau nhé.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Tin nhắn thử nghiệm"), { target: { value: "Kiểm tra kết nối" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi" }));
+    expect(await screen.findByText(/Mình chưa thể kết nối để kiểm tra thông tin/)).toBeInTheDocument();
+    expect(screen.queryByText(/network details/)).not.toBeInTheDocument();
+    expect(screen.getByText("Sẵn sàng")).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatbotsPage } from "./chatbots-page";
@@ -67,6 +67,11 @@ describe("ChatbotsPage", () => {
     mocks.listCollections.mockResolvedValue([]);
     mocks.getAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [] });
     mocks.updateAgent.mockResolvedValue({ ...agent, safe_instructions: "Thân thiện" });
+    mocks.createAgent.mockResolvedValue({
+      ...agent,
+      greeting: "Xin chào! Mình có thể giúp gì cho bạn?",
+      safe_instructions: "Tư vấn thân thiện và tự nhiên.",
+    });
     mocks.replaceAgentCatalogScope.mockResolvedValue(agent);
     mocks.replaceAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [5] });
   });
@@ -76,7 +81,7 @@ describe("ChatbotsPage", () => {
     expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
     expect(screen.getByRole("heading", { name: "Thử chatbot" })).toBeInTheDocument();
 
-    fireEvent.change(await screen.findByLabelText("Giọng điệu và hướng dẫn an toàn"), {
+    fireEvent.change(await screen.findByLabelText(/Tính cách và phong cách trả lời/), {
       target: { value: "Thân thiện" },
     });
     fireEvent.click(screen.getByText("FAQ").closest("label")!.querySelector("input")!);
@@ -99,5 +104,23 @@ describe("ChatbotsPage", () => {
       agent.public_id,
       [5],
     );
+  });
+
+  it("creates a ready-to-use chatbot from only its name", async () => {
+    render(<ChatbotsPage />);
+    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+
+    const pageHeading = screen.getByRole("heading", { name: "Chatbot" }).closest("section")!;
+    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo chatbot" }));
+    const nameInput = screen.getByLabelText("Tên chatbot mới");
+    fireEvent.change(nameInput, {
+      target: { value: "Tư vấn viên mới" },
+    });
+    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo chatbot" }));
+
+    await waitFor(() => expect(mocks.createAgent).toHaveBeenCalledWith(
+      workspace.id,
+      { name: "Tư vấn viên mới", default_locale: "vi" },
+    ));
   });
 });

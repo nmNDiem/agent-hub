@@ -364,6 +364,7 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .agent-fieldset { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; }
 .agent-fieldset legend { display: flex; align-items: center; gap: 7px; padding: 0 5px; font-weight: 750; }
 .agent-fieldset label { display: grid; gap: 6px; font-size: 12px; font-weight: 650; }
+.agent-field-help { color: var(--muted-foreground); font-size: 10px; font-weight: 450; line-height: 1.45; }
 .agent-fieldset input:not([type="checkbox"]), .agent-fieldset textarea, .agent-fieldset select, .playground-config-body input:not([type="checkbox"]), .playground-config-body textarea { width: 100%; min-height: 41px; padding: 9px 10px; border: 1px solid var(--input); border-radius: 9px; background: white; }
 .agent-fieldset textarea, .playground-config-body textarea { resize: vertical; line-height: 1.5; }
 .full-field, .fieldset-help, .scope-options { grid-column: 1 / -1; }
@@ -420,7 +421,6 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .back-link { display: inline-flex; align-items: center; gap: 5px; color: hsl(221 83% 45%); font-size: 12px; font-weight: 700; text-decoration: none; }
 .test-mode-badge { display: inline-flex; margin-right: 6px; padding: 4px 7px; border-radius: 999px; color: hsl(34 78% 31%); background: hsl(42 95% 93%); font-size: 10px; font-weight: 750; }
 .playground-heading-actions { display: flex; gap: 9px; }
-.playground-error { margin-bottom: 12px; }
 .playground-mobile-tabs { display: none; scroll-margin-top: 72px; }
 .playground-layout { height: max(680px, calc(100dvh - 190px)); display: grid; grid-template-columns: minmax(320px, .38fr) minmax(520px, .62fr); gap: 16px; }
 .playground-config, .playground-chat { min-height: 0; }

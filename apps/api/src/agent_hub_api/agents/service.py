@@ -26,6 +26,29 @@ from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.identity.models import User
 from agent_hub_api.workspaces.service import WorkspaceService
 
+_DEFAULT_AGENT_COPY: dict[str, tuple[str, str]] = {
+    "vi": (
+        "Xin chào! Mình có thể giúp bạn tìm sản phẩm và giải đáp thông tin của shop. "
+        "Bạn đang quan tâm điều gì?",
+        "Trò chuyện thân thiện, tự nhiên và chủ động như một tư vấn viên bán hàng. "
+        "Trả lời rõ ràng, vừa đủ; ưu tiên nhu cầu của khách và đặt một câu hỏi tiếp theo "
+        "khi điều đó giúp tư vấn tốt hơn. Chỉ sử dụng thông tin được cung cấp và nói rõ "
+        "khi chưa thể xác minh.",
+    ),
+    "en": (
+        "Hello! I can help you find products and answer questions about the shop. "
+        "What are you looking for?",
+        "Be a friendly, natural, and proactive sales assistant. Give clear, concise answers, "
+        "focus on the customer's needs, and ask a helpful follow-up question when appropriate. "
+        "Use only the information provided and be transparent when something cannot be verified.",
+    ),
+}
+
+
+def _default_agent_copy(locale: str) -> tuple[str, str]:
+    language = locale.casefold().split("-", maxsplit=1)[0]
+    return _DEFAULT_AGENT_COPY.get(language, _DEFAULT_AGENT_COPY["en"])
+
 
 class AgentService:
     def __init__(self, session: AsyncSession) -> None:
@@ -98,6 +121,17 @@ class AgentService:
     async def create(
         self, user: User, workspace_id: UUID, payload: AgentCreateRequest
     ) -> AgentResponse:
+        default_greeting, default_personality = _default_agent_copy(payload.default_locale)
+        greeting = (
+            payload.greeting
+            if "greeting" in payload.model_fields_set
+            else default_greeting
+        )
+        safe_instructions = (
+            payload.safe_instructions
+            if "safe_instructions" in payload.model_fields_set
+            else default_personality
+        )
         try:
             async with self.session.begin():
                 await self._authorize(user, workspace_id, write=True)
@@ -105,8 +139,8 @@ class AgentService:
                     public_id=new_uuid_v7(),
                     workspace_id=workspace_id,
                     name=payload.name,
-                    greeting=payload.greeting,
-                    safe_instructions=payload.safe_instructions,
+                    greeting=greeting,
+                    safe_instructions=safe_instructions,
                     default_locale=payload.default_locale,
                     created_by_user_id=user.id,
                 )

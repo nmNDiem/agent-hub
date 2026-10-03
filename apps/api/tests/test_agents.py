@@ -84,6 +84,26 @@ def register_and_create_workspace(
     return cast(dict[str, Any], registration.json()), cast(dict[str, Any], workspace.json())
 
 
+def test_agent_creation_supplies_editable_defaults_when_optional_copy_is_omitted(
+    app_factory: AppFactory,
+) -> None:
+    app, _ = app_factory()
+    with TestClient(app) as owner:
+        _, workspace = register_and_create_workspace(owner, "defaults@example.com", "defaults")
+
+        created = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/agents",
+            json={"name": "Tư vấn viên"},
+            headers=csrf_headers(owner),
+        )
+
+        assert created.status_code == 201, created.text
+        payload = created.json()
+        assert payload["default_locale"] == "vi"
+        assert payload["greeting"].startswith("Xin chào!")
+        assert "tư vấn viên bán hàng" in payload["safe_instructions"]
+
+
 def test_agent_api_persists_scope_and_enforces_workspace_and_role(
     app_factory: AppFactory,
 ) -> None:

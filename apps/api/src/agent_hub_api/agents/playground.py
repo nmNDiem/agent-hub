@@ -101,6 +101,17 @@ def _text_chunks(value: str, size: int = 96) -> list[str]:
     return [value[index : index + size] for index in range(0, len(value), size)]
 
 
+def _completed_payload(
+    message_id: str, response: GroundedAgentResponse | None = None
+) -> dict[str, object]:
+    usage = (
+        response.usage.model_dump(mode="json")
+        if response is not None
+        else {}
+    )
+    return {"message_id": message_id, "usage": usage}
+
+
 async def _event_stream(
     request: Request,
     runner: AgentRuntimeRunner,
@@ -147,16 +158,19 @@ async def _event_stream(
             )
         yield _event(
             "message.completed",
-            {
-                "message_id": response_id,
-                "usage": response.usage.model_dump(mode="json"),
-            },
+            _completed_payload(response_id, response),
         )
     except AgentRuntimeError as exc:
-        yield _event(
-            "message.error",
-            {"code": exc.code, "message": exc.public_message, "retryable": True},
+        logger.warning(
+            "Playground runtime fallback code=%s workspace_id=%s public_agent_id=%s request_id=%s",
+            exc.code,
+            workspace_id,
+            public_agent_id,
+            getattr(request.state, "request_id", "unknown"),
         )
+        for chunk in _text_chunks(exc.public_message):
+            yield _event("message.delta", {"text": chunk})
+        yield _event("message.completed", _completed_payload(response_id))
     except asyncio.CancelledError:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -168,14 +182,10 @@ async def _event_stream(
             public_agent_id,
             getattr(request.state, "request_id", "unknown"),
         )
-        yield _event(
-            "message.error",
-            {
-                "code": "PLAYGROUND_UNAVAILABLE",
-                "message": "Playground tạm thời không thể trả lời. Vui lòng thử lại.",
-                "retryable": True,
-            },
-        )
+        fallback = "Mình chưa thể kiểm tra thông tin ngay lúc này. Bạn thử lại sau một chút nhé."
+        for chunk in _text_chunks(fallback):
+            yield _event("message.delta", {"text": chunk})
+        yield _event("message.completed", _completed_payload(response_id))
 
 
 @router.post(

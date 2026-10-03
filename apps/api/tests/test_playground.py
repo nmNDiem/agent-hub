@@ -209,7 +209,9 @@ def test_playground_stream_is_scoped_and_emits_validated_events(app_factory: Any
         assert [turn.role for turn in runtime.calls[0][3]] == ["user", "assistant"]
 
 
-def test_playground_reports_disabled_and_safe_runtime_errors(app_factory: Any) -> None:
+def test_playground_reports_disabled_setup_and_conversational_runtime_fallbacks(
+    app_factory: Any,
+) -> None:
     disabled_app = app_factory(None)
     with TestClient(disabled_app) as client:
         workspace, agent = create_workspace_and_agent(client, "disabled@example.com", "disabled")
@@ -224,7 +226,8 @@ def test_playground_reports_disabled_and_safe_runtime_errors(app_factory: Any) -
 
     runtime = FakeRuntime(grounded_response())
     runtime.error = AgentRuntimeError(
-        "GENERATION_UNAVAILABLE", "Không thể tạo câu trả lời an toàn."
+        "GENERATION_UNAVAILABLE",
+        "Mình chưa kiểm tra được thông tin này ngay lúc này. Bạn thử lại sau một chút nhé.",
     )
     error_app = app_factory(lambda _: runtime)
     with TestClient(error_app) as client:
@@ -236,6 +239,10 @@ def test_playground_reports_disabled_and_safe_runtime_errors(app_factory: Any) -
             headers=csrf_headers(client),
         )
         assert failed.status_code == 200
-        assert "event: message.error" in failed.text
-        assert "GENERATION_UNAVAILABLE" in failed.text
+        assert "event: message.delta" in failed.text
+        assert "event: message.completed" in failed.text
+        assert "event: message.error" not in failed.text
+        assert "GENERATION_UNAVAILABLE" not in failed.text
+        assert "Mình chưa kiểm tra được" in failed.text
+        assert '"usage":{}' in failed.text
         assert "sk-" not in failed.text
