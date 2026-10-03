@@ -277,6 +277,15 @@ class AgentConversationTurn:
     content: str
 
 
+@dataclass(frozen=True, slots=True)
+class AgentExecutionContext:
+    workspace_id: UUID
+    catalog_scope: AuthorizedCatalogScope
+    knowledge_scope: AuthorizedKnowledgeScope
+    locale: str
+    safe_instructions: str | None
+
+
 class GroundedAgentRuntime:
     def __init__(
         self,
@@ -750,28 +759,42 @@ class AgentRuntimeService:
         location_ids, collection_ids = await AgentRepository(
             self.session
         ).active_scope_ids(agent)
-        catalog_scope = AuthorizedCatalogScope(
+        context = AgentExecutionContext(
             workspace_id=agent.workspace_id,
-            allowed_location_ids=location_ids,
-            allowed_collection_ids=collection_ids,
+            catalog_scope=AuthorizedCatalogScope(
+                workspace_id=agent.workspace_id,
+                allowed_location_ids=location_ids,
+                allowed_collection_ids=collection_ids,
+            ),
+            knowledge_scope=await resolve_agent_knowledge_scope_for_agent(
+                self.session, agent
+            ),
+            locale=agent.default_locale,
+            safe_instructions=agent.safe_instructions,
         )
-        knowledge_scope = await resolve_agent_knowledge_scope_for_agent(
-            self.session, agent
-        )
+        return await self.run_with_context(context, question=question, history=history)
+
+    async def run_with_context(
+        self,
+        context: AgentExecutionContext,
+        *,
+        question: str,
+        history: tuple[AgentConversationTurn, ...] = (),
+    ) -> GroundedAgentResponse:
         knowledge_searcher = ScopedKnowledgeSearcher(
             KnowledgeRetrievalService(
                 self.session,
                 embedding_provider=self.embedding_provider,
                 vector_index=self.vector_index,
             ),
-            knowledge_scope,
+            context.knowledge_scope,
         )
         runtime = GroundedAgentRuntime(
             gateway=self.gateway,
-            catalog_tools=AgentCatalogTools(self.session, catalog_scope),
+            catalog_tools=AgentCatalogTools(self.session, context.catalog_scope),
             knowledge_searcher=knowledge_searcher,
             budget=self.budget,
-            locale=agent.default_locale,
-            safe_instructions=agent.safe_instructions,
+            locale=context.locale,
+            safe_instructions=context.safe_instructions,
         )
         return await runtime.run(question, history=history)

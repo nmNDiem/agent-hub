@@ -103,6 +103,30 @@ async def resolve_agent_knowledge_scope_for_agent(
     return AuthorizedKnowledgeScope(agent.workspace_id, base_ids)
 
 
+async def resolve_knowledge_scope_ids(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    knowledge_base_ids: tuple[int, ...],
+) -> AuthorizedKnowledgeScope:
+    """Revalidate a previously authorized immutable source set against active rows."""
+
+    if not knowledge_base_ids:
+        return AuthorizedKnowledgeScope(workspace_id, ())
+    active_ids = tuple(
+        await session.scalars(
+            select(KnowledgeBase.id)
+            .where(
+                KnowledgeBase.workspace_id == workspace_id,
+                KnowledgeBase.id.in_(knowledge_base_ids),
+                KnowledgeBase.status == "active",
+            )
+            .order_by(KnowledgeBase.id)
+        )
+    )
+    return AuthorizedKnowledgeScope(workspace_id, active_ids)
+
+
 class KnowledgeRetrievalService:
     def __init__(
         self,

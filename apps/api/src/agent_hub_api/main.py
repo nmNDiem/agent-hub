@@ -29,6 +29,7 @@ from agent_hub_api.knowledge.runtime import (
     create_qdrant_index,
 )
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
+from agent_hub_api.widget.router import router as widget_admin_router
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
 
@@ -183,6 +184,7 @@ def create_app(
     application.include_router(workspaces_router)
     application.include_router(agents_router)
     application.include_router(playground_router)
+    application.include_router(widget_admin_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

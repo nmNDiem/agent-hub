@@ -41,6 +41,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:3000",
     )
+    widget_public_base_url: str | None = None
     email_delivery_enabled: bool = False
     supabase_url: str | None = None
     supabase_service_role_key: str | None = Field(
@@ -176,6 +177,7 @@ class Settings(BaseSettings):
         "embedding_model",
         "embedding_provider_revision",
         "generation_model",
+        "widget_public_base_url",
         mode="before",
     )
     @classmethod
@@ -190,6 +192,24 @@ class Settings(BaseSettings):
                 return None
             return cleaned
         return value
+
+    @field_validator("widget_public_base_url")
+    @classmethod
+    def validate_widget_public_base_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from urllib.parse import urlsplit
+
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("Widget public base URL must be an HTTP(S) origin")
+        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("Widget public base URL cannot contain credentials or query data")
+        if parsed.path not in {"", "/"}:
+            raise ValueError("Widget public base URL must not contain a path")
+        if parsed.scheme == "http" and parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+            raise ValueError("HTTP widget public base URL is limited to local loopback")
+        return value.rstrip("/")
 
     @field_validator("embedding_dimensions", mode="before")
     @classmethod

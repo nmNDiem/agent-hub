@@ -1,6 +1,13 @@
 """Central ORM model registry used by Alembic and tests."""
 
-from agent_hub_api.agents.models import Agent, AgentCatalogCollection, AgentLocation
+from agent_hub_api.agents.models import (
+    Agent,
+    AgentCatalogCollection,
+    AgentLocation,
+    AgentRevision,
+    AgentWebChannel,
+    WidgetDomain,
+)
 from agent_hub_api.catalog.models import (
     CatalogCollection,
     CatalogCollectionProduct,
@@ -42,6 +49,8 @@ __all__ = [
     "Agent",
     "AgentCatalogCollection",
     "AgentLocation",
+    "AgentRevision",
+    "AgentWebChannel",
     "AuthSession",
     "Base",
     "CatalogImport",
@@ -77,4 +86,5 @@ __all__ = [
     "AgentKnowledgeBase",
     "Workspace",
     "WorkspaceMember",
+    "WidgetDomain",
 ]
