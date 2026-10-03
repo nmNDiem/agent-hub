@@ -128,8 +128,8 @@ describe("ChatbotPlayground", () => {
 
     fireEvent.change(screen.getByLabelText("Tin nhắn thử nghiệm"), { target: { value: "Kiểm tra runtime" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi" }));
-    expect(await screen.findByText("Mình chưa kiểm tra được thông tin này. Bạn thử lại sau nhé.")).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(await screen.findAllByText("Mình chưa kiểm tra được thông tin này. Bạn thử lại sau nhé.")).toHaveLength(2);
+    expect(screen.getByRole("alert")).toHaveTextContent("Mình chưa kiểm tra được thông tin này.");
 
     fireEvent.change(screen.getByLabelText("Tin nhắn thử nghiệm"), { target: { value: "Kiểm tra kết nối" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi" }));

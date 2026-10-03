@@ -2,6 +2,7 @@ import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
+import { ApiError } from "@/lib/api";
 
 const mocks = vi.hoisted(() => ({ getMe: vi.fn(), replace: vi.fn() }));
 
@@ -33,7 +34,7 @@ describe("Home", () => {
   });
 
   it("opens login when the session cannot be restored", async () => {
-    mocks.getMe.mockRejectedValue(new Error("Unauthenticated"));
+    mocks.getMe.mockRejectedValue(new ApiError(401, "UNAUTHENTICATED", "Phiên đăng nhập đã hết hạn."));
 
     render(<Home />);
 

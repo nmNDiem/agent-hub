@@ -6,14 +6,16 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { FeedbackBanner } from "@/components/feedback-banner";
 import { api, ApiError, type Me, type Workspace } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 export function WorkspaceOverview() {
   const router = useRouter();
   const params = useParams<{ workspaceSlug: string }>();
   const [me, setMe] = useState<Me>();
   const [workspace, setWorkspace] = useState<Workspace>();
-  const [error, setError] = useState<string>();
+  const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
 
   useEffect(() => {
     let active = true;
@@ -22,7 +24,7 @@ export function WorkspaceOverview() {
       if (data.workspaces.length === 0) { router.replace("/onboarding/create-shop"); return; }
       const selected = data.workspaces.find((item) => item.slug === params.workspaceSlug);
       if (!selected) {
-        setError("Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập.");
+        setPageFeedback(feedback("error", "Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập."));
         return;
       }
       setMe(data);
@@ -30,12 +32,15 @@ export function WorkspaceOverview() {
     }).catch((caught: unknown) => {
       if (!active) return;
       if (caught instanceof ApiError && caught.status === 401) router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
-      else setError("Không thể tải thông tin cửa hàng. Vui lòng thử lại.");
+      else setPageFeedback(toUiError(caught, {
+        operation: "workspaces.load-overview",
+        fallback: "Không thể tải thông tin cửa hàng. Vui lòng thử lại.",
+      }));
     });
     return () => { active = false; };
   }, [params.workspaceSlug, router]);
 
-  if (error) return <main className="center-state"><p role="alert">{error}</p><button onClick={() => location.reload()}>Thử lại</button></main>;
+  if (pageFeedback) return <main className="center-state"><FeedbackBanner feedback={pageFeedback} onRetry={() => location.reload()} /></main>;
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;
 
   return (

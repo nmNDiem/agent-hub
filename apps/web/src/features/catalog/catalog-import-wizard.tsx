@@ -3,17 +3,15 @@
 import { CheckCircle2, FileSpreadsheet, LoaderCircle, Upload, XCircle } from "lucide-react";
 import { DragEvent, useRef, useState } from "react";
 
-import { api, ApiError, type CatalogImportJob, type UniversalImportResult } from "@/lib/api";
+import { FeedbackBanner } from "@/components/feedback-banner";
+import { api, type CatalogImportJob, type UniversalImportResult } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 type Props = { workspaceId: string; onCommitted: () => Promise<void> };
 type WizardState = "upload" | "analyzing" | "review" | "committing" | "success";
 
 const allowedExtensions = [".csv", ".xls", ".xlsx"];
 const maxBytes = 10 * 1024 * 1024;
-
-function message(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Không thể xử lý tệp. Vui lòng thử lại.";
-}
 
 function validateFile(file: File): string | undefined {
   const lower = file.name.toLowerCase();
@@ -29,23 +27,26 @@ export function CatalogImportWizard({ workspaceId, onCommitted }: Props) {
   const [state, setState] = useState<WizardState>("upload");
   const [job, setJob] = useState<CatalogImportJob>();
   const [result, setResult] = useState<UniversalImportResult>();
-  const [error, setError] = useState<string>();
+  const [wizardFeedback, setWizardFeedback] = useState<UiFeedback>();
   const [dragging, setDragging] = useState(false);
 
   async function analyze(file: File) {
     const validation = validateFile(file);
-    if (validation) { setError(validation); return; }
-    setError(undefined);
+    if (validation) { setWizardFeedback(feedback("error", validation)); return; }
+    setWizardFeedback(undefined);
     setState("analyzing");
     try {
       const next = await api.createCatalogImport(workspaceId, file);
       setJob(next);
       setState(next.status === "failed" ? "upload" : "review");
       if (next.status === "failed") {
-        setError(String(next.result?.message ?? "Không thể đọc tệp catalog."));
+        setWizardFeedback(feedback("error", String(next.result?.message ?? "Không thể đọc tệp catalog.")));
       }
     } catch (caught) {
-      setError(message(caught));
+      setWizardFeedback(toUiError(caught, {
+        operation: "catalog-import.analyze",
+        fallback: "Không thể xử lý tệp. Vui lòng thử lại.",
+      }));
       setState("upload");
     }
   }
@@ -59,29 +60,49 @@ export function CatalogImportWizard({ workspaceId, onCommitted }: Props) {
 
   async function resolve(issueId: number) {
     if (!job) return;
-    setError(undefined);
+    setWizardFeedback(undefined);
     try {
       setJob(await api.resolveCatalogImportIssue(workspaceId, job.id, issueId, { action: "ignore" }));
-    } catch (caught) { setError(message(caught)); }
+    } catch (caught) {
+      setWizardFeedback(toUiError(caught, {
+        operation: "catalog-import.resolve-issue",
+        fallback: "Không thể ghi nhận lựa chọn này.",
+      }));
+    }
   }
 
   async function commit() {
     if (!job) return;
     setState("committing");
-    setError(undefined);
+    setWizardFeedback(undefined);
     try {
       const committed = await api.commitCatalogImportJob(workspaceId, job.id, crypto.randomUUID());
       setResult(committed);
       setState("success");
-      await onCommitted();
+      try {
+        await onCommitted();
+      } catch (caught) {
+        const refreshError = toUiError(caught, {
+          operation: "catalog-import.refresh-after-commit",
+          fallback: "Import đã hoàn tất, nhưng danh sách catalog chưa thể làm mới.",
+        });
+        setWizardFeedback({
+          ...refreshError,
+          kind: "warning",
+          message: "Import đã hoàn tất, nhưng danh sách catalog có thể chưa mới nhất. Hãy tải lại trang.",
+        });
+      }
     } catch (caught) {
-      setError(message(caught));
+      setWizardFeedback(toUiError(caught, {
+        operation: "catalog-import.commit",
+        fallback: "Không thể import catalog. Vui lòng kiểm tra và thử lại.",
+      }));
       setState("review");
     }
   }
 
   function reset() {
-    setState("upload"); setJob(undefined); setResult(undefined); setError(undefined);
+    setState("upload"); setJob(undefined); setResult(undefined); setWizardFeedback(undefined);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -94,7 +115,7 @@ export function CatalogImportWizard({ workspaceId, onCommitted }: Props) {
         <div><h3 id="import-wizard-title">Nhập catalog</h3><p>Hệ thống tự nhận diện cấu trúc, không cần chọn nền tảng nguồn.</p></div>
         <FileSpreadsheet aria-hidden="true" />
       </div>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {wizardFeedback && <FeedbackBanner feedback={wizardFeedback} />}
 
       {state === "upload" && (
         <div

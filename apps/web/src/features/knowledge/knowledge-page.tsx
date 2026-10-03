@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   BookOpen,
   FileText,
   LoaderCircle,
@@ -14,13 +13,14 @@ import { useParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
-  ApiError,
   type IngestionStatus,
   type KnowledgeBase,
   type KnowledgeDocument,
 } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 import { useWorkspace } from "@/lib/use-workspace";
 
 const activeStatuses = new Set<IngestionStatus>([
@@ -41,10 +41,6 @@ const statusLabels: Record<IngestionStatus, string> = {
   cancelled: "Đã hủy",
 };
 
-function messageFrom(error: unknown) {
-  return error instanceof ApiError ? error.message : "Không thể hoàn tất thao tác. Vui lòng thử lại.";
-}
-
 export function KnowledgePage() {
   const params = useParams<{ workspaceSlug: string }>();
   const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
@@ -53,20 +49,11 @@ export function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string>();
-  const [error, setError] = useState<string>();
+  const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
   const uploadController = useRef<AbortController | undefined>(undefined);
 
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
   const selectedBase = bases.find((item) => item.id === selectedBaseId);
-
-  async function loadBases(workspaceId: string) {
-    const result = await api.listKnowledgeBases(workspaceId);
-    setBases(result.items);
-    if (result.items.length === 0) setDocuments([]);
-    setSelectedBaseId((current) =>
-      current && result.items.some((item) => item.id === current) ? current : result.items[0]?.id,
-    );
-  }
 
   async function loadDocuments(workspaceId: string, baseId: number, quiet = false) {
     if (!quiet) setLoading(true);
@@ -74,7 +61,10 @@ export function KnowledgePage() {
       const result = await api.listKnowledgeDocuments(workspaceId, baseId);
       setDocuments(result.items);
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "knowledge.load-documents",
+        fallback: "Không thể tải tài liệu tri thức.",
+      }));
     } finally {
       if (!quiet) setLoading(false);
     }
@@ -89,7 +79,10 @@ export function KnowledgePage() {
       if (result.items.length === 0) setDocuments([]);
       setSelectedBaseId(result.items[0]?.id);
     }).catch((caught) => {
-      if (active) setError(messageFrom(caught));
+      if (active) setPageFeedback(toUiError(caught, {
+        operation: "knowledge.load-bases",
+        fallback: "Không thể tải kho tri thức.",
+      }));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [workspace]);
@@ -102,7 +95,10 @@ export function KnowledgePage() {
     api.listKnowledgeDocuments(workspace.id, selectedBaseId).then((result) => {
       if (active) setDocuments(result.items);
     }).catch((caught) => {
-      if (active) setError(messageFrom(caught));
+      if (active) setPageFeedback(toUiError(caught, {
+        operation: "knowledge.load-documents",
+        fallback: "Không thể tải tài liệu tri thức.",
+      }));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [selectedBaseId, workspace]);
@@ -120,19 +116,25 @@ export function KnowledgePage() {
   async function createBase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setBusy("base");
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
       const created = await api.createKnowledgeBase(workspace.id, {
         name: String(form.get("name")),
         kind: String(form.get("kind")) as KnowledgeBase["kind"],
       });
-      event.currentTarget.reset();
-      await loadBases(workspace.id);
+      formElement.reset();
+      setBases((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setSelectedBaseId(created.id);
+      setDocuments([]);
+      setPageFeedback(feedback("success", "Đã tạo kho tri thức."));
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "knowledge.create-base",
+        fallback: "Không thể tạo kho tri thức. Thông tin đã nhập vẫn được giữ lại.",
+      }));
     } finally {
       setBusy(undefined);
     }
@@ -141,11 +143,12 @@ export function KnowledgePage() {
   async function createManual(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace || !selectedBaseId) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setBusy("manual");
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
-      await api.createManualKnowledge(
+      const created = await api.createManualKnowledge(
         workspace.id,
         selectedBaseId,
         {
@@ -155,13 +158,17 @@ export function KnowledgePage() {
         },
         crypto.randomUUID(),
       );
-      event.currentTarget.reset();
-      await Promise.all([
-        loadDocuments(workspace.id, selectedBaseId),
-        loadBases(workspace.id),
-      ]);
+      formElement.reset();
+      setDocuments((current) => [created, ...current]);
+      setBases((current) => current.map((base) => base.id === selectedBaseId
+        ? { ...base, document_count: base.document_count + 1 }
+        : base));
+      setPageFeedback(feedback("success", "Đã thêm nội dung vào hàng đợi xử lý."));
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "knowledge.create-manual-document",
+        fallback: "Không thể thêm nội dung. Dữ liệu đã nhập vẫn được giữ lại.",
+      }));
     } finally {
       setBusy(undefined);
     }
@@ -174,11 +181,11 @@ export function KnowledgePage() {
     const values = new FormData(formElement);
     const file = values.get("file");
     if (!(file instanceof File) || file.size === 0) {
-      setError("Hãy chọn một tệp PDF hoặc TXT.");
+      setPageFeedback(feedback("error", "Hãy chọn một tệp PDF hoặc TXT."));
       return;
     }
     if (!["application/pdf", "text/plain"].includes(file.type)) {
-      setError("Chỉ chấp nhận tệp PDF hoặc TXT.");
+      setPageFeedback(feedback("error", "Chỉ chấp nhận tệp PDF hoặc TXT."));
       return;
     }
     const payload = new FormData();
@@ -187,9 +194,9 @@ export function KnowledgePage() {
     payload.set("kind", "document");
     uploadController.current = new AbortController();
     setBusy("upload");
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
-      await api.uploadKnowledgeDocument(
+      const created = await api.uploadKnowledgeDocument(
         workspace.id,
         selectedBaseId,
         payload,
@@ -197,13 +204,20 @@ export function KnowledgePage() {
         uploadController.current.signal,
       );
       formElement.reset();
-      await Promise.all([
-        loadDocuments(workspace.id, selectedBaseId),
-        loadBases(workspace.id),
-      ]);
+      setDocuments((current) => [created, ...current]);
+      setBases((current) => current.map((base) => base.id === selectedBaseId
+        ? { ...base, document_count: base.document_count + 1 }
+        : base));
+      setPageFeedback(feedback("success", "Đã tải tệp lên vào hàng đợi xử lý."));
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === "AbortError") setError("Đã dừng tải tệp.");
-      else setError(messageFrom(caught));
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        setPageFeedback(feedback("info", "Đã dừng tải tệp."));
+      } else {
+        setPageFeedback(toUiError(caught, {
+          operation: "knowledge.upload-document",
+          fallback: "Không thể tải tệp lên. Tệp bạn đã chọn vẫn được giữ lại.",
+        }));
+      }
     } finally {
       uploadController.current = undefined;
       setBusy(undefined);
@@ -213,12 +227,18 @@ export function KnowledgePage() {
   async function retry(document: KnowledgeDocument) {
     if (!workspace) return;
     setBusy(`retry-${document.id}`);
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
-      await api.retryIngestionJob(workspace.id, document.ingestion_job.id);
-      await loadDocuments(workspace.id, document.knowledge_base_id);
+      const ingestionJob = await api.retryIngestionJob(workspace.id, document.ingestion_job.id);
+      setDocuments((current) => current.map((item) => item.id === document.id
+        ? { ...item, ingestion_job: ingestionJob }
+        : item));
+      setPageFeedback(feedback("success", "Đã lên lịch xử lý lại tài liệu."));
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "knowledge.retry-ingestion",
+        fallback: "Không thể lên lịch thử lại.",
+      }));
     } finally {
       setBusy(undefined);
     }
@@ -227,21 +247,25 @@ export function KnowledgePage() {
   async function remove(document: KnowledgeDocument) {
     if (!workspace || !confirm(`Xóa “${document.title}” khỏi truy xuất?`)) return;
     setBusy(`delete-${document.id}`);
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
       await api.deleteKnowledgeDocument(workspace.id, document.knowledge_base_id, document.id);
-      await Promise.all([
-        loadDocuments(workspace.id, document.knowledge_base_id),
-        loadBases(workspace.id),
-      ]);
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+      setBases((current) => current.map((base) => base.id === document.knowledge_base_id
+        ? { ...base, document_count: Math.max(0, base.document_count - 1) }
+        : base));
+      setPageFeedback(feedback("success", "Đã xóa tài liệu khỏi truy xuất."));
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "knowledge.delete-document",
+        fallback: "Không thể xóa tài liệu.",
+      }));
     } finally {
       setBusy(undefined);
     }
   }
 
-  if (workspaceError) return <main className="center-state"><p role="alert">{workspaceError}</p></main>;
+  if (workspaceError) return <main className="center-state"><FeedbackBanner feedback={workspaceError} onRetry={() => location.reload()} /></main>;
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;
 
   return (
@@ -250,7 +274,7 @@ export function KnowledgePage() {
         <div><p className="eyebrow">Nguồn grounding</p><h1>Tri thức</h1><p>Quản lý dữ liệu đã kiểm chứng mà chatbot được phép sử dụng.</p></div>
         {!canWrite && <span className="status-pill archived">Chỉ đọc</span>}
       </section>
-      {error && <p className="form-error" role="alert"><AlertCircle aria-hidden="true" size={16} /> {error}</p>}
+      {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
       <div className="knowledge-layout">
         <aside className="knowledge-bases-card">
           <div className="card-heading"><div><h2>Kho tri thức</h2><p>{bases.length} nguồn đang hoạt động</p></div><BookOpen aria-hidden="true" /></div>

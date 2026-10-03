@@ -4,7 +4,9 @@ import { LoaderCircle, Sparkles, Store } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
-import { api, ApiError } from "@/lib/api";
+import { FeedbackBanner } from "@/components/feedback-banner";
+import { api } from "@/lib/api";
+import { toUiError, type UiFeedback } from "@/lib/errors";
 
 function suggestSlug(value: string): string {
   return value
@@ -22,7 +24,7 @@ export function CreateShopForm() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
-  const [error, setError] = useState<string>();
+  const [formFeedback, setFormFeedback] = useState<UiFeedback>();
   const [checking, setChecking] = useState(true);
   const [pending, setPending] = useState(false);
 
@@ -36,13 +38,16 @@ export function CreateShopForm() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
-    setError(undefined);
+    setFormFeedback(undefined);
     try {
       const workspace = await api.createWorkspace({ display_name: name, slug });
       router.replace(`/app/${encodeURIComponent(workspace.slug)}/overview`);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Không thể tạo cửa hàng.");
+      setFormFeedback(toUiError(caught, {
+        operation: "workspaces.create",
+        fallback: "Không thể tạo cửa hàng. Thông tin bạn đã nhập vẫn được giữ lại.",
+      }));
     } finally {
       setPending(false);
     }
@@ -72,7 +77,7 @@ export function CreateShopForm() {
             <span className="slug-field"><span>agenthub.local/app/</span><input id="shop-slug" maxLength={63} minLength={2} onChange={(event) => { setSlugEdited(true); setSlug(suggestSlug(event.target.value)); }} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required value={slug} /></span>
             <small>Chỉ gồm chữ thường, số và dấu gạch ngang.</small>
           </label>
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {formFeedback && <FeedbackBanner feedback={formFeedback} />}
           <button className="primary-button" disabled={pending} type="submit">
             {pending ? <LoaderCircle className="spinner" aria-hidden="true" size={18} /> : <Store aria-hidden="true" size={18} />}
             {pending ? "Đang tạo…" : "Tạo cửa hàng"}

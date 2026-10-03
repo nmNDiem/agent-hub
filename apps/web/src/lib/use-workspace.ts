@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api, ApiError, type Me, type Workspace } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 export function useWorkspace(workspaceSlug: string) {
   const router = useRouter();
   const [me, setMe] = useState<Me>();
   const [workspace, setWorkspace] = useState<Workspace>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<UiFeedback>();
 
   useEffect(() => {
     let active = true;
@@ -21,7 +22,7 @@ export function useWorkspace(workspaceSlug: string) {
       }
       const selected = data.workspaces.find((item) => item.slug === workspaceSlug);
       if (!selected) {
-        setError("Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập.");
+        setError(feedback("error", "Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập."));
         return;
       }
       setMe(data);
@@ -31,7 +32,10 @@ export function useWorkspace(workspaceSlug: string) {
       if (caught instanceof ApiError && caught.status === 401) {
         router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
       } else {
-        setError("Không thể tải thông tin cửa hàng. Vui lòng thử lại.");
+        setError(toUiError(caught, {
+          operation: "workspaces.load-current",
+          fallback: "Không thể tải thông tin cửa hàng. Vui lòng thử lại.",
+        }));
       }
     });
     return () => { active = false; };

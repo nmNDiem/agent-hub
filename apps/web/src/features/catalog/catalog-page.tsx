@@ -19,6 +19,7 @@ import { useParams, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
   ApiError,
@@ -29,6 +30,7 @@ import {
   type ProductVariant,
   type Workspace,
 } from "@/lib/api";
+import { feedback, reportClientError, toUiError, type UiFeedback } from "@/lib/errors";
 import { CatalogImportWizard } from "./catalog-import-wizard";
 
 type ActionPanel = "create" | "import";
@@ -47,10 +49,6 @@ function text(form: FormData, name: string): string {
 
 function nullable(form: FormData, name: string): string | null {
   return text(form, name) || null;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Không thể hoàn tất yêu cầu. Vui lòng thử lại.";
 }
 
 function formatPrice(value: string | null, currency: string): string {
@@ -90,7 +88,7 @@ export function CatalogPage() {
   const [actionPanel, setActionPanel] = useState<ActionPanel>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
   const [notice, setNotice] = useState<string>();
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
 
@@ -112,7 +110,7 @@ export function CatalogPage() {
       if (!active) return;
       const current = profile.workspaces.find((item) => item.slug === params.workspaceSlug);
       if (!current) {
-        setError("Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập.");
+        setPageFeedback(feedback("error", "Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập."));
         setLoading(false);
         return;
       }
@@ -128,7 +126,10 @@ export function CatalogPage() {
       if (caught instanceof ApiError && caught.status === 401) {
         router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
       } else {
-        setError(errorMessage(caught));
+        setPageFeedback(toUiError(caught, {
+          operation: "catalog.load",
+          fallback: "Không thể tải catalog. Vui lòng thử lại.",
+        }));
         setLoading(false);
       }
     });
@@ -143,7 +144,8 @@ export function CatalogPage() {
       try {
         const result = await api.getProductImageUrl(workspace.id, selected.id, image.id);
         return [image.id, result.url] as const;
-      } catch {
+      } catch (caught) {
+        reportClientError(caught, "catalog.load-image-thumbnail");
         return null;
       }
     })).then((entries) => {
@@ -156,7 +158,7 @@ export function CatalogPage() {
   async function refreshProducts(cursor?: string, append = false) {
     if (!workspace) return;
     setBusy(true);
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
       const result = await api.listProducts(workspace.id, {
         query: query || undefined,
@@ -167,7 +169,10 @@ export function CatalogPage() {
       setProducts((current) => append ? [...current, ...result.items] : result.items);
       setNextCursor(result.next_cursor);
     } catch (caught) {
-      setError(errorMessage(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog.refresh-products",
+        fallback: "Không thể làm mới danh sách sản phẩm.",
+      }));
     } finally {
       setBusy(false);
     }
@@ -176,34 +181,64 @@ export function CatalogPage() {
   async function openProduct(productId: number) {
     if (!workspace) return;
     setBusy(true);
-    setError(undefined);
+    setPageFeedback(undefined);
     setActiveTab("overview");
     setImageUrls({});
     try {
       setSelected(await api.getProduct(workspace.id, productId));
     } catch (caught) {
-      setError(errorMessage(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog.open-product",
+        fallback: "Không thể tải chi tiết sản phẩm.",
+      }));
     } finally {
       setBusy(false);
     }
   }
 
-  async function mutate(action: () => Promise<unknown>, success: string, reloadDetail = true) {
+  async function mutate(action: () => Promise<unknown>, success: string, reloadDetail = true): Promise<boolean> {
     setBusy(true);
-    setError(undefined);
+    setPageFeedback(undefined);
     setNotice(undefined);
     try {
       await action();
-      setNotice(success);
-      await refreshProducts();
+    } catch (caught) {
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog.mutate",
+        fallback: "Không thể lưu thay đổi catalog.",
+      }));
+      setBusy(false);
+      return false;
+    }
+    setNotice(success);
+    try {
+      if (workspace) {
+        const result = await api.listProducts(workspace.id, {
+          query: query || undefined,
+          status: statusFilter || undefined,
+          category: categoryFilter || undefined,
+        });
+        setProducts(result.items);
+        setNextCursor(result.next_cursor);
+      }
       if (reloadDetail && workspace && selected) {
         setSelected(await api.getProduct(workspace.id, selected.id));
       }
     } catch (caught) {
-      setError(errorMessage(caught));
+      setNotice(undefined);
+      const refreshError = toUiError(caught, {
+        operation: "catalog.refresh-after-mutation",
+        fallback: "Đã lưu thay đổi, nhưng catalog chưa thể làm mới.",
+      });
+      setPageFeedback({
+        ...refreshError,
+        kind: "warning",
+        message: "Đã lưu thay đổi, nhưng dữ liệu hiển thị có thể chưa mới nhất. Hãy tải lại trang.",
+      });
     } finally {
       setBusy(false);
     }
+    return true;
   }
 
   async function createProduct(event: FormEvent<HTMLFormElement>) {
@@ -271,7 +306,7 @@ export function CatalogPage() {
     try {
       content = JSON.parse(text(form, "content")) as Record<string, unknown>;
     } catch {
-      setError("Nội dung hướng dẫn phải là JSON hợp lệ.");
+      setPageFeedback(feedback("error", "Nội dung hướng dẫn phải là JSON hợp lệ."));
       return;
     }
     await mutate(
@@ -286,11 +321,11 @@ export function CatalogPage() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     if (!text(form, "variant_id")) form.delete("variant_id");
-    await mutate(
+    const succeeded = await mutate(
       () => api.uploadProductImage(workspace.id, selected.id, form),
       "Đã tải ảnh lên kho riêng tư.",
     );
-    formElement.reset();
+    if (succeeded) formElement.reset();
   }
 
   function imageVariantLabel(image: ProductImage): string {
@@ -317,7 +352,7 @@ export function CatalogPage() {
   }
 
   if (loading) return <main className="center-state" aria-live="polite">Đang tải catalog…</main>;
-  if (!me || !workspace) return <main className="center-state"><p role="alert">{error}</p></main>;
+  if (!me || !workspace) return <main className="center-state">{pageFeedback && <FeedbackBanner feedback={pageFeedback} />}</main>;
 
   return (
     <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
@@ -352,7 +387,7 @@ export function CatalogPage() {
         )}
       </section>
 
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
       {notice && <p className="success-message" role="status">{notice}</p>}
 
       {canWrite && actionPanel && (
@@ -497,7 +532,7 @@ export function CatalogPage() {
               {activeTab === "images" && (
                 <section aria-labelledby="product-tab-images" id="product-panel-images" role="tabpanel">
                   <div className="detail-section-heading"><div><h3>Hình ảnh sản phẩm</h3><p>Ảnh chung dùng cho sản phẩm; ảnh biến thể chỉ đại diện cho lựa chọn tương ứng.</p></div><span className="image-count-badge">{activeImages.length} ảnh</span></div>
-                  <div className="image-list compact-image-list">{selected.images.length === 0 && <p className="detail-empty">Chưa có ảnh.</p>}{selected.images.map((image) => <article key={image.id}>{renderImageThumbnail(image)}<div><strong>{imageName(image)}</strong><small>{imageVariantLabel(image)} · {image.status === "cleanup_pending" ? "Chờ dọn dẹp Storage" : image.status}</small></div>{image.status === "active" && <button className="text-button" onClick={async () => { try { const result = await api.getProductImageUrl(workspace.id, selected.id, image.id); window.open(result.url, "_blank", "noopener,noreferrer"); } catch (caught) { setError(errorMessage(caught)); } }} type="button">Xem</button>}{canWrite && image.status === "active" && <button className="text-button danger-text" onClick={() => void mutate(() => api.deleteProductImage(workspace.id, selected.id, image.id), "Đã cập nhật trạng thái dọn ảnh.")} type="button">Xóa</button>}{canWrite && image.status === "cleanup_pending" && <button className="text-button" onClick={() => void mutate(() => api.retryImageCleanup(workspace.id, selected.id, image.id), "Đã thử dọn ảnh lại.")} type="button"><RefreshCw size={14} /> Thử lại</button>}</article>)}</div>
+                  <div className="image-list compact-image-list">{selected.images.length === 0 && <p className="detail-empty">Chưa có ảnh.</p>}{selected.images.map((image) => <article key={image.id}>{renderImageThumbnail(image)}<div><strong>{imageName(image)}</strong><small>{imageVariantLabel(image)} · {image.status === "cleanup_pending" ? "Chờ dọn dẹp Storage" : image.status}</small></div>{image.status === "active" && <button className="text-button" onClick={async () => { try { const result = await api.getProductImageUrl(workspace.id, selected.id, image.id); window.open(result.url, "_blank", "noopener,noreferrer"); } catch (caught) { setPageFeedback(toUiError(caught, { operation: "catalog.open-product-image", fallback: "Không thể mở ảnh sản phẩm." })); } }} type="button">Xem</button>}{canWrite && image.status === "active" && <button className="text-button danger-text" onClick={() => void mutate(() => api.deleteProductImage(workspace.id, selected.id, image.id), "Đã cập nhật trạng thái dọn ảnh.")} type="button">Xóa</button>}{canWrite && image.status === "cleanup_pending" && <button className="text-button" onClick={() => void mutate(() => api.retryImageCleanup(workspace.id, selected.id, image.id), "Đã thử dọn ảnh lại.")} type="button"><RefreshCw size={14} /> Thử lại</button>}</article>)}</div>
                   {canWrite && <form className="catalog-form image-upload-form" onSubmit={uploadImage}><label>Gắn với<select name="variant_id"><option value="">Ảnh chung</option>{selected.variants.filter((variant) => variant.status === "active").map((variant) => <option key={variant.id} value={variant.id}>{variant.variant_sku ?? variant.name ?? `Biến thể #${variant.id}`}</option>)}</select></label><label>Chọn ảnh<input accept="image/png,image/jpeg,image/webp" name="file" required type="file" /></label><label>Alt text<input name="alt_text" maxLength={300} /></label><button className="secondary-button" type="submit"><ImagePlus size={17} /> Tải ảnh lên</button><small>PNG, JPEG hoặc WebP · tối đa 5 MB · nội dung được backend xác minh.</small></form>}
                 </section>
               )}

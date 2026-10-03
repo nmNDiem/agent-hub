@@ -146,6 +146,17 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .primary-button:hover { background: var(--primary-hover); }
 .primary-button:disabled { opacity: .65; cursor: wait; }
 .form-error { margin: -4px 0 0; padding: 11px 12px; border-radius: 9px; color: hsl(0 65% 35%); background: hsl(0 80% 96%); line-height: 1.45; }
+.feedback-banner { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid transparent; border-radius: 10px; line-height: 1.45; }
+.feedback-icon { flex: 0 0 auto; margin-top: 1px; }
+.feedback-copy { min-width: 0; flex: 1; }
+.feedback-copy p { margin: 0; }
+.feedback-copy small { display: block; margin-top: 3px; opacity: .82; }
+.feedback-copy code { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.feedback-error { border-color: hsl(0 65% 86%); color: hsl(0 65% 32%); background: hsl(0 80% 97%); }
+.feedback-warning { border-color: hsl(39 80% 78%); color: hsl(32 75% 27%); background: hsl(44 95% 95%); }
+.feedback-success { border-color: hsl(145 45% 79%); color: hsl(145 55% 26%); background: hsl(145 60% 96%); }
+.feedback-info { border-color: hsl(214 75% 84%); color: hsl(218 65% 34%); background: hsl(214 95% 97%); }
+.feedback-retry { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 1px solid currentColor; border-radius: 8px; color: inherit; background: transparent; font-weight: 700; cursor: pointer; }
 .auth-switch { margin: 0; text-align: center; color: var(--muted-foreground); }
 .auth-switch a { color: hsl(221 83% 46%); font-weight: 700; }
 .spinner { animation: spin .8s linear infinite; }
@@ -519,6 +530,9 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 }
 
 @media (max-width: 767px) {
+  .feedback-banner { flex-wrap: wrap; }
+  .feedback-copy { flex-basis: calc(100% - 30px); }
+  .feedback-retry { width: 100%; }
   .topbar { height: 60px; padding: 0 14px; }
   .workspace-switcher { min-width: 0; flex: 1; }
   .account-identity { display: none; }

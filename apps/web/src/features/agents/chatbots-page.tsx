@@ -14,15 +14,16 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { FeedbackBanner } from "@/components/feedback-banner";
 import { ChatbotPlayground } from "@/features/agents/chatbot-playground";
 import {
   api,
-  ApiError,
   type Agent,
   type CatalogCollection,
   type KnowledgeBase,
   type Location,
 } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 import { useWorkspace } from "@/lib/use-workspace";
 
 type AgentDraft = {
@@ -36,10 +37,6 @@ type AgentDraft = {
   collectionIds: number[];
   knowledgeBaseIds: number[];
 };
-
-function messageFrom(error: unknown) {
-  return error instanceof ApiError ? error.message : "Không thể hoàn tất thao tác. Vui lòng thử lại.";
-}
 
 function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
   return {
@@ -70,7 +67,7 @@ export function ChatbotsPage() {
   const [draftAgentId, setDraftAgentId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"create" | "save">();
-  const [error, setError] = useState<string>();
+  const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
   const [dirty, setDirty] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -117,7 +114,12 @@ export function ChatbotsPage() {
       setLocations(locationItems.filter((item) => item.is_active));
       setCollections(collectionItems.filter((item) => item.is_active));
     }).catch((caught) => {
-      if (active) setError(messageFrom(caught));
+      if (active) {
+        setPageFeedback(toUiError(caught, {
+          operation: "agents.load-page",
+          fallback: "Không thể tải cấu hình chatbot. Vui lòng thử lại.",
+        }));
+      }
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -132,7 +134,12 @@ export function ChatbotsPage() {
       setDraft(draftFrom(selectedAgent, result.knowledge_base_ids));
       setDraftAgentId(selectedAgent.public_id);
     }).catch((caught) => {
-      if (active) setError(messageFrom(caught));
+      if (active) {
+        setPageFeedback(toUiError(caught, {
+          operation: "agents.load-knowledge-scope",
+          fallback: "Không thể tải nguồn tri thức của chatbot.",
+        }));
+      }
     });
     return () => { active = false; };
   }, [selectedAgent, workspace]);
@@ -155,20 +162,25 @@ export function ChatbotsPage() {
   async function createAgent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setBusy("create");
-    setError(undefined);
+    setPageFeedback(undefined);
     try {
       const created = await api.createAgent(workspace.id, {
         name: String(form.get("name")),
         default_locale: "vi",
       });
-      event.currentTarget.reset();
-      await loadAgents(workspace.id, created.public_id);
+      setAgents((current) => [created, ...current.filter((item) => item.public_id !== created.public_id)]);
+      formElement.reset();
       setShowCreate(false);
       selectAgent(created.public_id);
+      setPageFeedback(feedback("success", "Đã tạo chatbot. Bạn có thể cấu hình và thử ngay bây giờ."));
     } catch (caught) {
-      setError(messageFrom(caught));
+      setPageFeedback(toUiError(caught, {
+        operation: "agents.create",
+        fallback: "Không thể tạo chatbot. Tên bạn đã nhập vẫn được giữ lại.",
+      }));
     } finally {
       setBusy(undefined);
     }
@@ -179,7 +191,8 @@ export function ChatbotsPage() {
     if (!workspace || !selectedAgent || !draft || !dirty) return;
     setBusy("save");
     setSavedNotice(false);
-    setError(undefined);
+    setPageFeedback(undefined);
+    let completedWrites = 0;
     try {
       await api.updateAgent(workspace.id, selectedAgent.public_id, {
         name: draft.name,
@@ -187,20 +200,44 @@ export function ChatbotsPage() {
         safe_instructions: draft.safeInstructions || null,
         default_locale: draft.defaultLocale,
       });
+      completedWrites += 1;
       await api.replaceAgentCatalogScope(workspace.id, selectedAgent.public_id, {
         location_ids: draft.allLocations ? null : draft.locationIds,
         collection_ids: draft.allCollections ? null : draft.collectionIds,
       });
+      completedWrites += 1;
       await api.replaceAgentKnowledgeBases(
         workspace.id,
         selectedAgent.public_id,
         draft.knowledgeBaseIds,
       );
-      await loadAgents(workspace.id, selectedAgent.public_id);
+      completedWrites += 1;
       setDirty(false);
       setSavedNotice(true);
+      try {
+        await loadAgents(workspace.id, selectedAgent.public_id);
+      } catch (caught) {
+        setSavedNotice(false);
+        const refreshError = toUiError(caught, {
+          operation: "agents.refresh-after-save",
+          fallback: "Đã lưu cấu hình, nhưng chưa thể làm mới dữ liệu hiển thị.",
+        });
+        setPageFeedback({
+          ...refreshError,
+          kind: "warning",
+          message: "Đã lưu cấu hình, nhưng dữ liệu hiển thị có thể chưa mới nhất. Hãy tải lại trang.",
+        });
+      }
     } catch (caught) {
-      setError(messageFrom(caught));
+      const saveError = toUiError(caught, {
+        operation: "agents.save",
+        fallback: "Không thể lưu cấu hình chatbot. Vui lòng thử lại.",
+      });
+      setPageFeedback(completedWrites > 0 ? {
+        ...saveError,
+        kind: "warning",
+        message: "Chỉ một phần cấu hình đã được lưu. Vui lòng kiểm tra và lưu lại.",
+      } : saveError);
     } finally {
       setBusy(undefined);
     }
@@ -212,7 +249,7 @@ export function ChatbotsPage() {
     updateDraft({ [field]: values.includes(id) ? values.filter((item) => item !== id) : [...values, id] });
   }
 
-  if (workspaceError) return <main className="center-state"><p role="alert">{workspaceError}</p></main>;
+  if (workspaceError) return <main className="center-state"><FeedbackBanner feedback={workspaceError} onRetry={() => location.reload()} /></main>;
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;
 
   return (
@@ -225,7 +262,7 @@ export function ChatbotsPage() {
         </div>
       </section>
       {showCreate && canWrite && <form className="chatbot-create-bar" onSubmit={createAgent}><label><span>Tên chatbot mới</span><input maxLength={160} name="name" placeholder="Ví dụ: Trợ lý ND Shop" required /></label><button className="primary-button compact-button" disabled={busy === "create"} type="submit">{busy === "create" ? <LoaderCircle className="spinner" size={16} /> : <Plus size={16} />} Tạo chatbot</button></form>}
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
       {savedNotice && <p className="success-message" role="status">Đã lưu cấu hình chatbot.</p>}
       {loading && <section className="chatbot-page-state"><LoaderCircle className="spinner" size={20} /> Đang tải cấu hình…</section>}
       {!loading && agents.length === 0 && <section className="chatbot-page-state"><Bot size={30} /><h2>Chưa có chatbot</h2><p>Tạo chatbot đầu tiên để cấu hình nguồn dữ liệu và thử phản hồi ngay trên màn hình này.</p>{canWrite && <button className="primary-button compact-button" onClick={() => setShowCreate(true)} type="button"><Plus size={16} /> Tạo chatbot đầu tiên</button>}</section>}

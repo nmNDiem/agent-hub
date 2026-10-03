@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
+import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
   type Agent,
@@ -18,6 +19,7 @@ import {
   type GroundedSource,
   type PlaygroundStreamEvent,
 } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 type ChatMessage = {
   id: string;
@@ -51,6 +53,7 @@ function greetingMessage(agent: Agent): ChatMessage[] {
 export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; workspaceId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => agent ? greetingMessage(agent) : []);
   const [input, setInput] = useState("");
+  const [playgroundFeedback, setPlaygroundFeedback] = useState<UiFeedback>();
   const [streamState, setStreamState] = useState<"idle" | "connecting" | "streaming" | "canceled">("idle");
   const controller = useRef<AbortController | undefined>(undefined);
   const transcript = useRef<HTMLDivElement>(null);
@@ -92,6 +95,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
         text: message.text || event.data.message,
         state: "complete",
       }));
+      setPlaygroundFeedback(feedback("error", event.data.message));
       setStreamState("idle");
     }
   }
@@ -126,6 +130,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
     };
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setInput("");
+    setPlaygroundFeedback(undefined);
     setStreamState("connecting");
     controller.current = new AbortController();
     try {
@@ -141,6 +146,10 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
         updateAssistant(assistantId, (message) => ({ ...message, state: "canceled" }));
         setStreamState("canceled");
       } else {
+        setPlaygroundFeedback(toUiError(caught, {
+          operation: "playground.send-message",
+          fallback: "Playground chưa thể kết nối. Vui lòng thử lại sau ít phút.",
+        }));
         updateAssistant(assistantId, (message) => ({
           ...message,
           text: message.text || "Mình chưa thể kết nối để kiểm tra thông tin ngay lúc này. Bạn thử lại sau một chút nhé.",
@@ -159,6 +168,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
       && !window.confirm("Xóa lịch sử thử nghiệm cục bộ?")) return;
     controller.current?.abort();
     setMessages(greetingMessage(agent));
+    setPlaygroundFeedback(undefined);
     setStreamState("idle");
   }
 
@@ -180,6 +190,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
           <button aria-label="Làm mới hội thoại" className="secondary-button icon-only-button" disabled={!agent} onClick={resetConversation} type="button"><RotateCcw aria-hidden="true" size={16} /></button>
         </div>
       </div>
+      {playgroundFeedback && <FeedbackBanner feedback={playgroundFeedback} />}
       <div className="chat-transcript" aria-busy={streaming} aria-live="polite" ref={transcript} role="log">
         {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử chatbot" : "Chọn hoặc tạo chatbot"}</h2><p>{agent ? "Đặt câu hỏi về catalog hoặc tri thức đã gán." : "Bạn cần một chatbot trước khi bắt đầu thử nghiệm."}</p></div>}
         {messages.map((message) => <ChatBubble key={message.id} message={message} />)}

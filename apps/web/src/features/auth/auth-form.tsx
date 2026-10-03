@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
-import { api, ApiError } from "@/lib/api";
+import { FeedbackBanner } from "@/components/feedback-banner";
+import { api } from "@/lib/api";
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 type AuthMode = "login" | "register";
 const PASSWORD_MIN_LENGTH = 8;
@@ -18,17 +20,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string>();
+  const [formFeedback, setFormFeedback] = useState<UiFeedback>();
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(undefined);
+    setFormFeedback(undefined);
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") ?? "");
     const password = String(form.get("password") ?? "");
     if (mode === "register" && password !== String(form.get("confirmPassword") ?? "")) {
-      setError("Mật khẩu xác nhận chưa khớp.");
+      setFormFeedback(feedback("error", "Mật khẩu xác nhận chưa khớp."));
       return;
     }
     setPending(true);
@@ -43,7 +45,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       router.replace(destination);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Không thể kết nối máy chủ.");
+      setFormFeedback(toUiError(caught, {
+        operation: `auth.${mode}`,
+        fallback: "Không thể kết nối máy chủ. Vui lòng thử lại.",
+      }));
     } finally {
       setPending(false);
     }
@@ -97,7 +102,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               <input autoComplete="new-password" id="confirm-password" minLength={PASSWORD_MIN_LENGTH} name="confirmPassword" required type="password" />
             </label>
           )}
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {formFeedback && <FeedbackBanner feedback={formFeedback} />}
           <button className="primary-button" disabled={pending} type="submit">
             {pending && <LoaderCircle className="spinner" aria-hidden="true" size={18} />}
             {pending ? "Đang xử lý…" : isRegister ? "Tạo tài khoản" : "Đăng nhập"}

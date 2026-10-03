@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
   ApiError,
@@ -15,10 +16,7 @@ import {
   type ProductSummary,
   type Workspace,
 } from "@/lib/api";
-
-function message(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Không thể hoàn tất yêu cầu.";
-}
+import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 
 function value(form: FormData, key: string): string {
   return String(form.get(key) ?? "").trim();
@@ -35,7 +33,7 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
   const [selectedLocation, setSelectedLocation] = useState<Location>();
   const [variants, setVariants] = useState<LocationVariant[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
 
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
 
@@ -63,7 +61,10 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
       if (!active) return;
       if (caught instanceof ApiError && caught.status === 401) {
         router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
-      } else setError(message(caught));
+      } else setPageFeedback(toUiError(caught, {
+        operation: "catalog-scope.load",
+        fallback: "Không thể tải phạm vi catalog.",
+      }));
     });
     return () => { active = false; };
   }, [params.workspaceSlug, router, view]);
@@ -83,11 +84,36 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
     }
   }
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, successMessage?: string): Promise<boolean> {
     setBusy(true);
-    setError(undefined);
-    try { await action(); await reload(); } catch (caught) { setError(message(caught)); }
-    finally { setBusy(false); }
+    setPageFeedback(undefined);
+    try {
+      await action();
+    } catch (caught) {
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog-scope.mutate",
+        fallback: "Không thể lưu thay đổi catalog.",
+      }));
+      setBusy(false);
+      return false;
+    }
+    if (successMessage) setPageFeedback(feedback("success", successMessage));
+    try {
+      await reload();
+    } catch (caught) {
+      const refreshError = toUiError(caught, {
+        operation: "catalog-scope.refresh-after-mutation",
+        fallback: "Đã lưu thay đổi, nhưng dữ liệu hiển thị chưa thể làm mới.",
+      });
+      setPageFeedback({
+        ...refreshError,
+        kind: "warning",
+        message: "Đã lưu thay đổi, nhưng dữ liệu hiển thị có thể chưa mới nhất. Hãy tải lại trang.",
+      });
+    } finally {
+      setBusy(false);
+    }
+    return true;
   }
 
   async function chooseLocation(locationItem: Location) {
@@ -95,18 +121,24 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
     setSelectedLocation(locationItem);
     setBusy(true);
     try { setVariants(await api.listLocationVariants(workspace.id, locationItem.id)); }
-    catch (caught) { setError(message(caught)); }
+    catch (caught) {
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog-scope.load-location",
+        fallback: "Không thể tải tồn kho của location này.",
+      }));
+    }
     finally { setBusy(false); }
   }
 
-  function createLocation(event: FormEvent<HTMLFormElement>) {
+  async function createLocation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace) return;
-    const form = new FormData(event.currentTarget);
-    void run(() => api.createLocation(workspace.id, {
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const succeeded = await run(() => api.createLocation(workspace.id, {
       name: value(form, "name"), code: value(form, "code") || null, type: value(form, "type"),
-    }));
-    event.currentTarget.reset();
+    }), "Đã tạo location.");
+    if (succeeded) formElement.reset();
   }
 
   function updateVariant(event: FormEvent<HTMLFormElement>) {
@@ -123,18 +155,21 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
     }));
   }
 
-  function createCollection(event: FormEvent<HTMLFormElement>) {
+  async function createCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace) return;
-    const form = new FormData(event.currentTarget);
-    void run(() => api.createCollection(workspace.id, {
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const succeeded = await run(() => api.createCollection(workspace.id, {
       name: value(form, "name"), description: value(form, "description") || null,
-    }));
-    event.currentTarget.reset();
+    }), "Đã tạo collection.");
+    if (succeeded) formElement.reset();
   }
 
   if (!me || !workspace) {
-    return <main className="center-state"><p role="alert">{error ?? "Đang tải catalog scope…"}</p></main>;
+    return <main className="center-state">{pageFeedback
+      ? <FeedbackBanner feedback={pageFeedback} />
+      : <p aria-live="polite">Đang tải catalog scope…</p>}</main>;
   }
 
   return (
@@ -143,7 +178,7 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
         <div><p className="eyebrow">Workspace catalog</p><h1>{view === "locations" ? "Locations" : "Collections"}</h1>
           <p>{view === "locations" ? "Quản lý nơi bán, tồn kho và giá override theo variant." : "Tổ chức master catalog thành các nhóm tái sử dụng."}</p></div>
       </header>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
       {view === "locations" ? (
         <div className="scope-layout">
           <section className="catalog-list-card">

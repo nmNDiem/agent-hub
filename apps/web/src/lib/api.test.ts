@@ -7,6 +7,23 @@ afterEach(() => {
 });
 
 describe("authenticated requests", () => {
+  it("preserves the API request id for support diagnostics", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Tên chatbot không hợp lệ.",
+        details: { field: "name" },
+        request_id: "req-01HFTEST",
+      },
+    }), { status: 422, headers: { "content-type": "application/json" } })));
+
+    await expect(api.getMe()).rejects.toMatchObject({
+      status: 422,
+      code: "VALIDATION_ERROR",
+      requestId: "req-01HFTEST",
+    });
+  });
+
   it("shares one refresh across concurrent unauthorized requests", async () => {
     let profileRequests = 0;
     const fetchMock = vi.fn((input: RequestInfo | URL) => {

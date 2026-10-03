@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
+
 import { ChatbotsPage } from "./chatbots-page";
 
 const mocks = vi.hoisted(() => ({
@@ -51,6 +53,14 @@ const agent = {
   updated_at: "2026-09-30T00:00:00Z",
 };
 
+const createdAgent = {
+  ...agent,
+  public_id: "01992f3c-4436-7000-8000-000000000011",
+  name: "Tư vấn viên mới",
+  greeting: "Xin chào! Mình có thể giúp gì cho bạn?",
+  safe_instructions: "Tư vấn thân thiện và tự nhiên.",
+};
+
 describe("ChatbotsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,11 +77,7 @@ describe("ChatbotsPage", () => {
     mocks.listCollections.mockResolvedValue([]);
     mocks.getAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [] });
     mocks.updateAgent.mockResolvedValue({ ...agent, safe_instructions: "Thân thiện" });
-    mocks.createAgent.mockResolvedValue({
-      ...agent,
-      greeting: "Xin chào! Mình có thể giúp gì cho bạn?",
-      safe_instructions: "Tư vấn thân thiện và tự nhiên.",
-    });
+    mocks.createAgent.mockResolvedValue(createdAgent);
     mocks.replaceAgentCatalogScope.mockResolvedValue(agent);
     mocks.replaceAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [5] });
   });
@@ -122,5 +128,33 @@ describe("ChatbotsPage", () => {
       workspace.id,
       { name: "Tư vấn viên mới", default_locale: "vi" },
     ));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(createdAgent.public_id));
+    expect(mocks.listAgents).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Đã tạo chatbot. Bạn có thể cấu hình và thử ngay bây giờ.")).toBeInTheDocument();
+    expect(screen.queryByText("Không thể hoàn tất thao tác. Vui lòng thử lại.")).not.toBeInTheDocument();
+  });
+
+  it("keeps the entered name and shows a support id when creation fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.createAgent.mockRejectedValue(new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Dịch vụ tạm thời không sẵn sàng.",
+      {},
+      "req-create-agent",
+    ));
+    render(<ChatbotsPage />);
+    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+
+    const pageHeading = screen.getByRole("heading", { name: "Chatbot" }).closest("section")!;
+    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo chatbot" }));
+    const nameInput = screen.getByLabelText("Tên chatbot mới");
+    fireEvent.change(nameInput, { target: { value: "Giữ lại tên này" } });
+    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo chatbot" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dịch vụ tạm thời không sẵn sàng.");
+    expect(screen.getByText(/req-create-agent/)).toBeInTheDocument();
+    expect(nameInput).toHaveValue("Giữ lại tên này");
+    expect(mocks.listAgents).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,7 +10,12 @@ export type Workspace = {
 export type CurrentUser = { id: string; email: string; email_verified: boolean };
 export type Me = { user: CurrentUser; workspaces: Workspace[] };
 type ApiErrorPayload = {
-  error?: { code?: string; message?: string; details?: Record<string, unknown> };
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Record<string, unknown>;
+    request_id?: string;
+  };
 };
 
 export class ApiError extends Error {
@@ -19,8 +24,10 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly details: Record<string, unknown> = {},
+    readonly requestId?: string,
   ) {
     super(message);
+    this.name = "ApiError";
   }
 }
 
@@ -355,6 +362,7 @@ async function authenticatedFetch(
       payload.error?.code ?? "REQUEST_FAILED",
       payload.error?.message ?? "Không thể hoàn tất yêu cầu.",
       payload.error?.details,
+      payload.error?.request_id ?? response.headers.get("x-request-id") ?? undefined,
     );
   }
   return response;
