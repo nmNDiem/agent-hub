@@ -42,6 +42,13 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     )
     widget_public_base_url: str | None = None
+    widget_abuse_hash_key: str | None = Field(default=None, repr=False)
+    widget_session_hours: int = 24
+    widget_transcript_hours: int = 24
+    widget_bootstrap_per_ip_minute: int = 10
+    widget_sessions_per_workspace_hour: int = 100
+    widget_messages_per_session_hour: int = 30
+    widget_messages_per_workspace_hour: int = 300
     email_delivery_enabled: bool = False
     supabase_url: str | None = None
     supabase_service_role_key: str | None = Field(
@@ -151,6 +158,12 @@ class Settings(BaseSettings):
             "agent_runtime_max_tool_calls",
             "agent_runtime_catalog_result_limit",
             "qdrant_timeout_seconds",
+            "widget_session_hours",
+            "widget_transcript_hours",
+            "widget_bootstrap_per_ip_minute",
+            "widget_sessions_per_workspace_hour",
+            "widget_messages_per_session_hour",
+            "widget_messages_per_workspace_hour",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
             raise ValueError("Knowledge limits must be positive")
@@ -178,6 +191,7 @@ class Settings(BaseSettings):
         "embedding_provider_revision",
         "generation_model",
         "widget_public_base_url",
+        "widget_abuse_hash_key",
         mode="before",
     )
     @classmethod
@@ -210,6 +224,13 @@ class Settings(BaseSettings):
         if parsed.scheme == "http" and parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
             raise ValueError("HTTP widget public base URL is limited to local loopback")
         return value.rstrip("/")
+
+    @field_validator("widget_abuse_hash_key")
+    @classmethod
+    def validate_widget_abuse_hash_key(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode()) < 32:
+            raise ValueError("Widget abuse hash key must contain at least 32 bytes")
+        return value
 
     @field_validator("embedding_dimensions", mode="before")
     @classmethod

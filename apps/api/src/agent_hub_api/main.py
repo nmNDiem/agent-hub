@@ -29,7 +29,9 @@ from agent_hub_api.knowledge.runtime import (
     create_qdrant_index,
 )
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
+from agent_hub_api.widget.public_router import router as widget_public_router
 from agent_hub_api.widget.router import router as widget_admin_router
+from agent_hub_api.widget.schemas import normalize_widget_origin
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
 
@@ -132,6 +134,23 @@ def create_app(
         response.headers["x-request-id"] = request.state.request_id
         return response
 
+    @application.middleware("http")
+    async def add_widget_cors(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        if request.url.path.startswith("/api/v1/widget"):
+            origin = request.headers.get("origin")
+            if origin is not None:
+                try:
+                    normalized_origin = normalize_widget_origin(origin)
+                except ValueError:
+                    pass
+                else:
+                    response.headers["Access-Control-Allow-Origin"] = normalized_origin
+                    response.headers["Vary"] = "Origin"
+        return response
+
     async def handle_api_error(request: Request, exc: Exception) -> JSONResponse:
         if not isinstance(exc, ApiError):
             raise exc
@@ -185,6 +204,7 @@ def create_app(
     application.include_router(agents_router)
     application.include_router(playground_router)
     application.include_router(widget_admin_router)
+    application.include_router(widget_public_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

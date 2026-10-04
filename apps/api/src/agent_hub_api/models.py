@@ -43,6 +43,12 @@ from agent_hub_api.knowledge.models import (
     KnowledgeGeneration,
     MediaAsset,
 )
+from agent_hub_api.widget.models import (
+    Conversation,
+    ConversationMessage,
+    WidgetRateWindow,
+    WidgetSession,
+)
 from agent_hub_api.workspaces.models import Workspace, WorkspaceMember
 
 __all__ = [
@@ -86,5 +92,9 @@ __all__ = [
     "AgentKnowledgeBase",
     "Workspace",
     "WorkspaceMember",
+    "Conversation",
+    "ConversationMessage",
+    "WidgetRateWindow",
+    "WidgetSession",
     "WidgetDomain",
 ]
