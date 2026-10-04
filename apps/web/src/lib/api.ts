@@ -245,6 +245,31 @@ export type Agent = {
   updated_at: string;
 };
 
+export type WidgetConfig = {
+  public_agent_id: string;
+  display_name: string;
+  greeting: string | null;
+  status: "draft" | "published" | "paused";
+  brand_color: string;
+  launcher_position: "left" | "right";
+  allowed_origins: string[];
+  enabled: boolean;
+  draft_differs: boolean;
+  readiness: {
+    has_allowed_origin: boolean;
+    has_catalog_scope: boolean;
+    has_knowledge: boolean;
+    can_publish: boolean;
+  };
+  active_revision: { revision_no: number; published_at: string } | null;
+  embed_snippet: string | null;
+};
+
+export type WidgetConfigUpdate = Pick<
+  WidgetConfig,
+  "display_name" | "greeting" | "brand_color" | "launcher_position" | "allowed_origins"
+>;
+
 export type GroundedProductCard = {
   product_id: number;
   sku: string | null;
@@ -661,6 +686,28 @@ export const api = {
     request<{ public_agent_id: string; knowledge_base_ids: number[] }>(
       `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/knowledge-bases`,
       { method: "PUT", body: JSON.stringify({ knowledge_base_ids: ids }) },
+    ),
+  getWidgetConfig: (workspaceId: string, publicAgentId: string) =>
+    request<WidgetConfig>(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/widget`,
+    ),
+  updateWidgetConfig: (
+    workspaceId: string,
+    publicAgentId: string,
+    payload: WidgetConfigUpdate,
+  ) => request<WidgetConfig>(
+    `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/widget`,
+    { method: "PUT", body: JSON.stringify(payload) },
+  ),
+  publishWidget: (workspaceId: string, publicAgentId: string) =>
+    request<WidgetConfig>(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/publish`,
+      { method: "POST" },
+    ),
+  pauseWidget: (workspaceId: string, publicAgentId: string) =>
+    request<WidgetConfig>(
+      `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/pause`,
+      { method: "POST" },
     ),
   streamPlaygroundMessage: async (
     workspaceId: string,

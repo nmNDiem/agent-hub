@@ -17,6 +17,10 @@ const mocks = vi.hoisted(() => ({
   replaceAgentKnowledgeBases: vi.fn(),
   createAgent: vi.fn(),
   streamPlaygroundMessage: vi.fn(),
+  getWidgetConfig: vi.fn(),
+  updateWidgetConfig: vi.fn(),
+  publishWidget: vi.fn(),
+  pauseWidget: vi.fn(),
   replace: vi.fn(),
 }));
 
@@ -61,6 +65,26 @@ const createdAgent = {
   safe_instructions: "Tư vấn thân thiện và tự nhiên.",
 };
 
+const widgetConfig = {
+  public_agent_id: agent.public_id,
+  display_name: "Trợ lý",
+  greeting: "Xin chào",
+  status: "draft" as const,
+  brand_color: "#0F8F87",
+  launcher_position: "right" as const,
+  allowed_origins: [] as string[],
+  enabled: false,
+  draft_differs: false,
+  readiness: {
+    has_allowed_origin: false,
+    has_catalog_scope: true,
+    has_knowledge: false,
+    can_publish: false,
+  },
+  active_revision: null,
+  embed_snippet: null,
+};
+
 describe("ChatbotsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -80,6 +104,22 @@ describe("ChatbotsPage", () => {
     mocks.createAgent.mockResolvedValue(createdAgent);
     mocks.replaceAgentCatalogScope.mockResolvedValue(agent);
     mocks.replaceAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [5] });
+    mocks.getWidgetConfig.mockResolvedValue(widgetConfig);
+    mocks.updateWidgetConfig.mockImplementation(async (_workspaceId, _agentId, payload) => ({
+      ...widgetConfig,
+      ...payload,
+      readiness: { ...widgetConfig.readiness, has_allowed_origin: true, can_publish: true },
+    }));
+    mocks.publishWidget.mockResolvedValue({
+      ...widgetConfig,
+      status: "published",
+      enabled: true,
+      allowed_origins: ["https://shop.example.com"],
+      readiness: { ...widgetConfig.readiness, has_allowed_origin: true, can_publish: true },
+      active_revision: { revision_no: 1, published_at: "2026-10-04T00:00:00Z" },
+      embed_snippet: '<script async src="http://127.0.0.1:4173/widget/v1/loader.js" data-agent-id="agent"></script>',
+    });
+    mocks.pauseWidget.mockResolvedValue({ ...widgetConfig, status: "paused", enabled: false });
   });
 
   it("persists agent behavior, catalog scope and knowledge assignments", async () => {
@@ -156,5 +196,31 @@ describe("ChatbotsPage", () => {
     expect(screen.getByText(/req-create-agent/)).toBeInTheDocument();
     expect(nameInput).toHaveValue("Giữ lại tên này");
     expect(mocks.listAgents).toHaveBeenCalledTimes(1);
+  });
+
+  it("configures an exact website origin and publishes the web widget", async () => {
+    render(<ChatbotsPage />);
+    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Kênh Web/ }));
+    expect(await screen.findByRole("heading", { name: "Widget trò chuyện" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Thêm website"), {
+      target: { value: "https://SHOP.example.com/" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Thêm website" }));
+    expect(screen.getAllByText("https://shop.example.com").length).toBeGreaterThan(1);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Phát hành" })[0]);
+    await waitFor(() => expect(mocks.updateWidgetConfig).toHaveBeenCalledWith(
+      workspace.id,
+      agent.public_id,
+      expect.objectContaining({ allowed_origins: ["https://shop.example.com"] }),
+    ));
+    await waitFor(() => expect(mocks.publishWidget).toHaveBeenCalledWith(
+      workspace.id,
+      agent.public_id,
+    ));
+    expect(await screen.findByText("Widget đã được phát hành lên website.")).toBeInTheDocument();
+    expect(screen.getByText("Đang hoạt động")).toBeInTheDocument();
   });
 });
