@@ -33,6 +33,7 @@ class WidgetMessageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: str = Field(min_length=1, max_length=4_000)
+    attachment_id: UUID | None = None
 
     @field_validator("message")
     @classmethod
@@ -41,6 +42,14 @@ class WidgetMessageRequest(BaseModel):
         if not cleaned:
             raise ValueError("Message cannot be blank")
         return cleaned
+
+
+class WidgetImageUploadResponse(BaseModel):
+    attachment_id: UUID
+    content_type: Literal["image/jpeg", "image/png", "image/webp"]
+    width: int
+    height: int
+    expires_at: datetime
 
 
 class PublicPriceSummary(BaseModel):
@@ -64,6 +73,11 @@ class PublicProductVariant(BaseModel):
     inventory_state: Literal["in_stock", "out_of_stock", "unknown"]
 
 
+class PublicProductImage(BaseModel):
+    url: str
+    alt_text: str | None
+
+
 class PublicProductCard(BaseModel):
     card_id: str
     sku: str | None
@@ -75,7 +89,7 @@ class PublicProductCard(BaseModel):
     options: dict[str, list[str]]
     attributes: dict[str, JsonValue]
     variants: list[PublicProductVariant]
-    images: list[JsonValue] = Field(default_factory=list)
+    images: list[PublicProductImage] = Field(default_factory=list)
 
 
 class PublicSourceReference(BaseModel):

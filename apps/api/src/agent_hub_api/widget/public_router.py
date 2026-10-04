@@ -4,11 +4,13 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Header, Request, Response, UploadFile, status
+from fastapi.responses import RedirectResponse, StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.runtime import (
@@ -17,17 +19,32 @@ from agent_hub_api.agents.runtime import (
     AgentRuntimeError,
     GroundedAgentResponse,
 )
+from agent_hub_api.catalog.models import ProductImage
+from agent_hub_api.catalog.storage import CatalogStorage, StorageError
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.database import get_db_session
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.widget.execution import resolve_revision_execution_context
+from agent_hub_api.widget.image_service import VisitorImageService
+from agent_hub_api.widget.image_storage import (
+    VisitorImageStorage,
+    VisitorImageStorageError,
+)
+from agent_hub_api.widget.models import WidgetCatalogImageGrant
 from agent_hub_api.widget.public_mapper import to_public_grounded_response
 from agent_hub_api.widget.public_schemas import (
     PublicGroundedResponse,
     WidgetConversationResponse,
+    WidgetImageUploadResponse,
     WidgetMessageRequest,
     WidgetSessionResponse,
     WidgetTranscriptResponse,
+)
+from agent_hub_api.widget.vision import (
+    VisionError,
+    VisionGateway,
+    VisionPermanentError,
+    VisionResult,
 )
 from agent_hub_api.widget.visitor_service import PreparedTurn, WidgetVisitorService
 
@@ -66,8 +83,60 @@ def get_runtime_factory(request: Request) -> PublishedRuntimeFactory:
     return factory
 
 
-def _service(session: AsyncSession, settings: Settings) -> WidgetVisitorService:
-    return WidgetVisitorService(session, settings)
+def get_image_storage(request: Request) -> VisitorImageStorage:
+    storage = cast(
+        VisitorImageStorage | None,
+        getattr(request.app.state, "widget_image_storage", None),
+    )
+    if storage is None:
+        raise ApiError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "IMAGE_INPUT_DISABLED",
+            "Chatbot hiện chưa hỗ trợ nhận ảnh.",
+        )
+    return storage
+
+
+def get_vision_gateway(request: Request) -> VisionGateway:
+    gateway = cast(
+        VisionGateway | None,
+        getattr(request.app.state, "vision_gateway", None),
+    )
+    if gateway is None:
+        raise ApiError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "IMAGE_INPUT_DISABLED",
+            "Chatbot hiện chưa hỗ trợ nhận ảnh.",
+        )
+    return gateway
+
+
+def get_public_catalog_storage(request: Request) -> CatalogStorage:
+    storage = cast(
+        CatalogStorage | None,
+        getattr(request.app.state, "catalog_storage", None),
+    )
+    if storage is None:
+        raise ApiError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "CATALOG_IMAGE_UNAVAILABLE",
+            "Ảnh sản phẩm hiện chưa khả dụng.",
+        )
+    return storage
+
+
+def _image_enabled(request: Request) -> bool:
+    return bool(getattr(request.app.state, "widget_image_enabled", False))
+
+
+def _service(
+    session: AsyncSession, settings: Settings, *, image_input_enabled: bool = False
+) -> WidgetVisitorService:
+    return WidgetVisitorService(
+        session,
+        settings,
+        image_input_enabled=image_input_enabled,
+    )
 
 
 def _required_origin(origin: str | None) -> str:
@@ -132,6 +201,19 @@ def _fallback_response(message: str) -> PublicGroundedResponse:
     )
 
 
+def _include_vision_usage(
+    response: PublicGroundedResponse, result: VisionResult | None
+) -> PublicGroundedResponse:
+    if result is None:
+        return response
+    usage = dict(response.usage)
+    usage["model_calls"] = usage.get("model_calls", 0) + 1
+    usage["input_tokens"] = usage.get("input_tokens", 0) + result.input_tokens
+    usage["output_tokens"] = usage.get("output_tokens", 0) + result.output_tokens
+    usage["total_tokens"] = usage.get("total_tokens", 0) + result.total_tokens
+    return response.model_copy(update={"usage": usage})
+
+
 async def _emit_response(
     turn: PreparedTurn, response: PublicGroundedResponse
 ) -> AsyncIterator[str]:
@@ -161,6 +243,8 @@ async def _event_stream(
     service: WidgetVisitorService,
     runner: PublishedRuntimeRunner,
     turn: PreparedTurn,
+    image_storage: VisitorImageStorage | None,
+    vision_gateway: VisionGateway | None,
     *,
     token: str,
     origin: str,
@@ -171,16 +255,35 @@ async def _event_stream(
         return
 
     yield _event("message.start", {"message_id": str(turn.response_id)})
-    context = await resolve_revision_execution_context(session, turn.context.revision)
-    await session.rollback()
-    task = asyncio.create_task(
-        runner.run_with_context(
-            context,
-            question=turn.question,
-            history=turn.history,
-        )
-    )
+    task: asyncio.Task[GroundedAgentResponse] | None = None
     try:
+        context = await resolve_revision_execution_context(session, turn.context.revision)
+        await session.rollback()
+        question = turn.question
+        vision_result: VisionResult | None = None
+        if turn.attachment is not None:
+            if image_storage is None or vision_gateway is None:
+                raise VisionPermanentError("Image input became unavailable")
+            content = await image_storage.download(
+                object_key=turn.attachment.object_key,
+                max_bytes=service.settings.widget_image_max_bytes,
+            )
+            vision_result = await vision_gateway.analyze(
+                content=content,
+                content_type=turn.attachment.content_type,
+            )
+            await service.record_attachment_analysis(
+                turn,
+                analysis=vision_result.observation.model_dump(mode="json"),
+            )
+            question = f"{turn.question}\n\n{vision_result.observation.prompt_context()}"
+        task = asyncio.create_task(
+            runner.run_with_context(
+                context,
+                question=question,
+                history=turn.history,
+            )
+        )
         while not task.done():
             await asyncio.wait({task}, timeout=10)
             if await request.is_disconnected():
@@ -191,11 +294,23 @@ async def _event_stream(
                 return
             if not task.done():
                 yield _event("heartbeat", {})
-        response = to_public_grounded_response(
-            await task,
-            allowed_origin=turn.context.origin,
-        )
+        runtime_response = await task
         await session.rollback()
+        response = _include_vision_usage(
+            await to_public_grounded_response(
+                runtime_response,
+                allowed_origin=turn.context.origin,
+                session=session,
+                workspace_id=turn.context.workspace_id,
+                widget_session_id=turn.context.session_id,
+                grant_expires_at=turn.context.expires_at,
+                include_managed_images=getattr(
+                    request.app.state, "catalog_storage", None
+                )
+                is not None,
+            ),
+            vision_result,
+        )
         await service.complete_turn(
             turn,
             token=token,
@@ -235,9 +350,29 @@ async def _event_stream(
             "message.completed",
             {"message_id": str(turn.response_id), "usage": response.usage},
         )
+    except (VisionError, VisitorImageStorageError) as exc:
+        logger.warning(
+            "Widget image fallback error=%s conversation_id=%s request_id=%s",
+            type(exc).__name__,
+            turn.conversation_public_id,
+            getattr(request.state, "request_id", "unknown"),
+        )
+        response = _fallback_response(
+            "Mình chưa thể phân tích ảnh này lúc này. "
+            "Bạn có thể mô tả sản phẩm để mình tìm giúp nhé."
+        )
+        await session.rollback()
+        await service.complete_turn(turn, token=token, origin=origin, response=response)
+        for chunk in _text_chunks(response.text):
+            yield _event("message.delta", {"text": chunk})
+        yield _event(
+            "message.completed",
+            {"message_id": str(turn.response_id), "usage": response.usage},
+        )
     except asyncio.CancelledError:
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
         await session.rollback()
         await service.cancel_turn(turn, code="STREAM_CANCELLED")
         raise
@@ -289,7 +424,9 @@ async def create_widget_session(
     origin: Annotated[str | None, Header()] = None,
 ) -> WidgetSessionResponse:
     client_address = request.client.host if request.client is not None else "unknown"
-    return await _service(session, settings).create_session(
+    return await _service(
+        session, settings, image_input_enabled=_image_enabled(request)
+    ).create_session(
         public_agent_id=public_agent_id,
         origin=_required_origin(origin),
         client_address=client_address,
@@ -341,13 +478,15 @@ async def stream_widget_message(
 ) -> StreamingResponse:
     resolved_origin = _required_origin(origin)
     token = _bearer_token(authorization)
-    service = _service(session, settings)
+    image_enabled = _image_enabled(request)
+    service = _service(session, settings, image_input_enabled=image_enabled)
     turn = await service.prepare_turn(
         token=token,
         origin=resolved_origin,
         conversation_public_id=conversation_public_id,
         request_key=_request_key(idempotency_key),
         question=payload.message,
+        attachment_id=payload.attachment_id,
     )
     return StreamingResponse(
         _event_stream(
@@ -356,6 +495,14 @@ async def stream_widget_message(
             service,
             runtime_factory(session),
             turn,
+            cast(
+                VisitorImageStorage | None,
+                getattr(request.app.state, "widget_image_storage", None),
+            ),
+            cast(
+                VisionGateway | None,
+                getattr(request.app.state, "vision_gateway", None),
+            ),
             token=token,
             origin=resolved_origin,
         ),
@@ -365,6 +512,102 @@ async def stream_widget_message(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+@router.post(
+    "/uploads/images",
+    response_model=WidgetImageUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_widget_image(
+    file: Annotated[UploadFile, File()],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    storage: Annotated[VisitorImageStorage, Depends(get_image_storage)],
+    vision_gateway: Annotated[VisionGateway, Depends(get_vision_gateway)],
+    origin: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> WidgetImageUploadResponse:
+    del vision_gateway
+    content = await file.read(settings.widget_image_max_bytes + 1)
+    return await VisitorImageService(session, settings, storage).upload(
+        token=_bearer_token(authorization),
+        origin=_required_origin(origin),
+        content=content,
+        declared_content_type=file.content_type or "application/octet-stream",
+    )
+
+
+@router.delete("/uploads/images/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_widget_image(
+    attachment_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    storage: Annotated[VisitorImageStorage, Depends(get_image_storage)],
+    origin: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Response:
+    await VisitorImageService(session, settings, storage).delete(
+        token=_bearer_token(authorization),
+        origin=_required_origin(origin),
+        attachment_id=attachment_id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/product-images/{grant_public_id}")
+async def get_widget_product_image(
+    grant_public_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    storage: Annotated[CatalogStorage, Depends(get_public_catalog_storage)],
+    origin: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> RedirectResponse:
+    context = await _service(session, settings).resolve_context(
+        token=_bearer_token(authorization),
+        origin=_required_origin(origin),
+    )
+    row = (
+        await session.execute(
+            select(WidgetCatalogImageGrant, ProductImage)
+            .join(
+                ProductImage,
+                (ProductImage.workspace_id == WidgetCatalogImageGrant.workspace_id)
+                & (ProductImage.id == WidgetCatalogImageGrant.product_image_id),
+            )
+            .where(
+                WidgetCatalogImageGrant.workspace_id == context.workspace_id,
+                WidgetCatalogImageGrant.session_id == context.session_id,
+                WidgetCatalogImageGrant.public_id == grant_public_id,
+                WidgetCatalogImageGrant.expires_at > datetime.now(UTC),
+                ProductImage.status == "active",
+                ProductImage.object_key.is_not(None),
+            )
+        )
+    ).one_or_none()
+    if row is None or row[1].object_key is None:
+        raise ApiError(
+            status.HTTP_404_NOT_FOUND,
+            "NOT_FOUND",
+            "Không tìm thấy ảnh sản phẩm.",
+        )
+    try:
+        signed_url = await storage.create_signed_url(
+            object_key=row[1].object_key,
+            expires_in=settings.storage_signed_url_seconds,
+        )
+    except StorageError as exc:
+        raise ApiError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "CATALOG_IMAGE_UNAVAILABLE",
+            "Ảnh sản phẩm hiện chưa khả dụng.",
+        ) from exc
+    return RedirectResponse(
+        signed_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={"Cache-Control": "private, no-store"},
     )
 
 
@@ -397,14 +640,44 @@ async def replay_widget_message(
 )
 async def delete_widget_conversation(
     conversation_public_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     origin: Annotated[str | None, Header()] = None,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Response:
-    await _service(session, settings).delete_conversation(
-        token=_bearer_token(authorization),
-        origin=_required_origin(origin),
+    token = _bearer_token(authorization)
+    resolved_origin = _required_origin(origin)
+    service = _service(session, settings)
+    object_keys = await service.session_image_object_keys(
+        token=token,
+        origin=resolved_origin,
+        conversation_public_id=conversation_public_id,
+    )
+    await session.rollback()
+    if object_keys:
+        storage = cast(
+            VisitorImageStorage | None,
+            getattr(request.app.state, "widget_image_storage", None),
+        )
+        if storage is None:
+            raise ApiError(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "STORAGE_UNAVAILABLE",
+                "Không thể xóa dữ liệu ảnh lúc này.",
+            )
+        try:
+            for object_key in object_keys:
+                await storage.delete(object_key=object_key)
+        except VisitorImageStorageError as exc:
+            raise ApiError(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "STORAGE_UNAVAILABLE",
+                "Không thể xóa dữ liệu ảnh lúc này.",
+            ) from exc
+    await service.delete_conversation(
+        token=token,
+        origin=resolved_origin,
         conversation_public_id=conversation_public_id,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

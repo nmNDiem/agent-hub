@@ -46,6 +46,8 @@ from agent_hub_api.knowledge.models import (
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
+    VisitorImageUpload,
+    WidgetCatalogImageGrant,
     WidgetRateWindow,
     WidgetSession,
 )
@@ -94,6 +96,8 @@ __all__ = [
     "WorkspaceMember",
     "Conversation",
     "ConversationMessage",
+    "VisitorImageUpload",
+    "WidgetCatalogImageGrant",
     "WidgetRateWindow",
     "WidgetSession",
     "WidgetDomain",

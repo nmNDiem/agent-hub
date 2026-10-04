@@ -21,6 +21,7 @@ from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
+    VisitorImageUpload,
     WidgetRateWindow,
     WidgetSession,
 )
@@ -40,8 +41,15 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def _request_hash(message: str) -> str:
-    payload = json.dumps({"message": message}, ensure_ascii=False, sort_keys=True)
+def _request_hash(message: str, attachment_id: UUID | None) -> str:
+    payload = json.dumps(
+        {
+            "message": message,
+            "attachment_id": str(attachment_id) if attachment_id is not None else None,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -70,13 +78,28 @@ class PreparedTurn:
     response_id: UUID
     question: str
     history: tuple[AgentConversationTurn, ...]
+    attachment: PreparedAttachment | None = None
     replay: PublicGroundedResponse | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedAttachment:
+    upload_id: int
+    object_key: str
+    content_type: str
+
+
 class WidgetVisitorService:
-    def __init__(self, session: AsyncSession, settings: Settings) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        settings: Settings,
+        *,
+        image_input_enabled: bool = False,
+    ) -> None:
         self.session = session
         self.settings = settings
+        self.image_input_enabled = image_input_enabled
 
     def _abuse_key(self) -> bytes:
         value = self.settings.widget_abuse_hash_key
@@ -227,7 +250,7 @@ class WidgetVisitorService:
                 greeting=revision.greeting,
                 brand_color=cast(str, widget.get("brand_color", "#0F8F87")),
                 launcher_position="left" if position == "left" else "right",
-                capabilities=WidgetCapabilities(image_input=False),
+                capabilities=WidgetCapabilities(image_input=self.image_input_enabled),
             ),
         )
 
@@ -377,8 +400,9 @@ class WidgetVisitorService:
         conversation_public_id: UUID,
         request_key: str,
         question: str,
+        attachment_id: UUID | None = None,
     ) -> PreparedTurn:
-        request_digest = _request_hash(question)
+        request_digest = _request_hash(question, attachment_id)
         async with self.session.begin():
             context = await self.resolve_context(token=token, origin=origin)
             conversation = await self._conversation(
@@ -461,6 +485,45 @@ class WidgetVisitorService:
                 limit=self.settings.widget_messages_per_workspace_hour,
             )
             history = await self._history(conversation.id)
+            attachment: PreparedAttachment | None = None
+            if attachment_id is not None:
+                if not self.image_input_enabled:
+                    raise ApiError(
+                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                        "IMAGE_INPUT_DISABLED",
+                        "Chatbot hiện chưa hỗ trợ nhận ảnh.",
+                    )
+                upload = (
+                    await self.session.scalars(
+                        select(VisitorImageUpload)
+                        .where(
+                            VisitorImageUpload.workspace_id == context.workspace_id,
+                            VisitorImageUpload.session_id == context.session_id,
+                            VisitorImageUpload.public_id == attachment_id,
+                            VisitorImageUpload.status == "available",
+                            VisitorImageUpload.expires_at > now,
+                        )
+                        .with_for_update()
+                    )
+                ).one_or_none()
+                if upload is None or upload.object_key is None:
+                    raise ApiError(
+                        status.HTTP_404_NOT_FOUND,
+                        "ATTACHMENT_NOT_FOUND",
+                        "Không tìm thấy ảnh đính kèm.",
+                    )
+                upload.status = "attached"
+                upload.attached_conversation_id = conversation.id
+                upload.attached_request_key = request_key
+                upload.expires_at = now + timedelta(
+                    hours=self.settings.widget_image_attached_hours
+                )
+                upload.updated_at = now
+                attachment = PreparedAttachment(
+                    upload_id=upload.id,
+                    object_key=upload.object_key,
+                    content_type=upload.content_type,
+                )
             last_sequence = await self.session.scalar(
                 select(func.max(ConversationMessage.sequence_no)).where(
                     ConversationMessage.conversation_id == conversation.id
@@ -503,7 +566,39 @@ class WidgetVisitorService:
             response_id=response_id,
             question=question,
             history=history,
+            attachment=attachment,
         )
+
+    async def record_attachment_analysis(
+        self,
+        turn: PreparedTurn,
+        *,
+        analysis: dict[str, object],
+    ) -> None:
+        if turn.attachment is None:
+            return
+        async with self.session.begin():
+            upload = (
+                await self.session.scalars(
+                    select(VisitorImageUpload)
+                    .where(
+                        VisitorImageUpload.id == turn.attachment.upload_id,
+                        VisitorImageUpload.workspace_id == turn.context.workspace_id,
+                        VisitorImageUpload.session_id == turn.context.session_id,
+                        VisitorImageUpload.attached_conversation_id == turn.conversation_id,
+                        VisitorImageUpload.status == "attached",
+                    )
+                    .with_for_update()
+                )
+            ).one_or_none()
+            if upload is None:
+                raise ApiError(
+                    status.HTTP_409_CONFLICT,
+                    "ATTACHMENT_STATE_CHANGED",
+                    "Ảnh đính kèm đã thay đổi trạng thái.",
+                )
+            upload.analysis_json = analysis
+            upload.updated_at = datetime.now(UTC)
 
     async def complete_turn(
         self,
@@ -607,6 +702,41 @@ class WidgetVisitorService:
                 .where(WidgetSession.id == context.session_id)
                 .values(revoked_at=datetime.now(UTC))
             )
+            await self.session.execute(
+                update(VisitorImageUpload)
+                .where(
+                    VisitorImageUpload.workspace_id == context.workspace_id,
+                    VisitorImageUpload.session_id == context.session_id,
+                )
+                .values(
+                    status="deleted",
+                    object_key=None,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+
+    async def session_image_object_keys(
+        self,
+        *,
+        token: str,
+        origin: str,
+        conversation_public_id: UUID,
+    ) -> tuple[str, ...]:
+        context = await self.resolve_context(token=token, origin=origin)
+        await self._conversation(context, conversation_public_id)
+        object_keys = tuple(
+            await self.session.scalars(
+                select(VisitorImageUpload.object_key).where(
+                    VisitorImageUpload.workspace_id == context.workspace_id,
+                    VisitorImageUpload.session_id == context.session_id,
+                    VisitorImageUpload.object_key.is_not(None),
+                    VisitorImageUpload.status.in_(
+                        ("uploading", "available", "attached", "cleanup_pending")
+                    ),
+                )
+            )
+        )
+        return tuple(object_key for object_key in object_keys if object_key is not None)
 
     async def _conversation(
         self, context: VisitorContext, public_id: UUID, *, for_update: bool = False

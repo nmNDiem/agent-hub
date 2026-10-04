@@ -29,9 +29,18 @@ from agent_hub_api.knowledge.runtime import (
     create_qdrant_index,
 )
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
+from agent_hub_api.widget.image_storage import (
+    SupabaseVisitorImageStorage,
+    VisitorImageStorage,
+)
 from agent_hub_api.widget.public_router import router as widget_public_router
 from agent_hub_api.widget.router import router as widget_admin_router
 from agent_hub_api.widget.schemas import normalize_widget_origin
+from agent_hub_api.widget.vision import (
+    OpenAIVisionGateway,
+    VisionGateway,
+    create_openai_vision_gateway,
+)
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
 
@@ -44,6 +53,8 @@ def create_app(
     catalog_storage: CatalogStorage | None = None,
     knowledge_storage: KnowledgeStorage | None = None,
     agent_runtime_factory: AgentRuntimeFactory | None = None,
+    widget_image_storage: VisitorImageStorage | None = None,
+    vision_gateway: VisionGateway | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
@@ -66,10 +77,20 @@ def create_app(
             service_key=runtime_settings.supabase_service_role_key,
             bucket=runtime_settings.storage_private_bucket,
         )
+    if widget_image_storage is None and (
+        runtime_settings.supabase_url is not None
+        and runtime_settings.supabase_service_role_key is not None
+    ):
+        widget_image_storage = SupabaseVisitorImageStorage(
+            base_url=runtime_settings.supabase_url,
+            service_key=runtime_settings.supabase_service_role_key,
+            bucket=runtime_settings.storage_private_bucket,
+        )
     owned_engine = None
     owned_generation_gateway = None
     owned_embedding_provider = None
     owned_vector_index = None
+    owned_vision_gateway: OpenAIVisionGateway | None = None
     if session_factory is None and runtime_settings.database_url is not None:
         owned_engine = create_database_engine(runtime_settings.database_url)
         session_factory = create_session_factory(owned_engine)
@@ -97,6 +118,13 @@ def create_app(
             )
 
         agent_runtime_factory = configured_runtime_factory
+    if (
+        vision_gateway is None
+        and runtime_settings.openai_api_key is not None
+        and runtime_settings.vision_model is not None
+    ):
+        owned_vision_gateway = create_openai_vision_gateway(runtime_settings)
+        vision_gateway = owned_vision_gateway
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -107,6 +135,8 @@ def create_app(
             await owned_embedding_provider.close()
         if owned_vector_index is not None:
             await owned_vector_index.close()
+        if owned_vision_gateway is not None:
+            await owned_vision_gateway.close()
         if owned_engine is not None:
             await owned_engine.dispose()
 
@@ -123,6 +153,13 @@ def create_app(
     application.state.catalog_storage = catalog_storage
     application.state.knowledge_storage = knowledge_storage
     application.state.agent_runtime_factory = agent_runtime_factory
+    application.state.widget_image_storage = widget_image_storage
+    application.state.vision_gateway = vision_gateway
+    application.state.widget_image_enabled = (
+        widget_image_storage is not None
+        and vision_gateway is not None
+        and runtime_settings.vision_model is not None
+    )
     application.state.login_rate_limiter = LoginRateLimiter()
 
     @application.middleware("http")

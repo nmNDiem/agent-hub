@@ -174,3 +174,91 @@ class WidgetRateWindow(Base):
     window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     count: Mapped[int] = mapped_column(Integer(), default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class VisitorImageUpload(Base):
+    __tablename__ = "visitor_image_uploads"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "session_id"],
+            ["widget_sessions.workspace_id", "widget_sessions.id"],
+            name="fk_visitor_images_workspace_session",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "attached_conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_visitor_images_workspace_conversation",
+        ),
+        CheckConstraint(
+            "status IN ('uploading','available','attached','cleanup_pending','deleted')",
+            name="ck_visitor_images_status",
+        ),
+        CheckConstraint("byte_size > 0", name="ck_visitor_images_byte_size"),
+        CheckConstraint("width > 0 AND height > 0", name="ck_visitor_images_dimensions"),
+        Index(
+            "ix_visitor_images_workspace_session_expiry",
+            "workspace_id",
+            "session_id",
+            "expires_at",
+            "id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    public_id: Mapped[UUID] = mapped_column(unique=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    session_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    attached_conversation_id: Mapped[int | None] = mapped_column(
+        BIGINT_PRIMARY_KEY, nullable=True
+    )
+    attached_request_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    object_key: Mapped[str | None] = mapped_column(String(900), unique=True, nullable=True)
+    content_type: Mapped[str] = mapped_column(String(40))
+    byte_size: Mapped[int] = mapped_column(Integer())
+    width: Mapped[int] = mapped_column(Integer())
+    height: Mapped[int] = mapped_column(Integer())
+    sha256: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(24), default="uploading")
+    analysis_json: Mapped[dict[str, object] | None] = mapped_column(
+        JSON_DOCUMENT, nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+
+class WidgetCatalogImageGrant(Base):
+    __tablename__ = "widget_catalog_image_grants"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "session_id"],
+            ["widget_sessions.workspace_id", "widget_sessions.id"],
+            name="fk_widget_image_grants_workspace_session",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "product_image_id"],
+            ["product_images.workspace_id", "product_images.id"],
+            name="fk_widget_image_grants_workspace_image",
+        ),
+        UniqueConstraint(
+            "session_id",
+            "product_image_id",
+            name="uq_widget_image_grants_session_image",
+        ),
+        Index(
+            "ix_widget_image_grants_workspace_expiry",
+            "workspace_id",
+            "expires_at",
+            "id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    public_id: Mapped[UUID] = mapped_column(unique=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    session_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    product_image_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

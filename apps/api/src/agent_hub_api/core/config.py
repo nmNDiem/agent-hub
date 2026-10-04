@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_timeout_seconds: int = 30
     generation_model: str | None = None
+    vision_model: str | None = None
+    widget_image_max_bytes: int = 5 * 1024 * 1024
+    widget_image_max_pixels: int = 20_000_000
+    widget_image_session_max_bytes: int = 20 * 1024 * 1024
+    widget_image_session_max_uploads: int = 10
+    widget_image_unattached_minutes: int = 30
+    widget_image_attached_hours: int = 1
     agent_runtime_max_question_chars: int = 4_000
     agent_runtime_max_history_turns: int = 8
     agent_runtime_max_history_chars: int = 12_000
@@ -164,6 +171,12 @@ class Settings(BaseSettings):
             "widget_sessions_per_workspace_hour",
             "widget_messages_per_session_hour",
             "widget_messages_per_workspace_hour",
+            "widget_image_max_bytes",
+            "widget_image_max_pixels",
+            "widget_image_session_max_bytes",
+            "widget_image_session_max_uploads",
+            "widget_image_unattached_minutes",
+            "widget_image_attached_hours",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
             raise ValueError("Knowledge limits must be positive")
@@ -190,6 +203,7 @@ class Settings(BaseSettings):
         "embedding_model",
         "embedding_provider_revision",
         "generation_model",
+        "vision_model",
         "widget_public_base_url",
         "widget_abuse_hash_key",
         mode="before",
