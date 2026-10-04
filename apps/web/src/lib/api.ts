@@ -253,6 +253,8 @@ export type WidgetConfig = {
   brand_color: string;
   launcher_position: "left" | "right";
   allowed_origins: string[];
+  handoff_url: string | null;
+  handoff_label: string | null;
   enabled: boolean;
   draft_differs: boolean;
   readiness: {
@@ -267,8 +269,32 @@ export type WidgetConfig = {
 
 export type WidgetConfigUpdate = Pick<
   WidgetConfig,
-  "display_name" | "greeting" | "brand_color" | "launcher_position" | "allowed_origins"
+  | "display_name"
+  | "greeting"
+  | "brand_color"
+  | "launcher_position"
+  | "allowed_origins"
+  | "handoff_url"
+  | "handoff_label"
 >;
+
+export type LeadStatus = "new" | "contacted" | "closed";
+
+export type Lead = {
+  id: number;
+  conversation_public_id: string;
+  agent_public_id: string;
+  agent_name: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  consent_at: string;
+  consent_text_version: string;
+  followup_status: LeadStatus;
+  retention_until: string;
+  created_at: string;
+  updated_at: string;
+};
 
 export type GroundedProductCard = {
   product_id: number;
@@ -699,6 +725,33 @@ export const api = {
     `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/widget`,
     { method: "PUT", body: JSON.stringify(payload) },
   ),
+  listLeads: (
+    workspaceId: string,
+    filters: { followupStatus?: LeadStatus; cursor?: string; limit?: number } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.followupStatus) params.set("followup_status", filters.followupStatus);
+    if (filters.cursor) params.set("cursor", filters.cursor);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    const suffix = params.size ? `?${params}` : "";
+    return request<{ items: Lead[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/leads${suffix}`,
+    );
+  },
+  updateLeadStatus: (workspaceId: string, leadId: number, followupStatus: LeadStatus) =>
+    request<Lead>(`/api/v1/workspaces/${workspaceId}/leads/${leadId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ followup_status: followupStatus }),
+    }),
+  exportLeads: async (workspaceId: string, followupStatus?: LeadStatus) => {
+    const params = new URLSearchParams();
+    if (followupStatus) params.set("followup_status", followupStatus);
+    const suffix = params.size ? `?${params}` : "";
+    const response = await authenticatedFetch(
+      `/api/v1/workspaces/${workspaceId}/leads/export.csv${suffix}`,
+    );
+    return response.blob();
+  },
   publishWidget: (workspaceId: string, publicAgentId: string) =>
     request<WidgetConfig>(
       `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/publish`,

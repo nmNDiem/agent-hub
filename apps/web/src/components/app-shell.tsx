@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   Settings,
   Sparkles,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,9 +23,16 @@ import { useState } from "react";
 import { api, type CurrentUser, type Workspace } from "@/lib/api";
 import { PalettePicker } from "@/components/palette-picker";
 
-const navigation = [
+const navigation: Array<{
+  label: string;
+  icon: typeof CircleGauge;
+  segment: string;
+  enabled: boolean;
+  roles?: Workspace["role"][];
+}> = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
   { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
+  { label: "Khách tiềm năng", icon: Users, segment: "leads", enabled: true, roles: ["owner", "admin"] },
   { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: true },
   { label: "Catalog", icon: Boxes, segment: "catalog", enabled: true },
   { label: "Tri thức", icon: BookOpen, segment: "knowledge", enabled: true },
@@ -36,7 +44,7 @@ function Navigation({ workspace }: { workspace: Workspace }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Điều hướng chính" className="navigation">
-      {navigation.map(({ label, icon: Icon, segment, enabled }) => {
+      {navigation.filter(({ roles }) => !roles || roles.includes(workspace.role)).map(({ label, icon: Icon, segment, enabled }) => {
         const href = `/app/${encodeURIComponent(workspace.slug)}/${segment}`;
         const active = pathname === href
           || (["chatbots", "knowledge"].includes(segment) && pathname.startsWith(`${href}/`));

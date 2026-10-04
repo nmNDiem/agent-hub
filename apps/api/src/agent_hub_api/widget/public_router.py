@@ -24,6 +24,8 @@ from agent_hub_api.catalog.storage import CatalogStorage, StorageError
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.database import get_db_session
 from agent_hub_api.core.errors import ApiError
+from agent_hub_api.leads.schemas import LeadCaptureRequest, LeadCaptureResponse
+from agent_hub_api.leads.service import LeadService
 from agent_hub_api.widget.execution import resolve_revision_execution_context
 from agent_hub_api.widget.image_service import VisitorImageService
 from agent_hub_api.widget.image_storage import (
@@ -443,6 +445,29 @@ async def create_widget_conversation(
     return await _service(session, settings).create_conversation(
         token=_bearer_token(authorization),
         origin=_required_origin(origin),
+    )
+
+
+@router.post(
+    "/conversations/{conversation_public_id}/leads",
+    response_model=LeadCaptureResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def capture_widget_lead(
+    conversation_public_id: UUID,
+    payload: LeadCaptureRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    origin: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    idempotency_key: Annotated[str | None, Header()] = None,
+) -> LeadCaptureResponse:
+    return await LeadService(session, settings).capture(
+        token=_bearer_token(authorization),
+        origin=_required_origin(origin),
+        conversation_public_id=conversation_public_id,
+        idempotency_key=_request_key(idempotency_key),
+        payload=payload,
     )
 
 

@@ -4,6 +4,27 @@ export type WidgetConfig = {
   brand_color: string;
   launcher_position: "left" | "right";
   capabilities: { image_input: boolean };
+  contact: {
+    handoff_url: string | null;
+    handoff_label: string | null;
+    consent_text: string;
+    consent_text_version: string;
+    lead_retention_days: number;
+  };
+};
+
+export type LeadCapturePayload = {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  consent_given: true;
+  consent_text_version: string;
+};
+
+export type LeadCaptureResponse = {
+  status: "received";
+  followup_status: "new" | "contacted" | "closed";
+  retention_until: string;
 };
 
 export type WidgetSession = {

@@ -46,7 +46,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
   width: min(390px, calc(100vw - 24px));
   height: min(650px, calc(100dvh - 96px));
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   margin-bottom: 12px;
   overflow: hidden;
   border: 1px solid var(--ah-border);
@@ -101,6 +101,21 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visib
 .ah-suggestions { display: flex; gap: 6px; padding: 0 12px 10px; overflow-x: auto; background: white; }
 .ah-suggestions[hidden] { display: none; }
 .ah-suggestions button { flex: 0 0 auto; min-height: 31px; padding: 0 9px; border: 1px solid color-mix(in srgb, var(--ah-brand) 28%, var(--ah-border)); border-radius: 999px; color: var(--ah-brand); background: white; font-size: 9px; font-weight: 700; cursor: pointer; }
+.ah-contact { display: grid; gap: 8px; padding: 0 12px 10px; background: white; }
+.ah-contact[hidden] { display: none; }
+.ah-contact-actions { display: flex; align-items: center; gap: 7px; }
+.ah-contact-toggle, .ah-contact-link { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid var(--ah-brand); border-radius: 9px; color: var(--ah-brand); background: white; font-size: 9px; font-weight: 750; text-decoration: none; cursor: pointer; }
+.ah-contact-link { border-color: var(--ah-border); color: var(--ah-muted); }
+.ah-contact-form { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--ah-border); border-radius: 12px; background: var(--ah-soft); }
+.ah-contact-form > strong { font-size: 11px; }
+.ah-contact-form > p { margin: 0; color: var(--ah-muted); font-size: 9px; }
+.ah-contact-form > input { width: 100%; min-height: 35px; padding: 7px 9px; border: 1px solid var(--ah-border); border-radius: 9px; color: var(--ah-text); background: white; font-size: 10px; }
+.ah-consent { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 7px; color: var(--ah-muted); font-size: 8px; }
+.ah-consent input { margin-top: 1px; }
+.ah-contact-form .ah-contact-error { color: #a03d3d; }
+.ah-contact-submit { min-height: 34px; border: 0; border-radius: 9px; color: white; background: var(--ah-brand); font-size: 10px; font-weight: 750; cursor: pointer; }
+.ah-contact-submit:disabled { opacity: .55; cursor: not-allowed; }
+.ah-contact-success { margin: 0; padding: 8px 10px; border-radius: 9px; color: #17673c; background: #e9f7ef; font-size: 10px; font-weight: 700; }
 .ah-attachment { display: flex; align-items: center; gap: 8px; margin: 0 11px 8px; padding: 7px; border: 1px solid var(--ah-border); border-radius: 10px; background: var(--ah-soft); }
 .ah-attachment[hidden] { display: none; }
 .ah-attachment img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; }

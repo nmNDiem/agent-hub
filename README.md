@@ -166,7 +166,13 @@ Dashboard Chatbot có bảng `Kênh Web` để cấu hình exact allowed origins
 
 Bundle `apps/widget` là IIFE nhẹ, dùng Shadow DOM và bảo vệ host styles để nhúng vào trang ngoài mà không kéo theo React/dashboard runtime. Anonymous session token chỉ giữ trong `sessionStorage`/memory, không nằm trong DOM hoặc URL. Widget hỗ trợ transcript cùng phiên, SSE, stop/reset, product/source cards, protected product images và responsive keyboard-accessible UI.
 
-Ảnh JPEG/PNG/WebP được kiểm tra chữ ký/decoded format, giới hạn 5 MiB và 20 megapixel, re-encode để bỏ metadata rồi lưu private. Attachment handle theo session chỉ dùng một lần; vision dùng adapter/model riêng và không fallback sang text hay suy đoán đặc điểm cá nhân. Automated tests dùng fake adapters, không gọi dịch vụ trả phí. Lead capture, owner inbox/usage và tác vụ dọn dữ liệu hết hạn thuộc F5.
+Ảnh JPEG/PNG/WebP được kiểm tra chữ ký/decoded format, giới hạn 5 MiB và 20 megapixel, re-encode để bỏ metadata rồi lưu private. Attachment handle theo session chỉ dùng một lần; vision dùng adapter/model riêng và không fallback sang text hay suy đoán đặc điểm cá nhân. Automated tests dùng fake adapters, không gọi dịch vụ trả phí.
+
+## F5.1 consented leads và contact handoff
+
+Widget có form `Nhờ shop liên hệ` không chặn chat, yêu cầu email hoặc số điện thoại và checkbox consent có version. Backend tự suy ra workspace/agent/session/conversation từ opaque visitor session, chỉ tạo một lead cho mỗi conversation và xử lý retry bằng `Idempotency-Key`; public response không echo PII. Cấu hình Web channel có thể publish CTA HTTPS/mailto/tel an toàn cùng revision.
+
+Dashboard có route `Khách tiềm năng` cho owner/admin, stable cursor pagination, ba trạng thái theo dõi và CSV UTF-8 giới hạn số dòng/chống spreadsheet formula injection. Lead local pilot có `retention_until` 30 ngày; F5.3 mới cung cấp sweeper thực thi xóa và production privacy policy. Hội thoại/usage/quota thuộc F5.2, không nằm trong F5.1.
 
 ## Where to read first
 
@@ -212,10 +218,10 @@ Bundle `apps/widget` là IIFE nhẹ, dùng Shadow DOM và bảo vệ host styles
 
 ## Additional folders
 
-- `docs/design/` — tokens, components, 7 screen specs, flows, accessibility, visual QA.
+- `docs/design/` — tokens, components, screen specs, flows, accessibility, visual QA.
 - `docs/architecture/` — UUIDv7/BIGINT convention, detailed data and security, RAG, ingestion, frontend, SQL **reference**, testing/deployment.
 - `assets/reference/` — dashboard, playground, web widget reference images; no right to reuse sample product imagery.
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation through website widget/vision are implemented locally; do not implement F5 operations, VPS rollout, social channels, payments or other providers without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation through F5.1 consented leads/contact handoff are implemented locally; do not implement F5.2/F5.3 operations, VPS rollout, social channels, payments or other providers without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not claim production readiness. Report actual tests and commands.

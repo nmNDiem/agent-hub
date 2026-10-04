@@ -162,6 +162,8 @@ class AgentWebChannel(Base):
     agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     brand_color: Mapped[str] = mapped_column(String(7), default="#0F8F87")
     launcher_position: Mapped[str] = mapped_column(String(8), default="right")
+    handoff_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    handoff_label: Mapped[str | None] = mapped_column(String(80), nullable=True)
     active_revision_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean(), default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

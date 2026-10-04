@@ -1,5 +1,7 @@
 import type {
   AttachmentUpload,
+  LeadCapturePayload,
+  LeadCaptureResponse,
   TranscriptItem,
   WidgetConfig,
   WidgetConversation,
@@ -107,6 +109,30 @@ export async function deleteConversation(
   ));
 }
 
+export async function captureLead(
+  apiBase: string,
+  token: string,
+  conversationId: string,
+  payload: LeadCapturePayload,
+  idempotencyKey: string,
+): Promise<LeadCaptureResponse> {
+  const response = await checked(await fetch(
+    `${apiBase}/api/v1/widget/conversations/${encodeURIComponent(conversationId)}/leads`,
+    {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        ...bearer(token),
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify(payload),
+    },
+  ));
+  return response.json() as Promise<LeadCaptureResponse>;
+}
+
 export async function streamMessage(
   apiBase: string,
   token: string,
@@ -190,7 +216,13 @@ export async function parseEventStream(
 
 export function validStoredSession(
   value: unknown,
-): value is { token: string; expiresAt: string; conversationId: string; config: WidgetConfig } {
+): value is {
+  token: string;
+  expiresAt: string;
+  conversationId: string;
+  config: WidgetConfig;
+  leadSubmitted?: boolean;
+} {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   return typeof item.token === "string"
@@ -198,5 +230,7 @@ export function validStoredSession(
     && Date.parse(item.expiresAt) > Date.now() + 30_000
     && typeof item.conversationId === "string"
     && Boolean(item.config)
-    && typeof item.config === "object";
+    && typeof item.config === "object"
+    && Boolean((item.config as Record<string, unknown>).contact)
+    && (item.leadSubmitted === undefined || typeof item.leadSubmitted === "boolean");
 }

@@ -43,6 +43,7 @@ from agent_hub_api.knowledge.models import (
     KnowledgeGeneration,
     MediaAsset,
 )
+from agent_hub_api.leads.models import Lead
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
@@ -82,6 +83,7 @@ __all__ = [
     "KnowledgeGeneration",
     "Location",
     "LocationVariant",
+    "Lead",
     "MediaAsset",
     "Product",
     "ProductImage",

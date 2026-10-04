@@ -3,6 +3,7 @@ from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
+from email_validator import EmailNotValidError, validate_email
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -25,6 +26,36 @@ def normalize_widget_origin(value: str) -> str:
     return urlunsplit((parsed.scheme, netloc, "", "", ""))
 
 
+def normalize_handoff_url(value: str) -> str:
+    candidate = value.strip()
+    if any(ord(character) < 32 for character in candidate):
+        raise ValueError("Contact URL cannot contain control characters")
+    parsed = urlsplit(candidate)
+    if parsed.scheme == "https" and parsed.hostname:
+        if parsed.username or parsed.password or parsed.fragment:
+            raise ValueError("HTTPS contact URL cannot contain credentials or a fragment")
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("HTTPS contact URL port is invalid") from exc
+        return candidate
+    if parsed.scheme == "mailto" and parsed.path and not parsed.query and not parsed.fragment:
+        try:
+            normalized_email = validate_email(
+                parsed.path, check_deliverability=False
+            ).normalized
+        except EmailNotValidError as exc:
+            raise ValueError("Mail contact URL is invalid") from exc
+        return f"mailto:{normalized_email}"
+    if parsed.scheme == "tel" and parsed.path and not parsed.query and not parsed.fragment:
+        allowed = set("+0123456789()-. ")
+        digits = sum(character.isdigit() for character in parsed.path)
+        if any(character not in allowed for character in parsed.path) or not 7 <= digits <= 15:
+            raise ValueError("Phone contact URL is invalid")
+        return candidate
+    raise ValueError("Contact URL must use HTTPS, mailto, or tel")
+
+
 class WidgetConfigRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,6 +64,8 @@ class WidgetConfigRequest(BaseModel):
     brand_color: str = Field(default="#0F8F87", pattern=r"^#[0-9A-Fa-f]{6}$")
     launcher_position: Literal["left", "right"] = "right"
     allowed_origins: list[str] = Field(default_factory=list, max_length=50)
+    handoff_url: str | None = Field(default=None, max_length=500)
+    handoff_label: str | None = Field(default=None, max_length=80)
 
     @field_validator("display_name")
     @classmethod
@@ -60,6 +93,21 @@ class WidgetConfigRequest(BaseModel):
     def clean_origins(cls, value: list[str]) -> list[str]:
         return sorted({normalize_widget_origin(item) for item in value})
 
+    @field_validator("handoff_url")
+    @classmethod
+    def clean_handoff_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return normalize_handoff_url(value)
+
+    @field_validator("handoff_label")
+    @classmethod
+    def clean_handoff_label(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
 
 class WidgetReadiness(BaseModel):
     has_allowed_origin: bool
@@ -81,6 +129,8 @@ class WidgetConfigResponse(BaseModel):
     brand_color: str
     launcher_position: Literal["left", "right"]
     allowed_origins: list[str]
+    handoff_url: str | None
+    handoff_label: str | None
     enabled: bool
     draft_differs: bool
     readiness: WidgetReadiness

@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     widget_image_session_max_uploads: int = 10
     widget_image_unattached_minutes: int = 30
     widget_image_attached_hours: int = 1
+    lead_retention_days: int = 30
+    lead_export_max_rows: int = 10_000
     agent_runtime_max_question_chars: int = 4_000
     agent_runtime_max_history_turns: int = 8
     agent_runtime_max_history_chars: int = 12_000
@@ -177,6 +179,8 @@ class Settings(BaseSettings):
             "widget_image_session_max_uploads",
             "widget_image_unattached_minutes",
             "widget_image_attached_hours",
+            "lead_retention_days",
+            "lead_export_max_rows",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
             raise ValueError("Knowledge limits must be positive")

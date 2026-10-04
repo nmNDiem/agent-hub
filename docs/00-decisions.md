@@ -37,8 +37,8 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Billing / subscriptions | After MVP | DEFERRED | Track internal usage now |
 | Widget branding | Color, position and agent-owned display name/greeting | CONFIRMED | Admin preview approved before implementation; no arbitrary HTML |
 | Anonymous visitor chat | Yes, scoped anonymous session | CONFIRMED | Exact-origin controls and database-backed rate limits |
-| Capture visitor contact | Optional with consent | PROPOSED | Email/phone are not prerequisites to chat |
-| Human handoff | Contact CTA / callback lead, not live-agent inbox | PROPOSED | Live inbox deferred |
+| Capture visitor contact | Optional with explicit versioned consent | CONFIRMED | Email/phone are not prerequisites to chat; local-pilot leads retain for 30 days |
+| Human handoff | Safe configured contact CTA / callback lead, not live-agent inbox | CONFIRMED | Live inbox, staffing and CRM automation deferred |
 | Knowledge sources | Manual shop text and PDF/TXT documents; catalog remains structured data | CONFIRMED | No OCR for scanned or encrypted PDFs; catalog uses the confirmed structured importer |
 | Catalog architecture | Generic options and a structure-driven CSV/XLS/XLSX importer | CONFIRMED | F2.1; no vendor-specific parser, default import mode is MERGE |
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
@@ -52,7 +52,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 ## Open decisions to validate at scaffolding or deployment
 - Email delivery provider, exact OpenAI chat/vision/embedding model IDs, embedding dimensions and exact monthly usage limits.
 - Future live-commerce connector/provider, stock refresh policy and connector identity mapping; manual CRUD plus CSV/XLS/XLSX MERGE is already the confirmed file-import baseline.
-- User data retention periods, privacy notice, handoff destination, allowed domains and production secrets management.
+- Production user-data retention policy, jurisdiction-specific privacy notice, deployed handoff destination, allowed domains and production secrets management. The local-pilot lead default is confirmed at 30 days.
 - Local connection strategy for Supabase services: use a remote development Supabase project or explicitly provision local equivalents; no live customer data in dev.
 - Future Qdrant production placement and backup policy; development uses the confirmed non-production Qdrant Cloud cluster.
 - VPS provider, sizing, reverse proxy, domain, SMTP provider and backup location when production deployment is scheduled.

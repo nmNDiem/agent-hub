@@ -52,7 +52,9 @@ Registration creates the user and session but does not silently create a workspa
 | GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Workspace-scoped status and safe error code |
 | POST | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}/retry` | Owner/admin retry only for classified transient failures |
 | GET | `/workspaces/{workspace_id}/conversations` | Pagination and redacted export policy |
-| GET | `/workspaces/{workspace_id}/leads` | PII accessible only to roles allowed |
+| GET | `/workspaces/{workspace_id}/leads` | Implemented stable cursor list; consented PII restricted to owner/admin |
+| PATCH | `/workspaces/{workspace_id}/leads/{lead_id}` | Owner/admin + CSRF; update `new | contacted | closed` only |
+| GET | `/workspaces/{workspace_id}/leads/export.csv` | Owner/admin bounded CSV export with spreadsheet-formula neutralization |
 | GET | `/workspaces/{workspace_id}/usage` | Proposed internal usage, not billing |
 | GET | `/workspaces/{workspace_id}/dashboard` | Proposed real KPIs/time-series; never return mock metrics as real data |
 | GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Proposed authorized conversation transcript |
@@ -70,7 +72,7 @@ Registration creates the user and session but does not silently create a workspa
 | POST | `/widget/uploads/images` | Validate/re-encode/quota-check a private image and return a scoped handle |
 | DELETE | `/widget/uploads/images/{attachment_id}` | Delete an unused image owned by the matching session + origin |
 | GET | `/widget/product-images/{grant_public_id}` | Resolve an unexpired session-scoped grant to a private no-store Storage redirect |
-| POST | `/widget/conversations/{conversation_public_id}/leads` | Proposed F5 route; requires explicit visitor consent |
+| POST | `/widget/conversations/{conversation_public_id}/leads` | Implemented; explicit current-version consent, email or phone, matching session/origin and `Idempotency-Key` required |
 
 ## SSE example event taxonomy
 `message.start`, `message.delta`, `product.cards`, `source.refs`, `message.completed`, `message.error`, `heartbeat`. Stable event IDs if replay is implemented. Terminate streaming on session expiry, disconnect, exhausted budget or denied tool access. Avoid logging token deltas of personal content.
@@ -100,3 +102,5 @@ F3 uses an internal product-centric catalog contract rather than the dashboard `
 F3.1 implements `search_products`, `get_product_detail` and `check_stock` as internal typed tools, not browser endpoints. They accept only an immutable server-resolved `AuthorizedCatalogScope`, expose generic options/attributes and authoritative price/inventory facts, and use color/size only as compatibility projections. Images are returned as opaque catalog image IDs plus safe metadata; Storage object keys, signed URLs and recorded remote URLs are never part of tool output. F4 owns the separately authorized public image-delivery policy.
 
 F3.2 knowledge resources use authenticated dashboard BIGINT IDs only after membership resolution; they are never public widget identifiers. Cross-workspace access returns non-leaking `404`, while a same-workspace member attempting a mutation receives `403`. Document creation requires `Idempotency-Key`. Jobs expose `awaiting_profile`, `queued`, `processing`, `retry_scheduled`, `succeeded`, `failed` or `cancelled`; only provider/storage/network-class transient failures retry automatically. Corrupt, encrypted, image-only or limit-exceeding PDFs return stable permanent error codes. Raw document text, file contents, Storage keys and parser tracebacks are not returned.
+
+F5.1 lead capture derives workspace, agent, session and conversation exclusively from the opaque widget session plus the conversation lookup; the request cannot supply or switch tenant scope. The request carries optional name, email and phone, `consent_given: true`, and the exact consent text version returned in public widget config. At least one validated email or phone is required. The public response acknowledges receipt/status/retention only and never echoes PII. Admin lead reads, status updates and CSV export are owner/admin-only; member access is denied. Local-pilot retention is 30 days, while automated expiry belongs to F5.3.

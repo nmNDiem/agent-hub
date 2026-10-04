@@ -79,7 +79,7 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 
 F5 is one roadmap phase and one local-pilot release gate delivered through three ordered tasks. Completing a task does not authorize the next one or close F5. Before implementing any new screen or material screen redesign, generate a visual mockup and obtain explicit owner approval. Mockup values and identities are illustrative only.
 
-### F5.1 — Consented leads and contact handoff
+### F5.1 — Consented leads and contact handoff (complete locally)
 - Add an optional widget callback/contact flow that never blocks chat and never claims a staffed live-chat service.
 - Persist only explicitly consented contact details with versioned consent evidence, idempotency and immutable server-derived workspace/conversation/session scope. Require at least one validated email or phone number and never log PII.
 - Add a safe configured contact destination plus owner/admin lead list, follow-up status and CSV export. Do not add CRM automation, staff assignment or billing.

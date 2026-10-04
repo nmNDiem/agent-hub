@@ -73,6 +73,8 @@ const widgetConfig = {
   brand_color: "#0F8F87",
   launcher_position: "right" as const,
   allowed_origins: [] as string[],
+  handoff_url: null,
+  handoff_label: null,
   enabled: false,
   draft_differs: false,
   readiness: {

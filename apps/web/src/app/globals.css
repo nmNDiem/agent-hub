@@ -695,3 +695,31 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
   .spinner { animation: none; }
   .typing-indicator > span:not(.sr-only) { animation: none; }
 }
+
+.leads-heading { align-items: flex-end; }
+.leads-card { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: var(--shadow-sm); }
+.leads-toolbar { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.leads-toolbar > div, .leads-toolbar label { display: grid; gap: 3px; }
+.leads-toolbar span { color: var(--muted-foreground); font-size: 12px; }
+.leads-toolbar label { color: var(--muted-foreground); font-size: 11px; font-weight: 700; }
+.leads-toolbar select, .lead-status { min-height: 36px; padding: 0 34px 0 10px; border: 1px solid var(--border); border-radius: 9px; color: var(--foreground); background: var(--card); }
+.leads-table-wrap { overflow-x: auto; }
+.leads-table { width: 100%; min-width: 980px; border-collapse: collapse; }
+.leads-table th { padding: 11px 14px; color: var(--muted-foreground); background: var(--muted); font-size: 11px; text-align: left; }
+.leads-table td { padding: 13px 14px; border-top: 1px solid var(--border); vertical-align: middle; font-size: 13px; }
+.leads-table td > strong, .leads-table td > span, .leads-table td > small { display: block; }
+.leads-table td > small { max-width: 220px; margin-top: 3px; overflow: hidden; color: var(--muted-foreground); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.lead-status { min-height: 34px; font-size: 12px; font-weight: 700; }
+.lead-status.new { color: #8a5c00; background: #fff8df; }
+.lead-status.contacted { color: var(--primary); background: var(--accent); }
+.lead-status.closed { color: #247346; background: #eaf8f0; }
+.leads-state { min-height: 260px; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 28px; color: var(--muted-foreground); text-align: center; }
+.leads-state strong { color: var(--foreground); }
+.leads-footer { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--border); }
+
+@media (max-width: 767px) {
+  .leads-heading { align-items: stretch; }
+  .leads-heading .secondary-button { width: 100%; margin-top: 14px; }
+  .leads-toolbar { align-items: stretch; flex-direction: column; }
+  .leads-toolbar select { width: 100%; }
+}

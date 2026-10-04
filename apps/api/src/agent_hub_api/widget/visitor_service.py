@@ -18,6 +18,7 @@ from agent_hub_api.agents.runtime import AgentConversationTurn
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.core.identifiers import new_uuid_v7
+from agent_hub_api.leads.schemas import contact_consent_text, contact_consent_version
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
@@ -28,6 +29,7 @@ from agent_hub_api.widget.models import (
 from agent_hub_api.widget.public_schemas import (
     PublicGroundedResponse,
     WidgetCapabilities,
+    WidgetContactConfig,
     WidgetConversationResponse,
     WidgetPublishedConfig,
     WidgetSessionResponse,
@@ -251,6 +253,15 @@ class WidgetVisitorService:
                 brand_color=cast(str, widget.get("brand_color", "#0F8F87")),
                 launcher_position="left" if position == "left" else "right",
                 capabilities=WidgetCapabilities(image_input=self.image_input_enabled),
+                contact=WidgetContactConfig(
+                    handoff_url=cast(str | None, widget.get("handoff_url")),
+                    handoff_label=cast(str | None, widget.get("handoff_label")),
+                    consent_text=contact_consent_text(self.settings.lead_retention_days),
+                    consent_text_version=contact_consent_version(
+                        self.settings.lead_retention_days
+                    ),
+                    lead_retention_days=self.settings.lead_retention_days,
+                ),
             ),
         )
 

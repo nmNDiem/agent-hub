@@ -29,6 +29,7 @@ from agent_hub_api.knowledge.runtime import (
     create_qdrant_index,
 )
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
+from agent_hub_api.leads.router import router as leads_router
 from agent_hub_api.widget.image_storage import (
     SupabaseVisitorImageStorage,
     VisitorImageStorage,
@@ -242,6 +243,7 @@ def create_app(
     application.include_router(playground_router)
     application.include_router(widget_admin_router)
     application.include_router(widget_public_router)
+    application.include_router(leads_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

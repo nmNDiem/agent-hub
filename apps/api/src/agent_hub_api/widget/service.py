@@ -69,6 +69,8 @@ class WidgetAdminService:
             agent.updated_at = datetime.now(UTC)
             channel.brand_color = payload.brand_color
             channel.launcher_position = payload.launcher_position
+            channel.handoff_url = payload.handoff_url
+            channel.handoff_label = payload.handoff_label if payload.handoff_url else None
             channel.updated_at = datetime.now(UTC)
             await self.repository.replace_domains(channel, payload.allowed_origins)
         return await self._response(agent, channel)
@@ -156,6 +158,8 @@ class WidgetAdminService:
             "widget": {
                 "brand_color": channel.brand_color,
                 "launcher_position": channel.launcher_position,
+                "handoff_url": channel.handoff_url,
+                "handoff_label": channel.handoff_label,
             },
         }
 
@@ -222,6 +226,8 @@ class WidgetAdminService:
                 channel.launcher_position if channel is not None else "right",
             ),
             allowed_origins=domains,
+            handoff_url=channel.handoff_url if channel is not None else None,
+            handoff_label=channel.handoff_label if channel is not None else None,
             enabled=channel.enabled if channel is not None else False,
             draft_differs=draft_differs,
             readiness=readiness,

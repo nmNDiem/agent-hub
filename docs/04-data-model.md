@@ -48,7 +48,7 @@ Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary float
 - `conversations`: BIGINT id, UUIDv7 public_id, workspace_id, agent_id, widget_session_id, status, last_message_at, retention_until.
 - `messages`: id, workspace_id, conversation_id, actor VISITOR/ASSISTANT/TOOL, text, safe_attachment_refs, timestamps, metadata.
 - `agent_tool_calls`: id, workspace_id, conversation_id, tool_name, argument_summary_redacted, result_ref, status, latency_ms.
-- `leads`: id, workspace_id, conversation_id, name, email, phone, consent_at, consent_text_version, followup_status.
+- `leads`: BIGINT id, immutable workspace/conversation/session/agent scope, optional name, normalized email and/or validated phone, consent timestamp/text version, session-scoped idempotency key + request hash, follow-up status `new | contacted | closed`, 30-day local-pilot `retention_until`, timestamps. One conversation has at most one consented lead.
 - `usage_events`: id, workspace_id, agent_id, conversation_id nullable, provider, model, token_counts, estimate_cost, event_time.
 - `audit_logs`: id, workspace_id, actor_user_id nullable, action, resource_type, resource_id, metadata_redacted, occurred_at.
 
@@ -56,4 +56,4 @@ Catalog prices use `NUMERIC(18,2)` and application `Decimal`, never binary float
 - `products(workspace_id,status,category)`; `product_variants(workspace_id,product_id)`; `locations(workspace_id,is_active)`; location inventory and pricing by workspace/location/variant; collection membership by workspace/collection/product; option joins by variant/definition/value; external refs by workspace/source/external ID; import jobs by workspace/status; `messages(workspace_id,conversation_id,created_at)`; knowledge chunks by workspace/generation; embedding index state by workspace/chunk/profile. Qdrant collections are shared by embedding profile, never created per workspace, and every point carries indexed `workspace_id` and generation payload.
 - No cross-workspace FK relationship; select/search/universal import/embedding jobs restricted to workspace. Qdrant results are revalidated against ready Postgres documents/chunks before use.
 - Soft-archive products and agents; retention/purge policy for visitor content must be documented before production.
-- Use DB uniqueness and transactional updates for imports, refresh rotation and idempotent lead submissions.
+- Use DB uniqueness and transactional updates for imports, refresh rotation and idempotent lead submissions. Lead foreign keys include workspace scope; uniqueness on conversation and `(session_id,idempotency_key)` prevents duplicate/cross-session capture.

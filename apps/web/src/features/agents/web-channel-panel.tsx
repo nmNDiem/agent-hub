@@ -32,6 +32,8 @@ function configDraft(config: WidgetConfig): WidgetConfigUpdate {
     brand_color: config.brand_color,
     launcher_position: config.launcher_position,
     allowed_origins: config.allowed_origins,
+    handoff_url: config.handoff_url,
+    handoff_label: config.handoff_label,
   };
 }
 
@@ -233,6 +235,12 @@ export function WebChannelPanel({
           <div className="origin-entry"><label className="sr-only" htmlFor="widget-origin">Thêm website</label><input id="widget-origin" onChange={(event) => setOriginInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addOrigin(); } }} placeholder="https://shop.example.com" value={originInput} /><button className="secondary-button icon-only-button" onClick={addOrigin} type="button"><Plus aria-hidden="true" size={16} /><span className="sr-only">Thêm website</span></button></div>
           <ul className="origin-list">{draft.allowed_origins.map((origin) => <li key={origin}><Globe2 aria-hidden="true" size={15} /><span>{origin}</span><button aria-label={`Xóa ${origin}`} onClick={() => updateDraft({ allowed_origins: draft.allowed_origins.filter((item) => item !== origin) })} type="button"><Trash2 size={15} /></button></li>)}{draft.allowed_origins.length === 0 && <li className="origin-empty">Chưa có website nào được phép.</li>}</ul>
         </fieldset>
+        <fieldset disabled={!canWrite || Boolean(busy)}>
+          <legend>Chuyển tiếp liên hệ</legend>
+          <p className="fieldset-help">Tùy chọn. Dùng HTTPS, <code>mailto:</code> hoặc <code>tel:</code>; widget vẫn có form callback riêng.</p>
+          <label>Đường dẫn liên hệ<input maxLength={500} onChange={(event) => updateDraft({ handoff_url: event.target.value || null })} placeholder="https://shop.example.com/contact" value={draft.handoff_url ?? ""} /></label>
+          <label>Nhãn nút<input maxLength={80} onChange={(event) => updateDraft({ handoff_label: event.target.value || null })} placeholder="Liên hệ trực tiếp" value={draft.handoff_label ?? ""} /></label>
+        </fieldset>
         <div className="widget-readiness"><strong>Sẵn sàng phát hành</strong><ul>{readiness.map(([ready, label]) => <li className={ready ? "ready" : "missing"} key={label}><Check aria-hidden="true" size={14} /> {label}</li>)}</ul></div>
         {canWrite && <div className="web-channel-save"><span>{dirty ? "Có thay đổi chưa lưu" : config.draft_differs ? "Bản nháp khác bản đang chạy" : "Đã đồng bộ"}</span><button className="secondary-button compact-button" disabled={!dirty || Boolean(busy)} type="submit">{busy === "save" ? <LoaderCircle className="spinner" size={15} /> : <Save size={15} />} Lưu thay đổi</button><button className="primary-button compact-button" disabled={Boolean(busy) || (!dirty && !config.readiness.can_publish)} onClick={() => void publish()} type="button">{busy === "publish" ? <LoaderCircle className="spinner" size={15} /> : <Play size={15} />} {config.active_revision ? "Phát hành bản mới" : "Phát hành"}</button></div>}
       </form>
@@ -244,7 +252,7 @@ export function WebChannelPanel({
             <div className="fake-site-content"><span /><span /><span /></div>
             <div className={`widget-preview-window ${draft.launcher_position}`} style={{ "--widget-brand": draft.brand_color } as CSSProperties}>
               <header><span className="preview-avatar"><MessageCircle size={16} /></span><div><strong>{draft.display_name || "Chatbot"}</strong><small>Trợ lý mua sắm</small></div></header>
-              <div className="preview-transcript"><p>{draft.greeting || "Xin chào! Mình có thể giúp bạn tìm sản phẩm phù hợp."}</p><div className="preview-suggestions"><span>Gợi ý sản phẩm</span><span>Tư vấn kích thước</span></div></div>
+              <div className="preview-transcript"><p>{draft.greeting || "Xin chào! Mình có thể giúp bạn tìm sản phẩm phù hợp."}</p><div className="preview-suggestions"><span>Gợi ý sản phẩm</span><span>Tư vấn kích thước</span><span>Nhờ shop liên hệ</span></div></div>
               <div className="preview-composer"><span>Nhập tin nhắn…</span><i /></div>
             </div>
             <div className={`widget-preview-launcher ${draft.launcher_position}`} style={{ "--widget-brand": draft.brand_color } as CSSProperties}><MessageCircle size={21} /></div>

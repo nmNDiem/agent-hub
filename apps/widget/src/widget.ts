@@ -1,5 +1,6 @@
 import {
   WidgetApiError,
+  captureLead,
   createConversation,
   createSession,
   deleteConversation,
@@ -24,6 +25,7 @@ type StoredSession = {
   expiresAt: string;
   conversationId: string;
   config: WidgetConfig;
+  leadSubmitted?: boolean;
 };
 
 type PendingAttachment = {
@@ -85,6 +87,18 @@ function transcriptMessage(item: TranscriptItem): WidgetMessage {
   };
 }
 
+function safeHandoffUrl(value: string | null): string | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "https:" && !parsed.username && !parsed.password) return value;
+    if (["mailto:", "tel:"].includes(parsed.protocol)) return value;
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export class AgentHubWidget {
   private readonly shadow: ShadowRoot;
   private readonly storageKey: string;
@@ -113,6 +127,8 @@ export class AgentHubWidget {
   private readonly fileInput: HTMLInputElement;
   private readonly attachment: HTMLElement;
   private readonly error: HTMLElement;
+  private readonly contact: HTMLElement;
+  private contactFormOpen = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -219,7 +235,10 @@ export class AgentHubWidget {
       void this.send();
     });
 
-    this.panel.append(header, this.transcript, this.suggestions, this.composer);
+    this.contact = element("section", "ah-contact");
+    this.contact.hidden = true;
+
+    this.panel.append(header, this.transcript, this.suggestions, this.contact, this.composer);
     this.launcher = element("button", "ah-launcher");
     this.launcher.type = "button";
     this.launcher.setAttribute("aria-label", "Mở trợ lý mua sắm");
@@ -304,6 +323,7 @@ export class AgentHubWidget {
       this.initialized = true;
       this.transcript.setAttribute("aria-busy", "false");
       this.renderMessages();
+      this.renderContact();
       this.updateComposerState();
     } catch {
       this.renderInitializationError();
@@ -347,6 +367,7 @@ export class AgentHubWidget {
     this.protectHost(position);
     this.title.textContent = config.display_name || "Trợ lý cửa hàng";
     this.uploadButton.hidden = !config.capabilities.image_input;
+    this.renderContact();
   }
 
   private protectHost(position: "left" | "right"): void {
@@ -510,6 +531,154 @@ export class AgentHubWidget {
     }
     details.append(list);
     return details;
+  }
+
+  private renderContact(): void {
+    const contactConfig = this.config?.contact;
+    this.contact.replaceChildren();
+    this.contact.hidden = !contactConfig || !this.initialized;
+    if (!contactConfig || !this.initialized) return;
+
+    if (this.session?.leadSubmitted) {
+      this.contact.append(element("p", "ah-contact-success", "✓ Shop đã nhận yêu cầu liên hệ."));
+      return;
+    }
+
+    const actions = element("div", "ah-contact-actions");
+    const callback = element(
+      "button",
+      "ah-contact-toggle",
+      this.contactFormOpen ? "Ẩn biểu mẫu" : "Nhờ shop liên hệ",
+    );
+    callback.type = "button";
+    callback.setAttribute("aria-expanded", String(this.contactFormOpen));
+    callback.addEventListener("click", () => {
+      this.contactFormOpen = !this.contactFormOpen;
+      this.renderContact();
+      if (this.contactFormOpen) {
+        queueMicrotask(() => this.contact.querySelector<HTMLInputElement>("input")?.focus());
+      }
+    });
+    actions.append(callback);
+    const handoffUrl = safeHandoffUrl(contactConfig.handoff_url);
+    if (handoffUrl) {
+      const link = element(
+        "a",
+        "ah-contact-link",
+        contactConfig.handoff_label || "Liên hệ trực tiếp",
+      );
+      link.href = handoffUrl;
+      if (handoffUrl.startsWith("https://")) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
+      actions.append(link);
+    }
+    this.contact.append(actions);
+    if (!this.contactFormOpen) return;
+
+    const form = element("form", "ah-contact-form");
+    const heading = element("strong", undefined, "Để lại thông tin liên hệ");
+    const help = element(
+      "p",
+      undefined,
+      "Email hoặc số điện thoại là bắt buộc. Bạn vẫn có thể tiếp tục chat mà không gửi form.",
+    );
+    const name = element("input");
+    name.name = "name";
+    name.maxLength = 120;
+    name.autocomplete = "name";
+    name.placeholder = "Tên của bạn (không bắt buộc)";
+    name.setAttribute("aria-label", "Tên của bạn");
+    const email = element("input");
+    email.name = "email";
+    email.type = "email";
+    email.maxLength = 320;
+    email.autocomplete = "email";
+    email.placeholder = "Email";
+    email.setAttribute("aria-label", "Email liên hệ");
+    const phone = element("input");
+    phone.name = "phone";
+    phone.type = "tel";
+    phone.maxLength = 32;
+    phone.autocomplete = "tel";
+    phone.placeholder = "Số điện thoại";
+    phone.setAttribute("aria-label", "Số điện thoại liên hệ");
+    const consentLabel = element("label", "ah-consent");
+    const consent = element("input");
+    consent.name = "consent";
+    consent.type = "checkbox";
+    consent.required = true;
+    consentLabel.append(consent, element("span", undefined, contactConfig.consent_text));
+    const formError = element("p", "ah-contact-error");
+    formError.hidden = true;
+    formError.setAttribute("role", "alert");
+    const submit = element("button", "ah-contact-submit", "Gửi yêu cầu");
+    submit.type = "submit";
+    form.append(heading, help, name, email, phone, consentLabel, formError, submit);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void this.submitContact(form, formError, submit);
+    });
+    this.contact.append(form);
+  }
+
+  private async submitContact(
+    form: HTMLFormElement,
+    formError: HTMLElement,
+    submit: HTMLButtonElement,
+  ): Promise<void> {
+    if (!this.session || !this.config) return;
+    const values = new FormData(form);
+    const name = String(values.get("name") ?? "").trim() || null;
+    const email = String(values.get("email") ?? "").trim() || null;
+    const phone = String(values.get("phone") ?? "").trim() || null;
+    if (!email && !phone) {
+      formError.textContent = "Hãy nhập email hoặc số điện thoại.";
+      formError.hidden = false;
+      return;
+    }
+    if (values.get("consent") !== "on") {
+      formError.textContent = "Bạn cần đồng ý trước khi gửi thông tin.";
+      formError.hidden = false;
+      return;
+    }
+    formError.hidden = true;
+    submit.disabled = true;
+    submit.textContent = "Đang gửi…";
+    try {
+      await captureLead(
+        this.apiBase,
+        this.session.token,
+        this.session.conversationId,
+        {
+          name,
+          email,
+          phone,
+          consent_given: true,
+          consent_text_version: this.config.contact.consent_text_version,
+        },
+        crypto.randomUUID(),
+      );
+      this.session.leadSubmitted = true;
+      this.persistSession();
+      this.contactFormOpen = false;
+      this.renderContact();
+    } catch (error) {
+      if (error instanceof WidgetApiError && error.code === "LEAD_ALREADY_CAPTURED") {
+        this.session.leadSubmitted = true;
+        this.persistSession();
+        this.contactFormOpen = false;
+        this.renderContact();
+        return;
+      }
+      formError.textContent = error instanceof WidgetApiError
+        ? error.message
+        : "Chưa thể gửi yêu cầu. Vui lòng thử lại.";
+      formError.hidden = false;
+      submit.disabled = false;
+      submit.textContent = "Gửi yêu cầu";
+    }
   }
 
   private async hydrateProductImages(): Promise<void> {

@@ -9,12 +9,21 @@ class WidgetCapabilities(BaseModel):
     image_input: bool = False
 
 
+class WidgetContactConfig(BaseModel):
+    handoff_url: str | None
+    handoff_label: str | None
+    consent_text: str
+    consent_text_version: str
+    lead_retention_days: int
+
+
 class WidgetPublishedConfig(BaseModel):
     display_name: str
     greeting: str | None
     brand_color: str
     launcher_position: Literal["left", "right"]
     capabilities: WidgetCapabilities
+    contact: WidgetContactConfig
 
 
 class WidgetSessionResponse(BaseModel):

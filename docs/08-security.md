@@ -7,10 +7,12 @@
 - Short access lifetime (15 minutes proposed), rotating refresh sessions with hashes in database; revoke on logout/password reset and detect refresh replay; secrets from secret manager/environment.
 - For browser app, propose short access token in memory and refresh in Secure/HttpOnly/SameSite cookie; assess cross-site deployments and CSRF explicitly. Never put bearer tokens in public embed snippets or localStorage by default.
 - Audit owner/admin actions without storing credentials or raw chat text in audit logs.
+- Consented lead PII is never written to routine logs or public responses. Owner/admin access is checked server-side; CSV cells beginning with spreadsheet formula markers are neutralized.
 
 ## Authorization and tenant separation
 - For owner API: authenticate -> membership lookup -> check role -> read/write workspace-scoped row. Never trust `workspace_id` just because supplied in URL/body.
 - For visitor API: active immutable published revision + exact allowed origin + short-lived opaque visitor session -> derive workspace/agent from server DB and verify every conversation, image and product-image grant belongs to that session.
+- Lead capture additionally requires the matching open conversation, explicit current-version consent, a validated email or phone and session-scoped idempotency; client-supplied tenant/agent identity is not accepted.
 - All SQL and background tasks filter workspace. Every Qdrant request injects the validated workspace/allowed-source filter server-side, and returned chunk IDs are revalidated against active Postgres rows before use. Qdrant is never reachable from browser/widget code.
 - With custom auth and direct server-side SQL, Supabase `auth.uid()` is not automatically the FastAPI user ID. Do not write RLS policies assuming otherwise. If applying transaction-local tenant context, set it only after validated auth and use a DB role without RLS-bypass privileges.
 - Do not expose `service_role`, Supabase secret API keys or Qdrant credentials. Server-side privileged Storage/Qdrant access requires *app-side checks* before every action; elevated credentials bypass client-facing controls.
