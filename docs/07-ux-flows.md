@@ -8,7 +8,7 @@
 - Catalog: list/search/filter products; detail with variants, generic options/attributes, images and inventory state; manual edit; CSV/XLS/XLSX Analyze → Resolve → Diff → Commit import flow.
 - Knowledge: shop profile, FAQ/policy, PDF/TXT uploads, indexing states and error recovery.
 - Agents: editable greeting and personality/style instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first). New agents receive useful locale-aware defaults and require only a name before their first Playground test.
-- Channels > Web: branding, origin allowlist, embed snippet, preview and connection health.
+- Channels > Web: implemented in the chatbot workbench with branding, exact origin allowlist, readiness, responsive preview, publish/pause and embed snippet.
 - Conversations: paginated threads with clearly labeled visitor-provided information.
 - Leads: consented contacts, callback status and safe CSV export (authorized roles only).
 - Settings: workspace, owner account/password, basic member configuration if enabled.
@@ -27,7 +27,7 @@
 
 ## Widget UX checklist
 - Keyboard/mobile usable; minimize CSS collisions with host page; clear focus and accessible labels.
-- Theme color, avatar, corner position and greeting editable; not arbitrary executable HTML.
+- Theme color and corner position are editable in the Web channel panel; display name/greeting come from the agent configuration. Arbitrary executable HTML is never accepted.
 - Anonymous session has visible privacy information; optional consent before saving a lead.
 - Do not make customers log in just to ask about clothing; retain/resume history only for same visitor session.
 - Product card: safe image reference, title, up-to-date effective price, availability qualifier, relevant generic options and shop product link. Do not require fashion-only fields.

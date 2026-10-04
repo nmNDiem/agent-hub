@@ -12,13 +12,13 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Database | Supabase PostgreSQL | CONFIRMED | Supabase is DB host, not an auth requirement |
 | Storage | Supabase Storage | CONFIRMED | |
 | Authentication | FastAPI-owned email + password | CONFIRMED | No Supabase Auth; standard password security mandatory |
-| Frontend | Next.js + TypeScript | CONFIRMED | Dashboard; widget packaging separate design question |
+| Frontend | Next.js + TypeScript | CONFIRMED | Dashboard; widget is a separate TypeScript/Vite IIFE bundle |
 | ID strategy | UUIDv7 selectively + BIGINT IDENTITY for internal rows | CONFIRMED | UUIDv7 for users/workspaces and required public IDs, **not** every PK; see `architecture/identifiers.md` |
 | Domain naming | `workspace` tenant; `agent` domain entity, presented as shop/chatbot in UI | PROPOSED | Keep original API/schema vocabulary; no parallel `shops`/`bots` tables |
 | UI components | Tailwind CSS + shadcn/ui conventions | CONFIRMED | Add only the component primitives required by approved work |
 | ORM / migrations | SQLAlchemy 2 async + Alembic | CONFIRMED | PostgreSQL driver is asyncpg |
 | Foundation runtimes | Python 3.12, Node.js 24, pnpm workspace | CONFIRMED | Pinned in repository configuration |
-| Widget foundation | Independent TypeScript/Vite package scaffold | CONFIRMED | Package boundary only; functional embed/chat remains deferred |
+| Widget foundation | Independent TypeScript/Vite bundle with Shadow DOM isolation | CONFIRMED | Functional embed/chat implemented under the approved F4 scope |
 | Retrieval | Qdrant vector index + Postgres structured search | CONFIRMED | Postgres owns documents/chunks/jobs; Qdrant is a rebuildable derived index with mandatory tenant filters |
 | Qdrant development runtime | Non-production Qdrant Cloud cluster | CONFIRMED | Credentials stay server-only; integration tests use isolated randomly named collections and delete only their own collection |
 | LLM provider | OpenAI | CONFIRMED | Server-side calls from FastAPI; exact model IDs are configurable |
@@ -35,8 +35,8 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Multiple agents per workspace | Yes in schema | PROPOSED | One published website agent initially |
 | Roles | Owner/Admin/Member model; initially expose owner-focused UI | PROPOSED | Every action checked server-side |
 | Billing / subscriptions | After MVP | DEFERRED | Track internal usage now |
-| Widget branding | Color, avatar, position, greeting | PROPOSED | |
-| Anonymous visitor chat | Yes, scoped anonymous session | PROPOSED | Rate limits and origin controls |
+| Widget branding | Color, position and agent-owned display name/greeting | CONFIRMED | Admin preview approved before implementation; no arbitrary HTML |
+| Anonymous visitor chat | Yes, scoped anonymous session | CONFIRMED | Exact-origin controls and database-backed rate limits |
 | Capture visitor contact | Optional with consent | PROPOSED | Email/phone are not prerequisites to chat |
 | Human handoff | Contact CTA / callback lead, not live-agent inbox | PROPOSED | Live inbox deferred |
 | Knowledge sources | Manual shop text and PDF/TXT documents; catalog remains structured data | CONFIRMED | No OCR for scanned or encrypted PDFs; catalog uses the confirmed structured importer |
@@ -44,7 +44,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
 | Upload and usage quotas | Server-enforced workspace limits and rate windows | CONFIRMED | Initial knowledge defaults are recorded in ADR F3.2 and remain deployment-overridable |
-| Customer image input | Basic vision analysis + catalog matching | PROPOSED | Not specialized image-to-image search |
+| Customer image input | Basic vision analysis + catalog matching | CONFIRMED | Separate configured vision model; not specialized image-to-image search |
 | Orders/payments/refunds | No execution in MVP | DEFERRED | Read-only integrations later if approved |
 | Current runtime | Local development only | CONFIRMED | Do not claim VPS deployment or require Docker for day-one boot |
 | Future runtime | Docker containers on VPS | CONFIRMED | Prepare deployable boundaries, but deploy in a later phase |

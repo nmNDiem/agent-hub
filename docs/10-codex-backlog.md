@@ -70,10 +70,10 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 ### F3 phase completion
 - Close F3 only after F3.1 through F3.5 pass together and the F3 exit evidence in `22-phase-gates.md` is recorded.
 
-## F4 — Widget / visitor / vision
+## F4 — Widget / visitor / vision (complete)
 - Safe embeddable widget, agent publish/origin config, scoped anonymous sessions, conversations, SSE product cards and image upload/vision matching.
 - Product cards consume F3 tool output and may show relevant generic options/attributes without requiring size/color, variants or size guides; remote image references must pass the catalog's safe delivery policy and are never fetched during import.
-- Done: functional website integration, keyboard/mobile checks, other visitor cannot open conversation, source/card schema tested across product-only and multi-option variant fixtures.
+- Done: functional website integration, hostile-host CSS isolation, keyboard/mobile checks, other visitor cannot open a conversation or image grant, and source/card schemas are tested across product-only and multi-option variant fixtures. Vision/storage tests are offline fakes and do not incur provider charges.
 
 ## F5 — Pilot release
 - Leads with consent, callback CTA, shop dashboard threads/usage, rate limits/quotas, local observability and documented backup/production prerequisites. Deploy to VPS only in phase P7 when authorized.

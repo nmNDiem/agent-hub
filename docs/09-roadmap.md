@@ -10,7 +10,7 @@ Each phase should end in a runnable, reviewed increment. Architecture may antici
 | F2.1 Universal catalog import | Generic options/attributes/external refs, CSV/XLS/XLSX staging/diff/MERGE, structured search | Complete; critical PostgreSQL migration/JSONB/constraint/tenant checks passed in isolated `agenthub_test` schema |
 | F2.2 Location catalog scope | Workspace master catalog, locations, location+variant inventory/pricing, collections and location-aware import/search | Complete; migration and tenant regressions preserve `NULL != 0`, and PostgreSQL stock backfill passed |
 | F3 Knowledge & agent | Shop profile, FAQ, PDF/TXT ingestion, Qdrant, provider-neutral embedding adapter, agent config, typed tools over F2.1 search | Agent answers grounded questions with authoritative effective price/inventory and same-variant options |
-| F4 Widget & vision | Embed, visitor sessions, SSE, schema-neutral product cards, visitor photo flow | Real shop test page can chat anonymously and render products without requiring fashion-only fields |
+| F4 Widget & vision | Embed, visitor sessions, SSE, schema-neutral product cards, visitor photo flow | Complete locally; isolated real-page embed passed desktop/mobile/a11y and cross-session/card/image regressions |
 | F5 Local operational pilot | Leads, callback, dashboard history/usage, limits, local observability | Owner tests end-to-end locally; privacy/security review completed |
 | P6+ Full product & future deployment | Role invitations, multi-agent, Docker-on-VPS, channel adapters, knowledge expansion, billing | Explicit new phase approvals; see `22-phase-gates.md` |
 

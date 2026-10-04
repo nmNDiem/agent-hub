@@ -2,7 +2,7 @@
 
 AgentHub là nền tảng AI-agent đa tenant và đa kênh. Deliverable đầu tiên là trợ lý bán hàng cho shop thời trang qua website widget.
 
-Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, agent configuration/internal catalog tools, knowledge persistence/durable ingestion, concrete OpenAI embedding adapter, tenant-safe Qdrant retrieval và grounded agent runtime nội bộ. Playground và widget chat chưa được triển khai.
+Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/import/location scope, knowledge/RAG, grounded agent runtime, Playground, publish revision bất biến, kênh Web và website widget có chat văn bản/ảnh. Widget dùng anonymous session theo origin, SSE, product card lấy dữ kiện từ catalog và private Storage cho ảnh khách gửi.
 
 ## Công nghệ và môi trường
 
@@ -28,7 +28,7 @@ Repository đã có nền tảng xác thực và tenant, generic catalog CRUD/im
 apps/
   api/       FastAPI modular monolith: core, identity, workspaces, tests và Alembic
   web/       Next.js app routes, shared UI/lib và auth/workspace feature modules
-  widget/    TypeScript package scaffold, chưa có chat runtime
+  widget/    TypeScript bundle độc lập: Shadow DOM, SSE chat, ảnh và product cards
 docs/        Product, architecture và design source of truth
 assets/      Reference images, không phải production catalog assets
 ```
@@ -54,7 +54,13 @@ pnpm dev
 
 Mở `http://127.0.0.1:3000`. Nhấn `Ctrl+C` để dừng cả API và web. Thẻ FastAPI trên dashboard chỉ báo “Đang hoạt động” khi lấy được phản hồi thật từ API.
 
-Để chạy riêng từng service, dùng `pnpm dev:api` hoặc `pnpm dev:web`.
+Để chạy riêng từng service, dùng `pnpm dev:api` hoặc `pnpm dev:web`. Widget loader cần được build rồi phục vụ ở origin khớp `WIDGET_PUBLIC_BASE_URL`; local preview dùng:
+
+```powershell
+pnpm dev:widget
+```
+
+Lệnh này build và phục vụ `http://127.0.0.1:4173/widget/v1/loader.js`. Giữ terminal đó chạy khi kiểm thử embed local.
 
 ## Quality gates
 
@@ -93,7 +99,7 @@ Lệnh Alembic trên là offline dry-run và không cần database. Online migra
 pnpm db:migrate
 ```
 
-Các migration tạo identity/tenant tables, catalog canonical, generic options, location/collection scope, agent configuration/assignments, knowledge versions/generations/jobs và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog, agent hoặc knowledge APIs:
+Các migration tạo identity/tenant tables, catalog canonical, generic options, location/collection scope, agent configuration/assignments, immutable published revisions, knowledge versions/generations/jobs, widget sessions/conversations/messages/images/rate limits và import staging/issues/mapping profiles. Chạy migration online trên development database trước khi thử catalog, agent, knowledge hoặc widget APIs:
 
 ```powershell
 pnpm db:migrate
@@ -152,7 +158,15 @@ Mỗi lượt bị giới hạn question/context/tool-result chars, output/total
 
 Dashboard có route `Tri thức` để tạo knowledge base, nhập nội dung thủ công, tải PDF/TXT, theo dõi ingestion, thử lại lỗi và thu hồi tài liệu. Route `Chatbot` quản lý cấu hình bản nháp, catalog scope và knowledge assignments. Owner/admin được ghi; member chỉ đọc theo quyền backend.
 
-Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.4. Transcript chỉ tồn tại cục bộ, history gửi lên bị giới hạn và coi là untrusted data. Server kiểm chứng lời thoại cùng mọi product/source reference trước khi phát `message.delta`, `product.cards` và `source.refs`; không chuyển tiếp raw provider output chưa qua validation. Stop hủy request và giữ phần text đã nhận. Nếu thiếu OpenAI/Qdrant, UI nhận trạng thái `AGENT_RUNTIME_DISABLED` thay vì response giả. Image input, publish/widget và lưu hội thoại shopper vẫn thuộc F4/F5.
+Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.4. Transcript chỉ tồn tại cục bộ, history gửi lên bị giới hạn và coi là untrusted data. Server kiểm chứng lời thoại cùng mọi product/source reference trước khi phát `message.delta`, `product.cards` và `source.refs`; không chuyển tiếp raw provider output chưa qua validation. Stop hủy request và giữ phần text đã nhận. Nếu thiếu OpenAI/Qdrant, UI nhận trạng thái `AGENT_RUNTIME_DISABLED` thay vì response giả.
+
+## Website widget và vision
+
+Dashboard Chatbot có bảng `Kênh Web` để cấu hình exact allowed origins, màu thương hiệu/vị trí launcher, kiểm tra readiness, preview, publish/pause và sao chép embed snippet. Publish tạo revision bất biến; phiên khách luôn khóa vào revision đã publish, workspace và origin do server xác minh.
+
+Bundle `apps/widget` là IIFE nhẹ, dùng Shadow DOM và bảo vệ host styles để nhúng vào trang ngoài mà không kéo theo React/dashboard runtime. Anonymous session token chỉ giữ trong `sessionStorage`/memory, không nằm trong DOM hoặc URL. Widget hỗ trợ transcript cùng phiên, SSE, stop/reset, product/source cards, protected product images và responsive keyboard-accessible UI.
+
+Ảnh JPEG/PNG/WebP được kiểm tra chữ ký/decoded format, giới hạn 5 MiB và 20 megapixel, re-encode để bỏ metadata rồi lưu private. Attachment handle theo session chỉ dùng một lần; vision dùng adapter/model riêng và không fallback sang text hay suy đoán đặc điểm cá nhân. Automated tests dùng fake adapters, không gọi dịch vụ trả phí. Lead capture, owner inbox/usage và tác vụ dọn dữ liệu hết hạn thuộc F5.
 
 ## Where to read first
 
@@ -204,4 +218,4 @@ Playground dùng endpoint SSE có auth + CSRF, gọi đúng grounded runtime F3.
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation, authentication, tenancy, catalog, agent-scope/tools and knowledge persistence/ingestion core are implemented; do not implement concrete semantic retrieval, LLM orchestration, widget chat or later capabilities without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not provision VPS, implement payment flows, add other LLM providers or claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation through website widget/vision are implemented locally; do not implement F5 operations, VPS rollout, social channels, payments or other providers without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not claim production readiness. Report actual tests and commands.

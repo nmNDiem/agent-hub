@@ -10,7 +10,7 @@
 
 ## Authorization and tenant separation
 - For owner API: authenticate -> membership lookup -> check role -> read/write workspace-scoped row. Never trust `workspace_id` just because supplied in URL/body.
-- For visitor API: published `agent_id` + short-lived scoped visitor session -> derive workspace/agent from server DB, verify conversation belongs to that session.
+- For visitor API: active immutable published revision + exact allowed origin + short-lived opaque visitor session -> derive workspace/agent from server DB and verify every conversation, image and product-image grant belongs to that session.
 - All SQL and background tasks filter workspace. Every Qdrant request injects the validated workspace/allowed-source filter server-side, and returned chunk IDs are revalidated against active Postgres rows before use. Qdrant is never reachable from browser/widget code.
 - With custom auth and direct server-side SQL, Supabase `auth.uid()` is not automatically the FastAPI user ID. Do not write RLS policies assuming otherwise. If applying transaction-local tenant context, set it only after validated auth and use a DB role without RLS-bypass privileges.
 - Do not expose `service_role`, Supabase secret API keys or Qdrant credentials. Server-side privileged Storage/Qdrant access requires *app-side checks* before every action; elevated credentials bypass client-facing controls.
@@ -20,7 +20,7 @@
 - Enforce allowlist MIME + file signature and decoded format, bounded upload bytes/pixels/pages, safe filenames, path constraints, per-workspace quotas and scan/isolated parsing as needed.
 - Treat PDF parsing as hostile execution: use strict parsing in a subprocess with wall/CPU/memory/output limits and fail closed if resource isolation cannot be installed. Application page/text limits do not replace decoder-level isolation.
 - Never use uploaded document or image metadata as executable code; no unrestricted URL fetching. Prefer blocking SSRF via allowlisting if crawling added later.
-- Document retention and deletion for visitor images/chat/PII prior to production; default to minimum necessary retention and protect backups appropriately.
+- Visitor sessions/transcripts carry bounded expiry/retention timestamps (24 hours by default); uploaded images have per-file/pixel/session quotas, single-use attachment handles and explicit conversation deletion. An operational sweeper, backup deletion policy and jurisdiction-specific privacy review remain mandatory before production under F5/P7.
 
 ## LLM and abuse
 - Separate system/tool policy from untrusted user messages/documents; retrieved text is data, not commands.

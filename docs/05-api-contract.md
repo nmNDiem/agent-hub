@@ -1,6 +1,6 @@
 # 05 — API contract (v1)
 
-All paths are prefixed `/api/v1`. Identity, workspace and catalog endpoints are implemented; the remaining endpoint families are proposed until explicitly approved and implemented. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived agent/workspace-scoped widget session and abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
+All paths are prefixed `/api/v1`. Identity, workspace, catalog, knowledge, agent/Playground and widget endpoint families are implemented unless a row explicitly says proposed. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived published-revision/agent/workspace/origin-scoped opaque session and database-backed abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
 
 ## Identity
 | Method | Path | Notes |
@@ -28,8 +28,9 @@ Registration creates the user and session but does not silently create a workspa
 | GET/POST | `/workspaces/{workspace_id}/agents` | List/create draft agents; owner/admin create, members may read |
 | GET/PATCH | `/workspaces/{workspace_id}/agents/{public_agent_id}` | Read/update validated core configuration; F3.1 does not expose status transitions |
 | PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/catalog-scope` | Atomically replace allowed location/collection scope; `null` means all, `[]` means none |
-| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/publish` | Future F4 route; requires complete configuration and an immutable revision |
-| GET/PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/widget` | Future F4 branding + domain allowlist + embed snippet |
+| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/publish` | Validate readiness and create/reuse an immutable published revision; owner/admin + CSRF |
+| POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/pause` | Pause new public sessions without mutating the published revision; owner/admin + CSRF |
+| GET/PUT | `/workspaces/{workspace_id}/agents/{public_agent_id}/widget` | Read/update branding and exact allowed origins; returns readiness and embed snippet when publishable |
 | CRUD | `/workspaces/{workspace_id}/products` | Filtering, pagination, validation |
 | CRUD | `/workspaces/{workspace_id}/products/{product_id}/variants` | SKU, generic options, legacy color/size compatibility, price and stock |
 | PUT/DELETE | `/workspaces/{workspace_id}/products/{product_id}/size-guide` | Optional validated JSON guide |
@@ -60,13 +61,16 @@ Registration creates the user and session but does not silently create a workspa
 ## Widget / visitor
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/widget/{public_agent_id}/sessions` | Check agent published, origin policy, abuse limits; issue scoped opaque session token |
-| POST | `/widget/conversations` | Scope derived from widget token, not request workspace ID |
-| GET | `/widget/conversations/{conversation_public_id}/messages` | Only matching visitor session |
-| POST | `/widget/conversations/{conversation_public_id}/messages` | User text + optional validated attachment refs |
-| GET | `/widget/conversations/{conversation_public_id}/stream` | SSE; authorized for conversation, not shared tenant stream |
-| POST | `/widget/uploads/images` | Validate content and quota, return scoped attachment handle |
-| POST | `/widget/conversations/{conversation_public_id}/leads` | Explicit visitor consent |
+| POST | `/widget/{public_agent_id}/sessions` | Check active published revision, exact origin and abuse limits; issue scoped opaque token |
+| POST | `/widget/conversations` | Create the single conversation owned by the widget session; scope never comes from request data |
+| GET | `/widget/conversations/{conversation_public_id}/messages` | Return the bounded transcript only to its matching session + origin |
+| POST | `/widget/conversations/{conversation_public_id}/messages` | Idempotent SSE turn for text plus an optional single-use validated attachment handle |
+| GET | `/widget/conversations/{conversation_public_id}/stream?request_key=...` | Replay the completed idempotent SSE result for the matching session |
+| DELETE | `/widget/conversations/{conversation_public_id}` | Delete the session-owned conversation and its visitor image objects |
+| POST | `/widget/uploads/images` | Validate/re-encode/quota-check a private image and return a scoped handle |
+| DELETE | `/widget/uploads/images/{attachment_id}` | Delete an unused image owned by the matching session + origin |
+| GET | `/widget/product-images/{grant_public_id}` | Resolve an unexpired session-scoped grant to a private no-store Storage redirect |
+| POST | `/widget/conversations/{conversation_public_id}/leads` | Proposed F5 route; requires explicit visitor consent |
 
 ## SSE example event taxonomy
 `message.start`, `message.delta`, `product.cards`, `source.refs`, `message.completed`, `message.error`, `heartbeat`. Stable event IDs if replay is implemented. Terminate streaming on session expiry, disconnect, exhausted budget or denied tool access. Avoid logging token deltas of personal content.
