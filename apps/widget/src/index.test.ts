@@ -74,11 +74,16 @@ describe("AgentHub website widget", () => {
     expect(getWidgetPackageInfo()).toEqual({ status: "functional", functional: true });
     expect(target.shadowRoot).not.toBeNull();
     expect(document.querySelector(".ah-panel")).toBeNull();
+    expect(target.style.getPropertyValue("position")).toBe("fixed");
+    expect(target.style.getPropertyPriority("position")).toBe("important");
+    expect(target.style.getPropertyValue("z-index")).toBe("2147483000");
 
     await vi.waitFor(() => {
       expect(target.shadowRoot?.querySelector(".ah-header-copy strong")?.textContent)
         .toBe("Trợ lý ND Shop");
     });
+    expect(target.style.getPropertyValue("--ah-brand")).toBe("#0F8F87");
+    expect(target.style.getPropertyPriority("--ah-brand")).toBe("important");
     const launcher = target.shadowRoot!.querySelector<HTMLButtonElement>(".ah-launcher")!;
     launcher.click();
     expect(launcher.getAttribute("aria-expanded")).toBe("true");

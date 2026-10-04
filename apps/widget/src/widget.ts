@@ -98,6 +98,9 @@ export class AgentHubWidget {
   private open = false;
   private imageUrls = new Map<string, string>();
   private objectUrls = new Set<string>();
+  private readonly handleResize = () => {
+    this.protectHost(this.host.dataset.position === "left" ? "left" : "right");
+  };
 
   private readonly panel: HTMLElement;
   private readonly launcher: HTMLButtonElement;
@@ -117,6 +120,7 @@ export class AgentHubWidget {
     private readonly apiBase: string,
   ) {
     this.storageKey = `agenthub:widget:${new URL(apiBase).origin}:${agentId}`;
+    this.protectHost("right");
     this.shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
     style.textContent = widgetStyles;
@@ -225,6 +229,7 @@ export class AgentHubWidget {
     this.launcher.append(mark);
     this.launcher.addEventListener("click", () => this.setOpen(!this.open));
     this.shadow.append(this.panel, this.launcher);
+    window.addEventListener("resize", this.handleResize, { passive: true });
     this.shadow.addEventListener("keydown", (event) => {
       if (event instanceof KeyboardEvent && event.key === "Escape" && this.open) {
         this.setOpen(false);
@@ -236,6 +241,7 @@ export class AgentHubWidget {
 
   destroy(): void {
     this.activeController?.abort();
+    window.removeEventListener("resize", this.handleResize);
     for (const url of this.objectUrls) URL.revokeObjectURL(url);
     this.objectUrls.clear();
     this.host.remove();
@@ -335,10 +341,49 @@ export class AgentHubWidget {
     const color = /^#[0-9A-Fa-f]{6}$/.test(config.brand_color)
       ? config.brand_color
       : "#0F8F87";
-    this.host.style.setProperty("--ah-brand", color);
-    this.host.dataset.position = config.launcher_position === "left" ? "left" : "right";
+    this.host.style.setProperty("--ah-brand", color, "important");
+    const position = config.launcher_position === "left" ? "left" : "right";
+    this.host.dataset.position = position;
+    this.protectHost(position);
     this.title.textContent = config.display_name || "Trợ lý cửa hàng";
     this.uploadButton.hidden = !config.capabilities.image_input;
+  }
+
+  private protectHost(position: "left" | "right"): void {
+    const mobile = typeof window.matchMedia === "function"
+      && window.matchMedia("(max-width: 480px)").matches;
+    const fixed: Record<string, string> = {
+      all: "initial",
+      display: "block",
+      position: "fixed",
+      "z-index": "2147483000",
+      bottom: mobile ? "10px" : "18px",
+      top: "auto",
+      width: mobile ? "calc(100vw - 20px)" : "auto",
+      height: "auto",
+      margin: "0",
+      padding: "0",
+      border: "0",
+      background: "transparent",
+      color: "#10212b",
+      "color-scheme": "light",
+      "font-family": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+      "font-size": "14px",
+      "line-height": "1.45",
+    };
+    for (const [property, value] of Object.entries(fixed)) {
+      this.host.style.setProperty(property, value, "important");
+    }
+    this.host.style.setProperty(
+      "right",
+      !mobile && position === "right" ? "18px" : "auto",
+      "important",
+    );
+    this.host.style.setProperty(
+      "left",
+      mobile ? "10px" : position === "left" ? "18px" : "auto",
+      "important",
+    );
   }
 
   private setOpen(value: boolean): void {
