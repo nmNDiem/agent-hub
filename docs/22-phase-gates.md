@@ -11,7 +11,7 @@ This document is the release plan. It does **not** authorize implementing every 
 | F2.2 | Workspace locations, location inventory/pricing, collections and scoped import/search | Default-location migration; `NULL`/zero preservation; location/collection and cross-tenant regressions |
 | F3 | OpenAI generation/embedding adapters, Qdrant knowledge index, knowledge/RAG, shop agent, typed read tools over the F2.1 catalog contract | Grounded answers with authoritative effective price/inventory and generic options; Qdrant tenant isolation, prompt injection and cost tests |
 | F4 | Website widget, SSE, anonymous session, image input/product cards | End-to-end local widget demo using schema-neutral product cards, mobile/a11y checks |
-| F5 | History, consented leads, contact handoff, operational hardening | Local pilot acceptance, quotas, data handling review |
+| F5 | Ordered F5.1 leads/handoff, F5.2 history/usage/quota and F5.3 operational hardening | All three slices pass; local pilot acceptance, quota evidence and data-handling review |
 | P6 | Multi-agent/workspace UX, invitations, exports/retention refinements | Migration & role tests; no broken existing tenants |
 | P7 | Dockerized services on VPS (Supabase remains hosted), HTTPS, backups/monitoring/CI rollout | Staging smoke, restore test, rollback exercise, production approval |
 | P8 | Facebook adapter and shared conversation pipeline | Vendor approval, signed webhooks, dedupe/retry and real-channel pilot |
@@ -21,6 +21,8 @@ This document is the release plan. It does **not** authorize implementing every 
 | P12 | Generalized non-commerce agents, connectors and workflow tools | No catalog dependency; security and tenant regression suite |
 
 F3.1 through F3.5 in `architecture/implementation-plan.md` and `10-codex-backlog.md` are ordered implementation slices, not independent release phases. F3 closes only when all five slices pass together and the F3 exit evidence above is satisfied.
+
+F5.1 through F5.3 are likewise ordered implementation slices, not independent release phases. Each requires separate owner approval; a slice that introduces or materially changes a UI screen also requires an owner-approved mockup before implementation. F5 closes only when all three slices pass together and the F5 exit evidence above is satisfied.
 
 ## Gates common to all phases
 A named task/PR has acceptance criteria and owner approval; tests run and are reported; migrations/API changes documented; privacy/security effects reviewed; docs and example configuration updated. Any change of confirmed stack requires an explicit new owner decision recorded in `docs/00-decisions.md`.

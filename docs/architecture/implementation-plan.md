@@ -11,7 +11,7 @@
 | F2.2 location catalog scope | Generic locations, location-variant availability, inventory and price overrides, collections, scoped search/import; no agents | Locations and Collections pages plus per-location availability on product detail |
 | F3 knowledge/agent | OpenAI generation/embedding adapters behind provider-neutral interfaces, Qdrant derived index, typed tools over F2.1 structured search, documents/ingestion jobs, agent config, playground SSE | Real Playground + knowledge UI, grounded sources and schema-neutral product cards, loading/stop/error states |
 | F4 web widget/vision | Agent immutable published revisions, public UUIDv7, scoped anonymous sessions, visitor SSE, image upload with quota, F2.1-safe product cards, host CSS isolation | Embeddable, responsive widget matching reference; host-site QA and a11y; conversation view when data exists |
-| F5 local pilot | Consented leads, history/usage, limits, observability, privacy/retention acceptance | Data-backed dashboard and inbox, accurate statuses/analytics, error/empty/reporting UX |
+| F5 local pilot | One release gate delivered through F5.1 lead/handoff, F5.2 history/usage/quota and F5.3 operational-hardening slices | Owner-approved widget/lead, conversation and overview designs; data-backed UI with accurate states; local pilot/privacy acceptance |
 | P6+ future | Extra agents/members, VPS via Docker P7, Facebook P8, Zalo P9, advanced inbox P10, billing P11, other domains P12 | Feature-gate inactive modules; never fake a connected status or enable payments from mockup |
 
 **F0 is only successful when local services actually boot and existing applicable tests pass.** Static visual quality alone is not an operational milestone; conversely do not demand a production AI end-to-end experience during F0.
@@ -41,6 +41,22 @@ The F3 release gate in [`../22-phase-gates.md`](../22-phase-gates.md) closes onl
 | Admin + embedded clients | Approved Web channel panel and responsive IIFE widget with Shadow DOM, streaming, image upload, cards, stop/reset and transcript restore | Unit/type/lint/build gates plus Playwright desktop/mobile hostile-host CSS, keyboard/ARIA and token-in-DOM checks |
 
 The confirmed choices are the website channel, separately built TypeScript widget, OpenAI-only model adapters, exact-origin enforcement and approved Web/widget UI. Exact production model IDs, deployment origin, retention policy and monthly limits remain deployment decisions. F5 still owns leads, owner conversation inbox/usage, expiration sweep operations and pilot/privacy acceptance.
+
+## F5 ordered implementation slices
+
+F5 remains one authoritative roadmap phase and one local-pilot release gate, but it is delivered through the following three ordered, independently reviewable slices. Finishing one slice does not mark F5 complete or authorize the next slice. Every slice needs its own owner approval, implementation report, relevant tests and focused Conventional Commit.
+
+Any slice that introduces a new UI screen or materially changes an existing screen must first produce a visual mockup and receive explicit owner approval before implementation. Generated mockup content is layout-only: dates, identities, metrics, products, prices and statuses in it are never production data or acceptance evidence.
+
+| Slice | Scope | UI/design gate | Slice acceptance criteria |
+|---|---|---|---|
+| F5.1 consented leads and contact handoff | Optional visitor callback/contact form; versioned explicit consent; tenant/session/origin-scoped idempotent lead creation; safe handoff destination; owner/admin lead list, follow-up status and safe CSV export | Approve the widget callback form and `Khách tiềm năng` screen before code. No live-chat, CRM pipeline, staffing or billing UI | Chat remains usable without contact details; lead requires consent plus email or phone; PII is restricted and never logged; cross-workspace and cross-session access is denied; callback status is accurate |
+| F5.2 conversation history, usage and quota | Read-only owner conversation list/detail; real dashboard aggregates; generation/vision usage ledger; server-enforced workspace monthly quota and existing rate limits | Approve the read-only `Hội thoại` screen and data-backed `Tổng quan` screen before code. The overview uses counts for active chatbots and never copies mock metrics | Cursor pagination is stable; transcripts expose no private object keys or internal BIGINT IDs; metrics and quota state come from persisted data; quota denial happens before a paid provider call; no staff reply/assignment/unread/SLA behavior |
+| F5.3 retention, observability and pilot gate | Bounded idempotent expiry sweeper; retryable private-Storage cleanup; redacted request logs; liveness/readiness; retention/privacy/cost/backup runbooks; complete local release checklist | No new product screen is planned. If implementation discovers a UI need, stop and obtain an approved mockup first | Expired data is revoked and cleaned without touching live records; Storage failures remain retryable; logs contain no chat text, images, tokens or PII; readiness avoids paid OpenAI calls; owner completes the local pilot/privacy checklist |
+
+F5.1 owns the lead schema and callback workflow. F5.2 consumes F5.1 lead summaries in the overview and must not duplicate lead logic. F5.3 operates on the retention metadata created by the earlier slices and must remain safe to rerun. Full staffed inbox, role assignment, CRM automation, subscriptions and VPS rollout remain P10, P11 and P7 work respectively.
+
+The following local-pilot values are proposals until explicitly approved for the relevant slice: 24-hour widget session/transcript retention, 30-minute unattached image retention, one-hour attached image retention, 30-day lead retention and 1,000 generated widget turns per workspace per calendar month. Production retention, jurisdiction-specific privacy wording, handoff destination, model pricing and monthly limits remain deployment decisions.
 
 ## Implementation status
 

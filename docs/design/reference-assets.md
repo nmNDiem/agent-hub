@@ -14,3 +14,5 @@ Images are non-interactive **visual references** only; assets in mockups are not
 3. Build reusable product/chat/status components; snapshot at 1440×900 and 390×844. Prefer correct layout and interactions over matching screenshot's pixel sizes.
 4. Compare content density, spacing, alignment and responsive fallbacks; fix shared tokens, not screen-specific CSS hacks.
 5. Run visual regression with baseline screenshots **from the coded UI**, not literal AI-generated pixels.
+
+For any new screen or material redesign requested after the original handoff, create a visual mockup and obtain explicit owner approval before implementation. A mockup approves layout and interaction direction only: generated dates, identities, metrics, products, prices and statuses must never be copied as production facts. If implementation discovers an unplanned screen, stop at the design gate instead of improvising it in code.

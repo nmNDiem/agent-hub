@@ -1,6 +1,6 @@
 # 10 — Codex backlog (ordered task briefs)
 
-**Status:** F0 through F2.2 and F3.1 through F3.4 are complete. Critical PostgreSQL gates use the isolated `agenthub_test` schema; F3.3 also passed against an explicitly configured non-production Qdrant Cloud collection. F3.5 and later entries remain future work and are not authorized without an explicit owner request. F3 remains open until every F3 slice passes together. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
+**Status:** F0 through F4 are implemented locally. Critical PostgreSQL gates use the isolated `agenthub_test` schema; F3.3 also passed against an explicitly configured non-production Qdrant Cloud collection. The broader F3 release gate still needs the owner-configured integrated Playground/provider check recorded in the implementation plan. F5 is defined as three ordered slices below rather than one large task; each slice requires separate owner approval before implementation. Break tasks into reviewable changes. For each task: list assumptions, changes, tests run, remaining risks and any proposal needing owner approval.
 
 ## F0 — Repository scaffold (complete)
 - Read `AGENTS.md` and decision register.
@@ -62,7 +62,7 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 - Enforce prompt-injection defenses, bounded token/tool usage and safe errors without leaking prompts, credentials or private data.
 - Done: regressions prove no fabricated SKU/stock/price/discount or business commitment, correct unknown inventory behavior, generic option support and bounded usage/cost.
 
-### F3.5 — Dashboard knowledge UI and Playground
+### F3.5 — Dashboard knowledge UI and Playground (complete locally)
 - Add knowledge upload/status/error UI, agent configuration UI and an authenticated Playground using SSE.
 - Render grounded sources and schema-neutral product cards with loading, stop, empty and error states.
 - Done: the integrated dashboard flow passes accessibility and cancellation/error checks; source/card fixtures cover product-only and multi-option catalogs.
@@ -76,8 +76,32 @@ F3 is one roadmap phase and release gate, implemented through the following orde
 - Done: functional website integration, hostile-host CSS isolation, keyboard/mobile checks, other visitor cannot open a conversation or image grant, and source/card schemas are tested across product-only and multi-option variant fixtures. Vision/storage tests are offline fakes and do not incur provider charges.
 
 ## F5 — Pilot release
-- Leads with consent, callback CTA, shop dashboard threads/usage, rate limits/quotas, local observability and documented backup/production prerequisites. Deploy to VPS only in phase P7 when authorized.
-- Done: release checklist and owner pilot acceptance; explicitly document storage/PII retention and costs.
+
+F5 is one roadmap phase and one local-pilot release gate delivered through three ordered tasks. Completing a task does not authorize the next one or close F5. Before implementing any new screen or material screen redesign, generate a visual mockup and obtain explicit owner approval. Mockup values and identities are illustrative only.
+
+### F5.1 — Consented leads and contact handoff
+- Add an optional widget callback/contact flow that never blocks chat and never claims a staffed live-chat service.
+- Persist only explicitly consented contact details with versioned consent evidence, idempotency and immutable server-derived workspace/conversation/session scope. Require at least one validated email or phone number and never log PII.
+- Add a safe configured contact destination plus owner/admin lead list, follow-up status and CSV export. Do not add CRM automation, staff assignment or billing.
+- UI gate: owner approves the widget callback form and `Khách tiềm năng` screen before implementation.
+- Done: consent, validation, idempotency, role/CSRF, cross-session and cross-workspace regressions pass; chat remains usable without lead submission; lead retention is explicit.
+
+### F5.2 — Conversation history, usage and quota
+- Add owner/admin read-only conversation list/detail with stable cursor pagination and redacted public DTOs. Do not add a staff composer, assignment, unread state or SLA workflow.
+- Replace the overview scaffold with real bounded aggregates and recent conversation/lead data. Persist generation/vision usage facts and expose accurate token/model-call/quota status without inventing cost.
+- Enforce the approved workspace monthly quota before a paid provider call while preserving existing IP/session/workspace rate and upload limits.
+- UI gate: owner approves the read-only `Hội thoại` screen and data-backed `Tổng quan` screen before implementation.
+- Done: tenant-negative tests, pagination, quota exhaustion, safe transcript/image metadata, real metric definitions and loading/empty/error/responsive UI tests pass.
+
+### F5.3 — Retention, observability and pilot acceptance
+- Add a bounded idempotent expiry sweeper for visitor transcripts/sessions/images/grants, leads and obsolete rate windows. Revoke authoritative database access first; retry Storage cleanup without silently claiming success.
+- Add redacted request logging, request IDs, liveness/readiness and local operational documentation. Readiness must not make paid OpenAI requests.
+- Document storage/PII retention, configurable pricing/cost limitations, backup/restore and production prerequisites. Deploy to VPS only in P7 when authorized.
+- No new screen is planned. If a UI requirement emerges, stop and obtain an approved mockup first.
+- Done: the F5 regression suite passes, exact commands/results are recorded, and the owner completes the local end-to-end pilot plus privacy/security checklist.
+
+### F5 phase completion
+- Close F5 only after F5.1 through F5.3 pass together and the F5 exit evidence in `22-phase-gates.md` is recorded.
 
 ## Sample first Codex prompt
 "Read AGENTS.md, docs/00-decisions.md, docs/03-architecture.md and docs/10-codex-backlog.md. Work only on F0. Next.js/TypeScript, FastAPI/Python, Supabase Postgres, Supabase Storage, OpenAI and FastAPI-owned email/password auth are confirmed. The application must boot locally now; Docker-on-VPS is later. Propose only genuinely unconfirmed ORM/UI choices before making irreversible decisions. Show exact commands and test results; don't build later features." 

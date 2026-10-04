@@ -11,13 +11,13 @@ Each phase should end in a runnable, reviewed increment. Architecture may antici
 | F2.2 Location catalog scope | Workspace master catalog, locations, location+variant inventory/pricing, collections and location-aware import/search | Complete; migration and tenant regressions preserve `NULL != 0`, and PostgreSQL stock backfill passed |
 | F3 Knowledge & agent | Shop profile, FAQ, PDF/TXT ingestion, Qdrant, provider-neutral embedding adapter, agent config, typed tools over F2.1 search | Agent answers grounded questions with authoritative effective price/inventory and same-variant options |
 | F4 Widget & vision | Embed, visitor sessions, SSE, schema-neutral product cards, visitor photo flow | Complete locally; isolated real-page embed passed desktop/mobile/a11y and cross-session/card/image regressions |
-| F5 Local operational pilot | Leads, callback, dashboard history/usage, limits, local observability | Owner tests end-to-end locally; privacy/security review completed |
+| F5 Local operational pilot | Ordered F5.1 leads/handoff, F5.2 history/usage/quota and F5.3 retention/observability slices | All three slices pass; owner tests end-to-end locally; privacy/security review completed |
 | P6+ Full product & future deployment | Role invitations, multi-agent, Docker-on-VPS, channel adapters, knowledge expansion, billing | Explicit new phase approvals; see `22-phase-gates.md` |
 
 Full target scope is specified in `12-full-product-scope.md` through `23-decision-and-change-control.md`. These do not authorize implementation beyond the current task.
 
 ## Dependencies
-F1 precedes private F2/F3 endpoints; F2.1 precedes F2.2; F2.2 location/collection-scoped search precedes F3 agent assignments and typed catalog tools. F3 is delivered through the ordered F3.1–F3.5 implementation slices defined in `10-codex-backlog.md`, but remains one roadmap phase and exit gate. F3 precedes grounded F4 widget answers and product cards; F4 precedes pilot; F5 confirms usability and operations.
+F1 precedes private F2/F3 endpoints; F2.1 precedes F2.2; F2.2 location/collection-scoped search precedes F3 agent assignments and typed catalog tools. F3 is delivered through the ordered F3.1–F3.5 implementation slices defined in `10-codex-backlog.md`, but remains one roadmap phase and exit gate. F3 precedes grounded F4 widget answers and product cards; F4 precedes pilot. F5 is delivered through ordered F5.1–F5.3 slices, each separately approved, but remains one roadmap phase and exit gate. Any new F5 screen requires an owner-approved mockup before implementation.
 
 ## Not now
 Checkout/payment/order writes; drag-drop workflow editor; subscriptions; live staffed inbox; Facebook/Zalo; periodic website scraping; automatic inventory integrations. Add only under a separate approved scope and threat review.
