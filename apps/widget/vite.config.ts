@@ -4,8 +4,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: "src/index.ts",
-      formats: ["es"],
-      fileName: "agent-hub-widget",
+      formats: ["iife"],
+      name: "AgentHubWidget",
+      fileName: () => "widget/v1/loader.js",
     },
   },
 });

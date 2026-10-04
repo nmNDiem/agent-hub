@@ -11,14 +11,14 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/agent-hub-widget.js"
+      "import": "./dist/widget/v1/loader.js"
     }
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.54.0",
     "@typescript-eslint/parser": "8.54.0",
     "eslint": "9.39.5",
+    "jsdom": "30.1.0",
     "typescript-eslint": "8.54.0",
     "typescript": "5.9.3",
     "vite": "8.3.0",
