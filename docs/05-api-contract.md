@@ -2,6 +2,13 @@
 
 All paths are prefixed `/api/v1`. Identity, workspace, catalog, knowledge, agent/Playground and widget endpoint families are implemented unless a row explicitly says proposed. See `architecture/api-conventions.md` for payload/error/SSE implementation conventions, and `architecture/identifiers.md` for UUIDv7 vs BIGINT rules. User/workspace IDs are UUIDv7; public agent/conversation IDs are UUIDv7; internal dense records use BIGINT. UI calls agents *chatbots* and workspaces *shops*. Dashboard endpoints require FastAPI-issued auth + server-verified workspace membership/role. Widget endpoints require a short-lived published-revision/agent/workspace/origin-scoped opaque session and database-backed abuse control. The `{conversation_public_id}` and `{public_agent_id}` values exposed to visitors are UUIDv7 strings, not internal BIGINTs. Never put privileged service credentials in public JS.
 
+## Operations (outside `/api/v1`)
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/health` | Backward-compatible process liveness; no dependency or secret details |
+| GET | `/health/live` | Process liveness for local operations |
+| GET | `/health/ready` | Database readiness only; returns 503 when unavailable and never calls OpenAI, Qdrant or Storage |
+
 ## Identity
 | Method | Path | Notes |
 |---|---|---|
@@ -103,6 +110,8 @@ F3.1 implements `search_products`, `get_product_detail` and `check_stock` as int
 
 F3.2 knowledge resources use authenticated dashboard BIGINT IDs only after membership resolution; they are never public widget identifiers. Cross-workspace access returns non-leaking `404`, while a same-workspace member attempting a mutation receives `403`. Document creation requires `Idempotency-Key`. Jobs expose `awaiting_profile`, `queued`, `processing`, `retry_scheduled`, `succeeded`, `failed` or `cancelled`; only provider/storage/network-class transient failures retry automatically. Corrupt, encrypted, image-only or limit-exceeding PDFs return stable permanent error codes. Raw document text, file contents, Storage keys and parser tracebacks are not returned.
 
-F5.1 lead capture derives workspace, agent, session and conversation exclusively from the opaque widget session plus the conversation lookup; the request cannot supply or switch tenant scope. The request carries optional name, email and phone, `consent_given: true`, and the exact consent text version returned in public widget config. At least one validated email or phone is required. The public response acknowledges receipt/status/retention only and never echoes PII. Admin lead reads, status updates and CSV export are owner/admin-only; member access is denied. Local-pilot retention is 30 days, while automated expiry belongs to F5.3.
+F5.1 lead capture derives workspace, agent, session and conversation exclusively from the opaque widget session plus the conversation lookup; the request cannot supply or switch tenant scope. The request carries optional name, email and phone, `consent_given: true`, and the exact consent text version returned in public widget config. At least one validated email or phone is required. The public response acknowledges receipt/status/retention only and never echoes PII. Admin lead reads, status updates and CSV export are owner/admin-only; member access is denied. Local-pilot retention is 30 days and is enforced by the F5.3 sweeper.
 
 F5.2 conversation, dashboard and usage reads are owner/admin-only and return `Cache-Control: no-store`. Conversation pagination is ordered by `(last_message_at DESC, public_id DESC)` and uses an opaque cursor. Transcript DTOs omit internal BIGINT IDs, private Storage paths/grants and raw internal metadata; visitor images expose only validated type, dimensions, size and creation time. The dashboard uses workspace-local calendar dates and supports bounded 7/30-day periods. The local-pilot quota is 1,000 generated turns per workspace-local calendar month, shared by Widget and Playground. A turn is reserved transactionally before generation; exhaustion returns `429 WORKSPACE_MONTHLY_QUOTA_EXCEEDED` before any paid provider call. Usage events report observed generation/vision model calls, tools and tokens without estimating cost.
+
+F5.3 adds no browser API or product screen. The one-shot retention operator runs in bounded batches outside request handling. Routine request logs contain a generated request ID, HTTP method, route template, status and duration only; query strings, headers, bodies, chat text, image data, tokens and PII are excluded.

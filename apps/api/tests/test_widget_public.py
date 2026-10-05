@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -29,6 +30,7 @@ from agent_hub_api.identity.security import CSRF_COOKIE
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base
 from agent_hub_api.widget.image_storage import VisitorImageStorageError
+from agent_hub_api.widget.models import VisitorImageUpload
 from agent_hub_api.widget.vision import VisionObservation, VisionResult
 
 PASSWORD = "secure-password-123"
@@ -66,6 +68,7 @@ class FakePublishedRuntime:
 class FakeVisitorImageStorage:
     def __init__(self) -> None:
         self.objects: dict[str, tuple[bytes, str]] = {}
+        self.fail_delete = False
 
     async def upload(self, *, object_key: str, content: bytes, content_type: str) -> None:
         if object_key in self.objects:
@@ -79,6 +82,8 @@ class FakeVisitorImageStorage:
         return content
 
     async def delete(self, *, object_key: str) -> None:
+        if self.fail_delete:
+            raise VisitorImageStorageError("test delete failure")
         self.objects.pop(object_key, None)
 
 
@@ -571,6 +576,64 @@ def test_widget_image_is_sanitized_scoped_single_use_and_added_as_untrusted_cues
         )
         assert deleted.status_code == 204
         assert storage.objects == {}
+
+
+def test_conversation_delete_revokes_first_and_defers_failed_storage_cleanup(
+    app_factory: AppFactory,
+) -> None:
+    storage = FakeVisitorImageStorage()
+    app = app_factory(
+        FakePublishedRuntime(),
+        image_storage=storage,
+        vision_gateway=FakeVisionGateway(),
+        vision_model="verified-vision-test-model",
+    )
+    with TestClient(app) as client:
+        published = publish_agent(client)
+        token, _ = visitor_session(client, published["public_agent_id"])
+        conversation = client.post(
+            "/api/v1/widget/conversations", headers=visitor_headers(token)
+        ).json()["public_id"]
+        uploaded = client.post(
+            "/api/v1/widget/uploads/images",
+            files={"file": ("look.jpg", jpeg_with_exif(), "image/jpeg")},
+            headers=visitor_headers(token),
+        )
+        assert uploaded.status_code == 201
+        storage.fail_delete = True
+
+        deleted = client.delete(
+            f"/api/v1/widget/conversations/{conversation}",
+            headers=visitor_headers(token),
+        )
+
+        assert deleted.status_code == 204
+        assert storage.objects
+        denied = client.get(
+            f"/api/v1/widget/conversations/{conversation}/messages",
+            headers=visitor_headers(token),
+        )
+        assert denied.status_code == 401
+        session_factory = cast(async_sessionmaker[AsyncSession], app.state.session_factory)
+
+        async def image_state() -> tuple[str, int, str | None, object]:
+            async with session_factory() as session:
+                image = (
+                    await session.scalars(select(VisitorImageUpload))
+                ).one()
+                return (
+                    image.status,
+                    image.cleanup_attempts,
+                    image.last_cleanup_error,
+                    image.analysis_json,
+                )
+
+        assert asyncio.run(image_state()) == (
+            "cleanup_pending",
+            1,
+            "storage_delete_failed",
+            None,
+        )
 
 
 def test_widget_image_rejects_invalid_content_mime_and_quota(

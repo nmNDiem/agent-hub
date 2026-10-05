@@ -1,6 +1,15 @@
-from fastapi.testclient import TestClient
+import asyncio
+import logging
+from collections.abc import Iterator
+from pathlib import Path
 
-from agent_hub_api.main import app
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from agent_hub_api.core.config import Settings
+from agent_hub_api.main import app, create_app
+from agent_hub_api.models import Base
 
 
 def test_health_returns_safe_liveness_payload() -> None:
@@ -13,3 +22,81 @@ def test_health_returns_safe_liveness_payload() -> None:
         "environment": "local",
     }
     assert "database" not in response.text.lower()
+
+
+def test_explicit_liveness_matches_compatibility_endpoint() -> None:
+    with TestClient(app) as client:
+        assert client.get("/health/live").json() == client.get("/health").json()
+
+
+def test_readiness_fails_safely_without_database() -> None:
+    test_app = create_app(
+        settings=Settings(
+            app_env="test",
+            database_url=None,
+            jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+        )
+    )
+
+    with TestClient(test_app) as client:
+        response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "service": "AgentHub API",
+        "environment": "test",
+        "database": "unavailable",
+    }
+
+
+@pytest.fixture
+def ready_client(tmp_path: Path) -> Iterator[TestClient]:
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'health.db'}")
+
+    async def prepare() -> None:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+    asyncio.run(prepare())
+    test_app = create_app(
+        settings=Settings(
+            app_env="test",
+            database_url=None,
+            jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+        ),
+        session_factory=async_sessionmaker(engine, expire_on_commit=False),
+    )
+    with TestClient(test_app) as client:
+        yield client
+    asyncio.run(engine.dispose())
+
+
+def test_readiness_checks_database_without_provider_calls(ready_client: TestClient) -> None:
+    response = ready_client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "service": "AgentHub API",
+        "environment": "test",
+        "database": "ok",
+    }
+
+
+def test_request_log_uses_route_template_and_omits_sensitive_input(
+    ready_client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="agent_hub_api.requests")
+
+    response = ready_client.get(
+        "/health?email=private@example.com&token=raw-secret",
+        headers={"authorization": "Bearer raw-secret"},
+    )
+
+    assert response.status_code == 200
+    messages = "\n".join(record.getMessage() for record in caplog.records)
+    assert "http_request request_id=" in messages
+    assert "method=GET route=/health status_code=200" in messages
+    assert "private@example.com" not in messages
+    assert "raw-secret" not in messages

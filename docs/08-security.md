@@ -23,7 +23,7 @@
 - Enforce allowlist MIME + file signature and decoded format, bounded upload bytes/pixels/pages, safe filenames, path constraints, per-workspace quotas and scan/isolated parsing as needed.
 - Treat PDF parsing as hostile execution: use strict parsing in a subprocess with wall/CPU/memory/output limits and fail closed if resource isolation cannot be installed. Application page/text limits do not replace decoder-level isolation.
 - Never use uploaded document or image metadata as executable code; no unrestricted URL fetching. Prefer blocking SSRF via allowlisting if crawling added later.
-- Visitor sessions/transcripts carry bounded expiry/retention timestamps (24 hours by default); uploaded images have per-file/pixel/session quotas, single-use attachment handles and explicit conversation deletion. An operational sweeper, backup deletion policy and jurisdiction-specific privacy review remain mandatory before production under F5/P7.
+- Local-pilot visitor sessions/transcripts retain for 24 hours; unattached images retain for 30 minutes and attached images for one hour. Uploaded images have per-file/pixel/session quotas and single-use attachment handles. The F5.3 sweeper revokes authoritative database access first, removes transcript/lead PII, and keeps failed private-Storage deletion retryable. Production durations, backup deletion policy and jurisdiction-specific privacy review remain mandatory before production under P7.
 
 ## LLM and abuse
 - Separate system/tool policy from untrusted user messages/documents; retrieved text is data, not commands.
@@ -32,6 +32,7 @@
 - No payment/checkout/order mutation from an LLM. No speculation about stock, private order status or unsupported size guarantees.
 - Redact API keys, passwords, tokens, contact info and private file links from error logs/traces where practical.
 - Knowledge workers log job/workspace identifiers and stable error codes only; never log uploaded bytes, extracted/chunk text or parser tracebacks. Ingestion merely preserves text as untrusted data—prompt-injection defenses are enforced later when grounded context is assembled and tools execute.
+- HTTP access logs use server-generated request IDs and route templates, never raw URLs, query strings, headers or bodies. Readiness checks only the authoritative database and does not call paid model providers.
 
 ## Test requirements
 - Login/token rotation/password reset tests; wrong user/workspace access to each resource; mandatory Qdrant tenant/source filters plus Postgres result revalidation; unauthorized signed-URL attempt; malformed image and oversized PDF; widget replay, rate limits and consent; prompt injection from uploaded docs; safe error behavior.

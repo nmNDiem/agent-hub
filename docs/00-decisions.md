@@ -45,6 +45,7 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
 | Upload and usage quotas | Server-enforced workspace limits and rate windows | CONFIRMED | Initial knowledge defaults are recorded in ADR F3.2 and remain deployment-overridable |
 | Local-pilot generated-turn quota | 1,000 generated turns per workspace per workspace-local calendar month | CONFIRMED | Shared by Widget and Playground; reserve before generation; production limit remains deployment-configurable |
+| Local-pilot visitor retention | Sessions/transcripts 24 hours; unattached images 30 minutes; attached images 1 hour | CONFIRMED | F5.3 bounded sweeper revokes database access before retryable Storage cleanup; production durations remain open |
 | Customer image input | Basic vision analysis + catalog matching | CONFIRMED | Separate configured vision model; not specialized image-to-image search |
 | Orders/payments/refunds | No execution in MVP | DEFERRED | Read-only integrations later if approved |
 | Current runtime | Local development only | CONFIRMED | Do not claim VPS deployment or require Docker for day-one boot |

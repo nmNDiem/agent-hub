@@ -201,6 +201,7 @@ class VisitorImageUpload(Base):
         ),
         CheckConstraint("byte_size > 0", name="ck_visitor_images_byte_size"),
         CheckConstraint("width > 0 AND height > 0", name="ck_visitor_images_dimensions"),
+        CheckConstraint("cleanup_attempts >= 0", name="ck_visitor_images_cleanup_attempts"),
         Index(
             "ix_visitor_images_workspace_session_expiry",
             "workspace_id",
@@ -208,6 +209,7 @@ class VisitorImageUpload(Base):
             "expires_at",
             "id",
         ),
+        Index("ix_visitor_images_cleanup", "status", "expires_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -225,6 +227,8 @@ class VisitorImageUpload(Base):
     status: Mapped[str] = mapped_column(String(24), default="uploading")
     analysis_json: Mapped[dict[str, object] | None] = mapped_column(JSON_DOCUMENT, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    cleanup_attempts: Mapped[int] = mapped_column(Integer(), default=0)
+    last_cleanup_error: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now

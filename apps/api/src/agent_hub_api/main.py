@@ -1,5 +1,7 @@
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
@@ -46,6 +48,8 @@ from agent_hub_api.widget.vision import (
 )
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
+
+logger = logging.getLogger("agent_hub_api.requests")
 
 
 def create_app(
@@ -170,8 +174,29 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         request.state.request_id = str(uuid4())
-        response = await call_next(request)
+        started_at = perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            route = getattr(request.scope.get("route"), "path", "unmatched")
+            logger.error(
+                "http_request request_id=%s method=%s route=%s status_code=500 duration_ms=%s",
+                request.state.request_id,
+                request.method,
+                route,
+                round((perf_counter() - started_at) * 1000),
+            )
+            raise
         response.headers["x-request-id"] = request.state.request_id
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        logger.info(
+            "http_request request_id=%s method=%s route=%s status_code=%s duration_ms=%s",
+            request.state.request_id,
+            request.method,
+            route,
+            response.status_code,
+            round((perf_counter() - started_at) * 1000),
+        )
         return response
 
     @application.middleware("http")

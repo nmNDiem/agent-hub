@@ -10,7 +10,7 @@ from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.models import Agent, AgentRevision, AgentWebChannel, WidgetDomain
@@ -91,6 +91,12 @@ class PreparedAttachment:
     upload_id: int
     object_key: str
     content_type: str
+
+
+@dataclass(frozen=True, slots=True)
+class PendingImageCleanup:
+    image_id: int
+    object_key: str
 
 
 class WidgetVisitorService:
@@ -710,58 +716,77 @@ class WidgetVisitorService:
 
     async def delete_conversation(
         self, *, token: str, origin: str, conversation_public_id: UUID
-    ) -> None:
+    ) -> tuple[PendingImageCleanup, ...]:
+        now = datetime.now(UTC)
         async with self.session.begin():
             context = await self.resolve_context(token=token, origin=origin)
             conversation = await self._conversation(
                 context, conversation_public_id, for_update=True
             )
+            uploads = list(
+                await self.session.scalars(
+                    select(VisitorImageUpload)
+                    .where(
+                        VisitorImageUpload.workspace_id == context.workspace_id,
+                        VisitorImageUpload.session_id == context.session_id,
+                    )
+                    .with_for_update()
+                )
+            )
             conversation.status = "deleted"
             await self.session.execute(
-                update(ConversationMessage)
-                .where(ConversationMessage.conversation_id == conversation.id)
-                .values(text="", response_json=None)
+                delete(ConversationMessage).where(
+                    ConversationMessage.conversation_id == conversation.id
+                )
             )
             await self.session.execute(
                 update(WidgetSession)
                 .where(WidgetSession.id == context.session_id)
-                .values(revoked_at=datetime.now(UTC))
+                .values(revoked_at=now)
             )
+            pending: list[PendingImageCleanup] = []
+            for upload in uploads:
+                upload.analysis_json = None
+                upload.updated_at = now
+                upload.last_cleanup_error = None
+                if upload.object_key is None:
+                    await self.session.delete(upload)
+                    continue
+                upload.status = "cleanup_pending"
+                pending.append(
+                    PendingImageCleanup(image_id=upload.id, object_key=upload.object_key)
+                )
+        return tuple(pending)
+
+    async def finish_image_cleanup(
+        self,
+        pending: PendingImageCleanup,
+        *,
+        error_code: str | None = None,
+    ) -> None:
+        async with self.session.begin():
+            if error_code is None:
+                await self.session.execute(
+                    delete(VisitorImageUpload).where(
+                        VisitorImageUpload.id == pending.image_id,
+                        VisitorImageUpload.status == "cleanup_pending",
+                        VisitorImageUpload.object_key == pending.object_key,
+                    )
+                )
+                return
             await self.session.execute(
                 update(VisitorImageUpload)
                 .where(
-                    VisitorImageUpload.workspace_id == context.workspace_id,
-                    VisitorImageUpload.session_id == context.session_id,
+                    VisitorImageUpload.id == pending.image_id,
+                    VisitorImageUpload.status == "cleanup_pending",
+                    VisitorImageUpload.object_key == pending.object_key,
                 )
                 .values(
-                    status="deleted",
-                    object_key=None,
+                    cleanup_attempts=VisitorImageUpload.cleanup_attempts + 1,
+                    last_cleanup_error=error_code,
                     updated_at=datetime.now(UTC),
                 )
             )
-
-    async def session_image_object_keys(
-        self,
-        *,
-        token: str,
-        origin: str,
-        conversation_public_id: UUID,
-    ) -> tuple[str, ...]:
-        context = await self.resolve_context(token=token, origin=origin)
-        await self._conversation(context, conversation_public_id)
-        object_keys = tuple(
-            await self.session.scalars(
-                select(VisitorImageUpload.object_key).where(
-                    VisitorImageUpload.workspace_id == context.workspace_id,
-                    VisitorImageUpload.session_id == context.session_id,
-                    VisitorImageUpload.object_key.is_not(None),
-                    VisitorImageUpload.status.in_(
-                        ("uploading", "available", "attached", "cleanup_pending")
-                    ),
-                )
-            )
-        )
-        return tuple(object_key for object_key in object_keys if object_key is not None)
 
     async def _conversation(
         self, context: VisitorContext, public_id: UUID, *, for_update: bool = False

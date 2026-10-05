@@ -172,7 +172,21 @@ Bundle `apps/widget` là IIFE nhẹ, dùng Shadow DOM và bảo vệ host styles
 
 Widget có form `Nhờ shop liên hệ` không chặn chat, yêu cầu email hoặc số điện thoại và checkbox consent có version. Backend tự suy ra workspace/agent/session/conversation từ opaque visitor session, chỉ tạo một lead cho mỗi conversation và xử lý retry bằng `Idempotency-Key`; public response không echo PII. Cấu hình Web channel có thể publish CTA HTTPS/mailto/tel an toàn cùng revision.
 
-Dashboard có route `Khách tiềm năng` cho owner/admin, stable cursor pagination, ba trạng thái theo dõi và CSV UTF-8 giới hạn số dòng/chống spreadsheet formula injection. Lead local pilot có `retention_until` 30 ngày; F5.3 mới cung cấp sweeper thực thi xóa và production privacy policy. Hội thoại/usage/quota thuộc F5.2, không nằm trong F5.1.
+Dashboard có route `Khách tiềm năng` cho owner/admin, stable cursor pagination, ba trạng thái theo dõi và CSV UTF-8 giới hạn số dòng/chống spreadsheet formula injection. Lead local pilot có `retention_until` 30 ngày. Hội thoại/usage/quota thuộc F5.2, không nằm trong F5.1.
+
+## F5.2 hội thoại, usage và quota
+
+Owner/admin có danh sách và transcript hội thoại chỉ đọc, dashboard 7/30 ngày theo timezone workspace, usage generation/vision và hạn mức 1.000 lượt tạo mỗi tháng dùng chung Widget + Playground. Quota được giữ transactionally trước provider call; dashboard không suy đoán chi phí tiền tệ.
+
+## F5.3 retention và vận hành local pilot
+
+Backend có sweeper theo batch, idempotent: revoke session/hội thoại trước, xóa transcript/lead hết hạn, dọn grant/rate window và retry xóa ảnh private Storage. Chạy migration trước rồi chạy một pass bằng:
+
+```powershell
+pnpm ops:retention
+```
+
+`/health/live` kiểm tra process; `/health/ready` chỉ kiểm tra database và không gọi OpenAI/Qdrant/Storage. Request log dùng route template và không ghi query/header/body/chat/image/token/PII. Runbook, backup boundary và checklist owner nằm tại `docs/operations/local-pilot-runbook.md`. F5 chưa đóng cho tới khi owner hoàn tất checklist; đây không phải tuyên bố production-ready.
 
 ## Where to read first
 
@@ -224,4 +238,4 @@ Dashboard có route `Khách tiềm năng` cho owner/admin, stable cursor paginat
 
 ## Current Codex instruction
 
-Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. Foundation through F5.1 consented leads/contact handoff are implemented locally; do not implement F5.2/F5.3 operations, VPS rollout, social channels, payments or other providers without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not claim production readiness. Report actual tests and commands.
+Read `AGENTS.md`, `docs/00-decisions.md`, `docs/03-architecture.md`, and the acceptance criteria for the explicitly requested task. F0 through the three F5 implementation slices are implemented locally, but the F5 release gate remains open until the owner completes the local pilot/privacy/security checklist. Do not implement P6+, VPS rollout, social channels, payments or other providers without a new owner request. Preserve the domain-oriented modular monolith under `agent_hub_api`, tenant isolation, the published API contract and the database schema unless the approved task explicitly changes them. Read `docs/design/README.md` for UI work and `docs/architecture/README.md` for implementation boundaries. Do not claim production readiness. Report actual tests and commands.

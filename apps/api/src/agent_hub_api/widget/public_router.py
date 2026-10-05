@@ -674,35 +674,32 @@ async def delete_widget_conversation(
     token = _bearer_token(authorization)
     resolved_origin = _required_origin(origin)
     service = _service(session, settings)
-    object_keys = await service.session_image_object_keys(
+    pending_cleanup = await service.delete_conversation(
         token=token,
         origin=resolved_origin,
         conversation_public_id=conversation_public_id,
     )
-    await session.rollback()
-    if object_keys:
-        storage = cast(
-            VisitorImageStorage | None,
-            getattr(request.app.state, "widget_image_storage", None),
-        )
+    storage = cast(
+        VisitorImageStorage | None,
+        getattr(request.app.state, "widget_image_storage", None),
+    )
+    for pending in pending_cleanup:
         if storage is None:
-            raise ApiError(
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "STORAGE_UNAVAILABLE",
-                "Không thể xóa dữ liệu ảnh lúc này.",
+            await service.finish_image_cleanup(
+                pending, error_code="storage_unconfigured"
             )
+            continue
         try:
-            for object_key in object_keys:
-                await storage.delete(object_key=object_key)
-        except VisitorImageStorageError as exc:
-            raise ApiError(
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "STORAGE_UNAVAILABLE",
-                "Không thể xóa dữ liệu ảnh lúc này.",
-            ) from exc
-    await service.delete_conversation(
-        token=token,
-        origin=resolved_origin,
-        conversation_public_id=conversation_public_id,
-    )
+            await storage.delete(object_key=pending.object_key)
+        except VisitorImageStorageError:
+            await service.finish_image_cleanup(
+                pending, error_code="storage_delete_failed"
+            )
+            logger.warning(
+                "widget_image_cleanup_deferred image_id=%s request_id=%s",
+                pending.image_id,
+                getattr(request.state, "request_id", "unknown"),
+            )
+        else:
+            await service.finish_image_cleanup(pending)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

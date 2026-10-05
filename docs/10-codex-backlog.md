@@ -93,12 +93,13 @@ F5 is one roadmap phase and one local-pilot release gate delivered through three
 - UI gate: owner approves the read-only `Hội thoại` screen and data-backed `Tổng quan` screen before implementation.
 - Done: tenant-negative tests, pagination, quota exhaustion, safe transcript/image metadata, real metric definitions and loading/empty/error/responsive UI tests pass.
 
-### F5.3 — Retention, observability and pilot acceptance
+### F5.3 — Retention, observability and pilot acceptance (implemented locally; owner acceptance pending)
 - Add a bounded idempotent expiry sweeper for visitor transcripts/sessions/images/grants, leads and obsolete rate windows. Revoke authoritative database access first; retry Storage cleanup without silently claiming success.
 - Add redacted request logging, request IDs, liveness/readiness and local operational documentation. Readiness must not make paid OpenAI requests.
 - Document storage/PII retention, configurable pricing/cost limitations, backup/restore and production prerequisites. Deploy to VPS only in P7 when authorized.
 - No new screen is planned. If a UI requirement emerges, stop and obtain an approved mockup first.
 - Done: the F5 regression suite passes, exact commands/results are recorded, and the owner completes the local end-to-end pilot plus privacy/security checklist.
+- Implemented: bounded revoke-first sweeper with retryable private-Storage cleanup, redacted request logs/request IDs, database-only readiness, liveness and local runbook/checklist. Do not close F5 until the owner records the manual pilot/privacy sign-off.
 
 ### F5 phase completion
 - Close F5 only after F5.1 through F5.3 pass together and the F5 exit evidence in `22-phase-gates.md` is recorded.

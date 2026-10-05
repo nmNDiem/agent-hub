@@ -48,6 +48,7 @@ class UsageEvent(Base):
             ["workspace_id", "conversation_id"],
             ["conversations.workspace_id", "conversations.id"],
             name="fk_usage_events_workspace_conversation",
+            ondelete="SET NULL",
         ),
         CheckConstraint("surface IN ('widget','playground')", name="ck_usage_surface"),
         CheckConstraint("kind IN ('generation','vision')", name="ck_usage_kind"),
