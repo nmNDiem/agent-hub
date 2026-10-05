@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,6 +43,15 @@ class CreateWorkspaceRequest(BaseModel):
             raise ValueError("Slug must contain lowercase letters, numbers and single hyphens")
         return normalized
 
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("Timezone must be a valid IANA timezone") from exc
+        return value
+
 
 class UpdateWorkspaceRequest(BaseModel):
     display_name: str = Field(min_length=2, max_length=120)
@@ -51,3 +61,12 @@ class UpdateWorkspaceRequest(BaseModel):
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("Timezone must be a valid IANA timezone") from exc
+        return value

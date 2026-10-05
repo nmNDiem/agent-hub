@@ -51,13 +51,13 @@ Registration creates the user and session but does not silently create a workspa
 | DELETE | `/workspaces/{workspace_id}/knowledge-bases/{kb_id}/documents/{document_id}` | Revoke source first; cancel jobs and schedule derived-data cleanup |
 | GET | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}` | Workspace-scoped status and safe error code |
 | POST | `/workspaces/{workspace_id}/ingestion-jobs/{job_id}/retry` | Owner/admin retry only for classified transient failures |
-| GET | `/workspaces/{workspace_id}/conversations` | Pagination and redacted export policy |
+| GET | `/workspaces/{workspace_id}/conversations` | Implemented owner/admin read-only list; stable cursor, optional 7/30-day and agent filters, redacted summaries |
 | GET | `/workspaces/{workspace_id}/leads` | Implemented stable cursor list; consented PII restricted to owner/admin |
 | PATCH | `/workspaces/{workspace_id}/leads/{lead_id}` | Owner/admin + CSRF; update `new | contacted | closed` only |
 | GET | `/workspaces/{workspace_id}/leads/export.csv` | Owner/admin bounded CSV export with spreadsheet-formula neutralization |
-| GET | `/workspaces/{workspace_id}/usage` | Proposed internal usage, not billing |
-| GET | `/workspaces/{workspace_id}/dashboard` | Proposed real KPIs/time-series; never return mock metrics as real data |
-| GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Proposed authorized conversation transcript |
+| GET | `/workspaces/{workspace_id}/usage` | Implemented owner/admin workspace-local monthly usage and quota facts; not billing |
+| GET | `/workspaces/{workspace_id}/dashboard?days=7|30` | Implemented owner/admin bounded KPIs, daily activity, recent conversations/leads and usage; no mock metrics |
+| GET | `/workspaces/{workspace_id}/conversations/{conversation_public_id}` | Implemented owner/admin redacted read-only transcript with safe attachment metadata |
 | POST | `/workspaces/{workspace_id}/agents/{public_agent_id}/playground/messages:stream` | Implemented authenticated draft preview via the grounded runtime; CSRF and membership required |
 
 ## Widget / visitor
@@ -104,3 +104,5 @@ F3.1 implements `search_products`, `get_product_detail` and `check_stock` as int
 F3.2 knowledge resources use authenticated dashboard BIGINT IDs only after membership resolution; they are never public widget identifiers. Cross-workspace access returns non-leaking `404`, while a same-workspace member attempting a mutation receives `403`. Document creation requires `Idempotency-Key`. Jobs expose `awaiting_profile`, `queued`, `processing`, `retry_scheduled`, `succeeded`, `failed` or `cancelled`; only provider/storage/network-class transient failures retry automatically. Corrupt, encrypted, image-only or limit-exceeding PDFs return stable permanent error codes. Raw document text, file contents, Storage keys and parser tracebacks are not returned.
 
 F5.1 lead capture derives workspace, agent, session and conversation exclusively from the opaque widget session plus the conversation lookup; the request cannot supply or switch tenant scope. The request carries optional name, email and phone, `consent_given: true`, and the exact consent text version returned in public widget config. At least one validated email or phone is required. The public response acknowledges receipt/status/retention only and never echoes PII. Admin lead reads, status updates and CSV export are owner/admin-only; member access is denied. Local-pilot retention is 30 days, while automated expiry belongs to F5.3.
+
+F5.2 conversation, dashboard and usage reads are owner/admin-only and return `Cache-Control: no-store`. Conversation pagination is ordered by `(last_message_at DESC, public_id DESC)` and uses an opaque cursor. Transcript DTOs omit internal BIGINT IDs, private Storage paths/grants and raw internal metadata; visitor images expose only validated type, dimensions, size and creation time. The dashboard uses workspace-local calendar dates and supports bounded 7/30-day periods. The local-pilot quota is 1,000 generated turns per workspace-local calendar month, shared by Widget and Playground. A turn is reserved transactionally before generation; exhaustion returns `429 WORKSPACE_MONTHLY_QUOTA_EXCEEDED` before any paid provider call. Usage events report observed generation/vision model calls, tools and tokens without estimating cost.

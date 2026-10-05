@@ -14,11 +14,12 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.models import Agent, AgentRevision, AgentWebChannel, WidgetDomain
-from agent_hub_api.agents.runtime import AgentConversationTurn
+from agent_hub_api.agents.runtime import AgentConversationTurn, AgentRuntimeUsage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.leads.schemas import contact_consent_text, contact_consent_version
+from agent_hub_api.telemetry.service import TelemetryService
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
@@ -37,6 +38,7 @@ from agent_hub_api.widget.public_schemas import (
     WidgetTranscriptResponse,
 )
 from agent_hub_api.widget.schemas import normalize_widget_origin
+from agent_hub_api.widget.vision import VisionResult
 
 
 def _token_hash(token: str) -> str:
@@ -114,9 +116,7 @@ class WidgetVisitorService:
         return value.encode()
 
     def _rate_key(self, scope: str, value: str) -> str:
-        return hmac.new(
-            self._abuse_key(), f"{scope}:{value}".encode(), hashlib.sha256
-        ).hexdigest()
+        return hmac.new(self._abuse_key(), f"{scope}:{value}".encode(), hashlib.sha256).hexdigest()
 
     async def _consume_rate(
         self,
@@ -257,9 +257,7 @@ class WidgetVisitorService:
                     handoff_url=cast(str | None, widget.get("handoff_url")),
                     handoff_label=cast(str | None, widget.get("handoff_label")),
                     consent_text=contact_consent_text(self.settings.lead_retention_days),
-                    consent_text_version=contact_consent_version(
-                        self.settings.lead_retention_days
-                    ),
+                    consent_text_version=contact_consent_version(self.settings.lead_retention_days),
                     lead_retention_days=self.settings.lead_retention_days,
                 ),
             ),
@@ -341,9 +339,7 @@ class WidgetVisitorService:
             revision=revision,
         )
 
-    async def create_conversation(
-        self, *, token: str, origin: str
-    ) -> WidgetConversationResponse:
+    async def create_conversation(self, *, token: str, origin: str) -> WidgetConversationResponse:
         async with self.session.begin():
             context = await self.resolve_context(token=token, origin=origin)
             conversation = (
@@ -354,8 +350,7 @@ class WidgetVisitorService:
             if conversation is None:
                 retention_until = min(
                     context.expires_at,
-                    datetime.now(UTC)
-                    + timedelta(hours=self.settings.widget_transcript_hours),
+                    datetime.now(UTC) + timedelta(hours=self.settings.widget_transcript_hours),
                 )
                 conversation = Conversation(
                     public_id=new_uuid_v7(),
@@ -526,15 +521,16 @@ class WidgetVisitorService:
                 upload.status = "attached"
                 upload.attached_conversation_id = conversation.id
                 upload.attached_request_key = request_key
-                upload.expires_at = now + timedelta(
-                    hours=self.settings.widget_image_attached_hours
-                )
+                upload.expires_at = now + timedelta(hours=self.settings.widget_image_attached_hours)
                 upload.updated_at = now
                 attachment = PreparedAttachment(
                     upload_id=upload.id,
                     object_key=upload.object_key,
                     content_type=upload.content_type,
                 )
+            await TelemetryService(self.session, self.settings).reserve_generation_turn(
+                context.workspace_id, context.agent_id
+            )
             last_sequence = await self.session.scalar(
                 select(func.max(ConversationMessage.sequence_no)).where(
                     ConversationMessage.conversation_id == conversation.id
@@ -618,6 +614,8 @@ class WidgetVisitorService:
         token: str,
         origin: str,
         response: PublicGroundedResponse,
+        generation_usage: AgentRuntimeUsage | None = None,
+        vision_result: VisionResult | None = None,
     ) -> None:
         async with self.session.begin():
             context = await self.resolve_context(token=token, origin=origin)
@@ -638,6 +636,22 @@ class WidgetVisitorService:
             assistant.total_tokens = response.usage.get("total_tokens", 0)
             assistant.completed_at = datetime.now(UTC)
             assistant.generation_deadline = None
+            telemetry = TelemetryService(self.session, self.settings)
+            if generation_usage is not None:
+                telemetry.record_generation(
+                    workspace_id=context.workspace_id,
+                    agent_id=context.agent_id,
+                    conversation_id=turn.conversation_id,
+                    surface="widget",
+                    usage=generation_usage,
+                )
+            if vision_result is not None:
+                telemetry.record_vision(
+                    workspace_id=context.workspace_id,
+                    agent_id=context.agent_id,
+                    conversation_id=turn.conversation_id,
+                    result=vision_result,
+                )
 
     async def cancel_turn(self, turn: PreparedTurn, *, code: str) -> None:
         async with self.session.begin():

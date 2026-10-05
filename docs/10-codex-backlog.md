@@ -86,7 +86,7 @@ F5 is one roadmap phase and one local-pilot release gate delivered through three
 - UI gate: owner approves the widget callback form and `Khách tiềm năng` screen before implementation.
 - Done: consent, validation, idempotency, role/CSRF, cross-session and cross-workspace regressions pass; chat remains usable without lead submission; lead retention is explicit.
 
-### F5.2 — Conversation history, usage and quota
+### F5.2 — Conversation history, usage and quota (complete locally)
 - Add owner/admin read-only conversation list/detail with stable cursor pagination and redacted public DTOs. Do not add a staff composer, assignment, unread state or SLA workflow.
 - Replace the overview scaffold with real bounded aggregates and recent conversation/lead data. Persist generation/vision usage facts and expose accurate token/model-call/quota status without inventing cost.
 - Enforce the approved workspace monthly quota before a paid provider call while preserving existing IP/session/workspace rate and upload limits.

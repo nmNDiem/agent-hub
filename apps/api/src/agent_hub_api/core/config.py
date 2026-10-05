@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     widget_image_attached_hours: int = 1
     lead_retention_days: int = 30
     lead_export_max_rows: int = 10_000
+    workspace_monthly_generated_turn_limit: int = 1_000
     agent_runtime_max_question_chars: int = 4_000
     agent_runtime_max_history_turns: int = 8
     agent_runtime_max_history_chars: int = 12_000
@@ -181,6 +182,7 @@ class Settings(BaseSettings):
             "widget_image_attached_hours",
             "lead_retention_days",
             "lead_export_max_rows",
+            "workspace_monthly_generated_turn_limit",
         )
         if any(getattr(self, field_name) < 1 for field_name in positive_fields):
             raise ValueError("Knowledge limits must be positive")
@@ -216,11 +218,7 @@ class Settings(BaseSettings):
     def normalize_optional_provider_setting(cls, value: object) -> object:
         if isinstance(value, str):
             cleaned = value.strip()
-            if (
-                not cleaned
-                or cleaned.startswith("REPLACE_")
-                or "<cluster>" in cleaned
-            ):
+            if not cleaned or cleaned.startswith("REPLACE_") or "<cluster>" in cleaned:
                 return None
             return cleaned
         return value

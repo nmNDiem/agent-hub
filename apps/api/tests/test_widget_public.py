@@ -38,9 +38,7 @@ ABUSE_KEY = "widget-test-abuse-key-with-at-least-32-bytes"
 
 class FakePublishedRuntime:
     def __init__(self) -> None:
-        self.calls: list[
-            tuple[AgentExecutionContext, str, tuple[AgentConversationTurn, ...]]
-        ] = []
+        self.calls: list[tuple[AgentExecutionContext, str, tuple[AgentConversationTurn, ...]]] = []
         self.response = grounded_response()
 
     async def run(
@@ -461,9 +459,7 @@ def test_widget_session_pins_revision_and_rate_limits_before_generation(
             headers=csrf_headers(client),
         )
         assert changed.status_code == 200
-        republished = client.post(
-            f"{published['base']}/publish", headers=csrf_headers(client)
-        )
+        republished = client.post(f"{published['base']}/publish", headers=csrf_headers(client))
         assert republished.status_code == 200
         new_token, _ = visitor_session(client, published["public_agent_id"])
         new_conversation = client.post(
@@ -555,6 +551,11 @@ def test_widget_image_is_sanitized_scoped_single_use_and_added_as_untrusted_cues
         assert "dữ liệu không tin cậy" in runtime_question
         assert next(iter(storage.objects)) not in runtime_question
         assert '"total_tokens":200' in response.text
+        usage = client.get(f"/api/v1/workspaces/{published['workspace_id']}/usage")
+        assert usage.status_code == 200
+        assert usage.json()["generation_model_calls"] == 2
+        assert usage.json()["vision_model_calls"] == 1
+        assert usage.json()["total_tokens"] == 200
 
         reused = client.post(
             f"/api/v1/widget/conversations/{conversation_a}/messages",
@@ -681,9 +682,7 @@ def test_managed_product_image_uses_scoped_public_grant_without_internal_ids(
         assert response.status_code == 200, response.text
         assert "image_id" not in response.text
         assert "object_key" not in response.text
-        match = re.search(
-            r'"url":"(/api/v1/widget/product-images/[0-9a-f-]+)"', response.text
-        )
+        match = re.search(r'"url":"(/api/v1/widget/product-images/[0-9a-f-]+)"', response.text)
         assert match is not None
         image_path = match.group(1)
 

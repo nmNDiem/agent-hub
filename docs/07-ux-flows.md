@@ -4,12 +4,12 @@
 `Landing -> Register/email verify -> Create workspace/shop -> Enter shop details -> Import catalog or add products -> Enter policy/FAQ and size guidance -> Create/configure agent -> Configure widget branding + allowed website origin -> Preview with test questions/images -> Publish -> Copy embed snippet -> See conversations/leads/usage`.
 
 ### Owner dashboard navigation
-- Overview: agent status, conversation volume and recent leads.
+- Overview: real 7/30-day conversation/reply activity, active Web chatbots, recent conversations/leads and workspace-local monthly generation/vision usage.
 - Catalog: list/search/filter products; detail with variants, generic options/attributes, images and inventory state; manual edit; CSV/XLS/XLSX Analyze → Resolve → Diff → Commit import flow.
 - Knowledge: shop profile, FAQ/policy, PDF/TXT uploads, indexing states and error recovery.
 - Agents: editable greeting and personality/style instructions, grounding policy, publish/pause, provider usage information (not model selection UI at first). New agents receive useful locale-aware defaults and require only a name before their first Playground test.
 - Channels > Web: implemented in the chatbot workbench with branding, exact origin allowlist, readiness, responsive preview, publish/pause and embed snippet.
-- Conversations: paginated threads with clearly labeled visitor-provided information.
+- Conversations: owner/admin read-only paginated Web threads with chatbot/period filters, safe attachment metadata and clearly labeled visitor-provided information; no staff reply, assignment, unread or SLA controls.
 - Leads: consented contacts, callback status and safe CSV export (authorized roles only).
 - Settings: workspace, owner account/password, basic member configuration if enabled.
 
@@ -23,7 +23,7 @@
 - Unknown stock: "Chưa có thông tin tồn kho chính xác; shop có thể xác nhận giúp bạn.".
 - Missing size chart: no invented recommendation; ask shop or offer general non-definitive advice.
 - Image mismatch: show tentative candidates or honest no-match.
-- Quota exceeded: user-friendly limit notice; owner gets usage visibility.
+- Quota exceeded: user-friendly limit notice before a provider call; owner sees the shared Widget + Playground monthly quota and observed usage without a cost estimate.
 
 ## Widget UX checklist
 - Keyboard/mobile usable; minimize CSS collisions with host page; clear focus and accessible labels.

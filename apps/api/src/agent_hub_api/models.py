@@ -44,6 +44,7 @@ from agent_hub_api.knowledge.models import (
     MediaAsset,
 )
 from agent_hub_api.leads.models import Lead
+from agent_hub_api.telemetry.models import UsageEvent, WorkspaceUsageMonth
 from agent_hub_api.widget.models import (
     Conversation,
     ConversationMessage,
@@ -85,6 +86,7 @@ __all__ = [
     "LocationVariant",
     "Lead",
     "MediaAsset",
+    "UsageEvent",
     "Product",
     "ProductImage",
     "ProductOptionDefinition",
@@ -102,5 +104,6 @@ __all__ = [
     "WidgetCatalogImageGrant",
     "WidgetRateWindow",
     "WidgetSession",
+    "WorkspaceUsageMonth",
     "WidgetDomain",
 ]

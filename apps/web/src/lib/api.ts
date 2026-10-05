@@ -296,6 +296,83 @@ export type Lead = {
   updated_at: string;
 };
 
+export type ConversationSummary = {
+  public_id: string;
+  channel: "web";
+  agent_public_id: string;
+  agent_name: string;
+  started_at: string;
+  last_message_at: string;
+  message_count: number;
+  last_visitor_preview: string | null;
+};
+
+export type ConversationDetail = {
+  conversation: ConversationSummary;
+  retention_until: string;
+  messages: Array<{
+    role: "user" | "assistant";
+    text: string;
+    status: "pending" | "completed" | "failed" | "cancelled";
+    created_at: string;
+    completed_at: string | null;
+    attachment: {
+      content_type: "image/jpeg" | "image/png" | "image/webp";
+      width: number;
+      height: number;
+      byte_size: number;
+      created_at: string;
+    } | null;
+    products: Array<{
+      name: string;
+      sku: string | null;
+      product_url: string | null;
+      price: { kind: "exact" | "range" | "unknown"; minimum: string | null; maximum: string | null };
+      availability: {
+        total_locations: number;
+        in_stock_locations: number;
+        out_of_stock_locations: number;
+        unknown_locations: number;
+      };
+      options: Record<string, string[]>;
+    }>;
+    sources: Array<{ source_id: string; title: string; locator: string }>;
+  }>;
+};
+
+export type UsageSummary = {
+  period_started_at: string;
+  period_ends_at: string;
+  timezone: string;
+  generated_turns: number;
+  generated_turn_limit: number;
+  generated_turns_remaining: number;
+  generation_model_calls: number;
+  vision_model_calls: number;
+  tool_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+};
+
+export type Dashboard = {
+  days: 7 | 30;
+  timezone: string;
+  total_conversations: number;
+  assistant_messages: number;
+  active_agents: number;
+  enabled_web_channels: number;
+  activity: Array<{ date: string; conversations: number }>;
+  recent_conversations: ConversationSummary[];
+  recent_leads: Array<{
+    name: string | null;
+    agent_name: string;
+    followup_status: LeadStatus;
+    created_at: string;
+  }>;
+  usage: UsageSummary;
+};
+
 export type GroundedProductCard = {
   product_id: number;
   sku: string | null;
@@ -752,6 +829,28 @@ export const api = {
     );
     return response.blob();
   },
+  listConversations: (
+    workspaceId: string,
+    filters: { cursor?: string; limit?: number; days?: 7 | 30; agentPublicId?: string } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.cursor) params.set("cursor", filters.cursor);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    if (filters.days) params.set("days", String(filters.days));
+    if (filters.agentPublicId) params.set("agent_public_id", filters.agentPublicId);
+    const suffix = params.size ? `?${params}` : "";
+    return request<{ items: ConversationSummary[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/conversations${suffix}`,
+    );
+  },
+  getConversation: (workspaceId: string, conversationPublicId: string) =>
+    request<ConversationDetail>(
+      `/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}`,
+    ),
+  getDashboard: (workspaceId: string, days: 7 | 30) =>
+    request<Dashboard>(`/api/v1/workspaces/${workspaceId}/dashboard?days=${days}`),
+  getUsage: (workspaceId: string) =>
+    request<UsageSummary>(`/api/v1/workspaces/${workspaceId}/usage`),
   publishWidget: (workspaceId: string, publicAgentId: string) =>
     request<WidgetConfig>(
       `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/publish`,

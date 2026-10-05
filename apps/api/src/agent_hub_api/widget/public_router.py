@@ -306,9 +306,7 @@ async def _event_stream(
                 workspace_id=turn.context.workspace_id,
                 widget_session_id=turn.context.session_id,
                 grant_expires_at=turn.context.expires_at,
-                include_managed_images=getattr(
-                    request.app.state, "catalog_storage", None
-                )
+                include_managed_images=getattr(request.app.state, "catalog_storage", None)
                 is not None,
             ),
             vision_result,
@@ -318,6 +316,8 @@ async def _event_stream(
             token=token,
             origin=origin,
             response=response,
+            generation_usage=runtime_response.usage,
+            vision_result=vision_result,
         )
         for chunk in _text_chunks(response.text):
             yield _event("message.delta", {"text": chunk})

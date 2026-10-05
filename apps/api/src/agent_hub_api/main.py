@@ -15,6 +15,7 @@ from agent_hub_api.agents.runtime import AgentRuntimeBudget, AgentRuntimeService
 from agent_hub_api.catalog.router import router as catalog_router
 from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
+from agent_hub_api.conversations.router import router as conversations_router
 from agent_hub_api.core.config import Settings, get_settings
 from agent_hub_api.core.database import create_database_engine, create_session_factory
 from agent_hub_api.core.errors import ApiError, api_error_handler
@@ -30,6 +31,7 @@ from agent_hub_api.knowledge.runtime import (
 )
 from agent_hub_api.knowledge.storage import KnowledgeStorage, SupabaseKnowledgeStorage
 from agent_hub_api.leads.router import router as leads_router
+from agent_hub_api.telemetry.router import router as telemetry_router
 from agent_hub_api.widget.image_storage import (
     SupabaseVisitorImageStorage,
     VisitorImageStorage,
@@ -244,6 +246,8 @@ def create_app(
     application.include_router(widget_admin_router)
     application.include_router(widget_public_router)
     application.include_router(leads_router)
+    application.include_router(conversations_router)
+    application.include_router(telemetry_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

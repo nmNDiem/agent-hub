@@ -13,6 +13,7 @@
 - For owner API: authenticate -> membership lookup -> check role -> read/write workspace-scoped row. Never trust `workspace_id` just because supplied in URL/body.
 - For visitor API: active immutable published revision + exact allowed origin + short-lived opaque visitor session -> derive workspace/agent from server DB and verify every conversation, image and product-image grant belongs to that session.
 - Lead capture additionally requires the matching open conversation, explicit current-version consent, a validated email or phone and session-scoped idempotency; client-supplied tenant/agent identity is not accepted.
+- Owner conversation, dashboard and usage reads require a validated owner/admin membership. Cross-workspace conversation IDs return a non-leaking `404`; member access is denied. Read DTOs omit internal IDs, private object keys/grants and raw internal metadata.
 - All SQL and background tasks filter workspace. Every Qdrant request injects the validated workspace/allowed-source filter server-side, and returned chunk IDs are revalidated against active Postgres rows before use. Qdrant is never reachable from browser/widget code.
 - With custom auth and direct server-side SQL, Supabase `auth.uid()` is not automatically the FastAPI user ID. Do not write RLS policies assuming otherwise. If applying transaction-local tenant context, set it only after validated auth and use a DB role without RLS-bypass privileges.
 - Do not expose `service_role`, Supabase secret API keys or Qdrant credentials. Server-side privileged Storage/Qdrant access requires *app-side checks* before every action; elevated credentials bypass client-facing controls.
@@ -27,6 +28,7 @@
 ## LLM and abuse
 - Separate system/tool policy from untrusted user messages/documents; retrieved text is data, not commands.
 - Fixed tool allowlist, validated arguments, least privilege, cost/token caps per request/workspace, provider timeouts and concurrency limits.
+- Reserve the workspace-local monthly generated-turn counter transactionally before Widget or Playground generation so concurrent requests cannot bypass the quota or trigger a paid call after exhaustion. Usage facts remain tenant-scoped and never store prompt/chat/image content.
 - No payment/checkout/order mutation from an LLM. No speculation about stock, private order status or unsupported size guarantees.
 - Redact API keys, passwords, tokens, contact info and private file links from error logs/traces where practical.
 - Knowledge workers log job/workspace identifiers and stable error codes only; never log uploaded bytes, extracted/chunk text or parser tracebacks. Ingestion merely preserves text as untrusted data—prompt-injection defenses are enforced later when grounded context is assembled and tools execute.

@@ -44,13 +44,14 @@ Status terms: **CONFIRMED** = explicitly selected by owner; **PROPOSED** = recom
 | DOCX and scheduled website crawling | After MVP | DEFERRED | |
 | Source references | Product link/card and doc references when available | PROPOSED | Never fabricate citations |
 | Upload and usage quotas | Server-enforced workspace limits and rate windows | CONFIRMED | Initial knowledge defaults are recorded in ADR F3.2 and remain deployment-overridable |
+| Local-pilot generated-turn quota | 1,000 generated turns per workspace per workspace-local calendar month | CONFIRMED | Shared by Widget and Playground; reserve before generation; production limit remains deployment-configurable |
 | Customer image input | Basic vision analysis + catalog matching | CONFIRMED | Separate configured vision model; not specialized image-to-image search |
 | Orders/payments/refunds | No execution in MVP | DEFERRED | Read-only integrations later if approved |
 | Current runtime | Local development only | CONFIRMED | Do not claim VPS deployment or require Docker for day-one boot |
 | Future runtime | Docker containers on VPS | CONFIRMED | Prepare deployable boundaries, but deploy in a later phase |
 
 ## Open decisions to validate at scaffolding or deployment
-- Email delivery provider, exact OpenAI chat/vision/embedding model IDs, embedding dimensions and exact monthly usage limits.
+- Email delivery provider, exact OpenAI chat/vision/embedding model IDs, embedding dimensions and the production monthly usage limit.
 - Future live-commerce connector/provider, stock refresh policy and connector identity mapping; manual CRUD plus CSV/XLS/XLSX MERGE is already the confirmed file-import baseline.
 - Production user-data retention policy, jurisdiction-specific privacy notice, deployed handoff destination, allowed domains and production secrets management. The local-pilot lead default is confirmed at 30 days.
 - Local connection strategy for Supabase services: use a remote development Supabase project or explicitly provision local equivalents; no live customer data in dev.

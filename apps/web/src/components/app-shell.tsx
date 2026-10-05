@@ -31,7 +31,7 @@ const navigation: Array<{
   roles?: Workspace["role"][];
 }> = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
-  { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: false },
+  { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: true, roles: ["owner", "admin"] },
   { label: "Khách tiềm năng", icon: Users, segment: "leads", enabled: true, roles: ["owner", "admin"] },
   { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: true },
   { label: "Catalog", icon: Boxes, segment: "catalog", enabled: true },
@@ -47,7 +47,7 @@ function Navigation({ workspace }: { workspace: Workspace }) {
       {navigation.filter(({ roles }) => !roles || roles.includes(workspace.role)).map(({ label, icon: Icon, segment, enabled }) => {
         const href = `/app/${encodeURIComponent(workspace.slug)}/${segment}`;
         const active = pathname === href
-          || (["chatbots", "knowledge"].includes(segment) && pathname.startsWith(`${href}/`));
+          || (["chatbots", "knowledge", "conversations"].includes(segment) && pathname.startsWith(`${href}/`));
         return enabled ? (
           <Link aria-current={active ? "page" : undefined} className="nav-item" href={href} key={label}>
             <Icon aria-hidden="true" size={19} /><span>{label}</span>

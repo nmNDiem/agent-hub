@@ -6,15 +6,15 @@ Owner understands genuine shop AI usage and accesses high-priority operations. N
 
 ## Layout
 - Page heading `Tổng quan`, period selector (7/30 days); shop context in topbar.
-- KPI grid: conversations, bot replies, active bots, **genuinely** connected channels. If metric cannot be defined/calculated yet show `—` plus tooltip, not demo value.
-- Conversation activity line chart (group by shop-local calendar date, timezone labelled). Big left chart + right `Sản phẩm được nhắc đến` if mentions actually tracked. Lower `Hội thoại gần đây`, `Tình trạng tri thức`, bot summary and channel status if implemented.
+- KPI grid: conversations started in the selected period, completed bot replies in the selected period, published chatbots with Web enabled, and generated turns used/remaining in the workspace-local calendar month.
+- Conversation activity line chart groups newly started conversations by shop-local calendar date and labels the timezone. Lower cards show real recent conversations and consented leads. Product mentions remain absent because they are not tracked as an aggregate.
 - Section titles and `Xem tất cả` links only when routes exist. Empty dashboard after first shop creation: empty illustration, `Tạo chatbot đầu tiên`, optional `Thêm sản phẩm`, no empty graph pretending usage.
 
 ## Data contract
-`GET /api/v1/workspaces/{workspace_id}/dashboard?from=...&to=...` → cards/time series/list; server performs tenancy authorization. Cards define `total_conversations`, `assistant_messages`, `active_agents`, `connected_channels`; delta only if the previous interval is comparable. `GET .../conversations?limit=5` lists a preview. Analytics and top-product mentions appear only once events support their accurate calculation.
+`GET /api/v1/workspaces/{workspace_id}/dashboard?days=7|30` returns bounded cards, shop-local daily activity, recent conversation/lead summaries and monthly usage after owner/admin authorization. `active_agents` and `enabled_web_channels` currently count published agents with their one enabled Web channel. `GET .../usage` returns persisted generation/vision calls, tools, tokens and generated-turn quota state without cost estimates.
 
 ## Interactions and errors
-Period query in URL, chart tooltip supports keyboard or accessible table fallback, IDs copy raw UUIDv7. Loading skeleton same height as cards; 403 no data; partial endpoint failure does not blank entire dashboard. If no bots CTA opens bot wizard. Dates must not copy reference image May 2025.
+The 7/30-day selector reloads real data; the chart has an accessible table fallback. Loading, empty, error and forbidden states never substitute mock data. Dates must not copy reference image May 2025.
 
 ## Dashboard acceptance
 Authenticated and scoped to shop; cards sourced from DB; empty state accurate; shop switcher changes every card; KPI queries bounded and indexed; responsive stack; loading/error/empty tested. Chart may be omitted until the real time-series endpoint is ready—never invent it.

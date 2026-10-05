@@ -91,6 +91,12 @@ class Conversation(Base):
             "last_message_at",
             "id",
         ),
+        Index(
+            "ix_conversations_workspace_activity_public",
+            "workspace_id",
+            "last_message_at",
+            "public_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -208,9 +214,7 @@ class VisitorImageUpload(Base):
     public_id: Mapped[UUID] = mapped_column(unique=True)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     session_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
-    attached_conversation_id: Mapped[int | None] = mapped_column(
-        BIGINT_PRIMARY_KEY, nullable=True
-    )
+    attached_conversation_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
     attached_request_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     object_key: Mapped[str | None] = mapped_column(String(900), unique=True, nullable=True)
     content_type: Mapped[str] = mapped_column(String(40))
@@ -219,9 +223,7 @@ class VisitorImageUpload(Base):
     height: Mapped[int] = mapped_column(Integer())
     sha256: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(24), default="uploading")
-    analysis_json: Mapped[dict[str, object] | None] = mapped_column(
-        JSON_DOCUMENT, nullable=True
-    )
+    analysis_json: Mapped[dict[str, object] | None] = mapped_column(JSON_DOCUMENT, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
