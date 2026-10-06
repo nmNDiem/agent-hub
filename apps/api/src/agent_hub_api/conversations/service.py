@@ -11,7 +11,9 @@ from fastapi import status
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent, AgentWebChannel
+from agent_hub_api.agents.models import Agent
+from agent_hub_api.channels.models import ChannelAgentBinding, ChannelConnection
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.conversations.repository import ConversationRepository, ConversationRow
 from agent_hub_api.conversations.schemas import (
     ConversationAttachment,
@@ -30,7 +32,6 @@ from agent_hub_api.core.errors import ApiError
 from agent_hub_api.identity.models import User
 from agent_hub_api.leads.models import Lead
 from agent_hub_api.telemetry.service import TelemetryService
-from agent_hub_api.widget.models import Conversation, ConversationMessage
 from agent_hub_api.widget.public_schemas import PublicGroundedResponse
 from agent_hub_api.workspaces.models import Workspace
 from agent_hub_api.workspaces.service import WorkspaceService
@@ -77,11 +78,12 @@ def _period_bounds(timezone_name: str, days: int) -> tuple[datetime, datetime, l
 
 
 def _summary(row: ConversationRow) -> ConversationSummary:
-    conversation, agent_public_id, agent_name, message_count, preview = row
+    conversation, agent_public_id, agent_name, message_count, preview, provider = row
     if conversation.last_message_at is None:
         raise RuntimeError("Listed conversation must have activity")
     return ConversationSummary(
         public_id=conversation.public_id,
+        channel=cast(Literal["web", "facebook", "zalo"], provider),
         agent_public_id=agent_public_id,
         agent_name=agent_name,
         started_at=conversation.created_at,
@@ -233,7 +235,7 @@ class ConversationService:
         total_conversations = await self.session.scalar(
             select(func.count(Conversation.id)).where(
                 Conversation.workspace_id == workspace_id,
-                Conversation.status == "open",
+                Conversation.lifecycle_state == "active",
                 Conversation.last_message_at.is_not(None),
                 Conversation.created_at >= period_started_at,
                 Conversation.created_at < period_ends_at,
@@ -251,17 +253,26 @@ class ConversationService:
         active_agents = await self.session.scalar(
             select(func.count(Agent.id))
             .join(
-                AgentWebChannel,
+                ChannelAgentBinding,
                 and_(
-                    AgentWebChannel.workspace_id == Agent.workspace_id,
-                    AgentWebChannel.agent_id == Agent.id,
+                    ChannelAgentBinding.workspace_id == Agent.workspace_id,
+                    ChannelAgentBinding.agent_id == Agent.id,
+                ),
+            )
+            .join(
+                ChannelConnection,
+                and_(
+                    ChannelConnection.workspace_id == ChannelAgentBinding.workspace_id,
+                    ChannelConnection.id == ChannelAgentBinding.connection_id,
                 ),
             )
             .where(
                 Agent.workspace_id == workspace_id,
                 Agent.status == "published",
                 Agent.archived_at.is_(None),
-                AgentWebChannel.enabled.is_(True),
+                ChannelConnection.provider == "web",
+                ChannelConnection.lifecycle_state == "active",
+                ChannelAgentBinding.enabled.is_(True),
             )
         )
         activity_row = (
@@ -287,7 +298,7 @@ class ConversationService:
                     ]
                 ).where(
                     Conversation.workspace_id == workspace_id,
-                    Conversation.status == "open",
+                    Conversation.lifecycle_state == "active",
                     Conversation.last_message_at.is_not(None),
                     Conversation.created_at >= period_started_at,
                     Conversation.created_at < period_ends_at,

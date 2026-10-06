@@ -7,12 +7,12 @@ from uuid import UUID
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent, AgentRevision, AgentWebChannel
+from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.agents.repository import AgentRepository
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.identity.models import User
-from agent_hub_api.widget.repository import WidgetRepository
+from agent_hub_api.widget.repository import WebsiteChannel, WidgetRepository
 from agent_hub_api.widget.schemas import (
     PublishedRevisionResponse,
     WidgetConfigRequest,
@@ -71,6 +71,7 @@ class WidgetAdminService:
             channel.launcher_position = payload.launcher_position
             channel.handoff_url = payload.handoff_url
             channel.handoff_label = payload.handoff_label if payload.handoff_url else None
+            channel.connection.display_name = payload.display_name
             channel.updated_at = datetime.now(UTC)
             await self.repository.replace_domains(channel, payload.allowed_origins)
         return await self._response(agent, channel)
@@ -146,7 +147,7 @@ class WidgetAdminService:
             agent.updated_at = datetime.now(UTC)
         return await self._response(agent, channel)
 
-    async def _snapshot(self, agent: Agent, channel: AgentWebChannel) -> dict[str, object]:
+    async def _snapshot(self, agent: Agent, channel: WebsiteChannel) -> dict[str, object]:
         catalog_scope = await self._catalog_scope(agent)
         return {
             "name": agent.name,
@@ -196,7 +197,7 @@ class WidgetAdminService:
         )
 
     async def _response(
-        self, agent: Agent, channel: AgentWebChannel | None
+        self, agent: Agent, channel: WebsiteChannel | None
     ) -> WidgetConfigResponse:
         domains = await self.repository.domains(channel) if channel is not None else []
         knowledge_ids = await self.repository.knowledge_base_ids(agent)

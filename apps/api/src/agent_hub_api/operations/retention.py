@@ -7,6 +7,7 @@ from typing import Any, cast
 from sqlalchemy import delete, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.leads.models import Lead
 from agent_hub_api.telemetry.models import UsageEvent
@@ -15,8 +16,6 @@ from agent_hub_api.widget.image_storage import (
     VisitorImageStorageError,
 )
 from agent_hub_api.widget.models import (
-    Conversation,
-    ConversationMessage,
     VisitorImageUpload,
     WidgetCatalogImageGrant,
     WidgetRateWindow,
@@ -111,7 +110,7 @@ class RetentionSweeper:
                 await session.scalars(
                     select(Conversation.id)
                     .where(
-                        Conversation.status == "open",
+                        Conversation.lifecycle_state == "active",
                         Conversation.retention_until <= now,
                     )
                     .order_by(Conversation.retention_until, Conversation.id)
@@ -124,7 +123,7 @@ class RetentionSweeper:
             await session.execute(
                 update(Conversation)
                 .where(Conversation.id.in_(ids))
-                .values(status="deleted")
+                .values(lifecycle_state="deleted")
             )
             await session.execute(
                 delete(ConversationMessage).where(ConversationMessage.conversation_id.in_(ids))
@@ -298,7 +297,7 @@ class RetentionSweeper:
                 await session.scalars(
                     select(Conversation.id)
                     .where(
-                        Conversation.status == "deleted",
+                        Conversation.lifecycle_state == "deleted",
                         ~exists().where(Lead.conversation_id == Conversation.id),
                         ~exists().where(
                             VisitorImageUpload.attached_conversation_id == Conversation.id

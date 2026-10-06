@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from agent_hub_api.agents.models import Agent
-from agent_hub_api.widget.models import Conversation, ConversationMessage, VisitorImageUpload
+from agent_hub_api.channels.models import ChannelConnection
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
+from agent_hub_api.widget.models import VisitorImageUpload
 
-ConversationRow = tuple[Conversation, UUID, str, int, str | None]
+ConversationRow = tuple[Conversation, UUID, str, int, str | None, str]
 
 
 class ConversationRepository:
@@ -36,14 +38,26 @@ class ConversationRepository:
             .scalar_subquery()
         )
         return (
-            select(Conversation, Agent.public_id, Agent.name, message_count, preview)
+            select(
+                Conversation,
+                Agent.public_id,
+                Agent.name,
+                message_count,
+                preview,
+                ChannelConnection.provider,
+            )
             .join(
                 Agent,
                 (Agent.workspace_id == Conversation.workspace_id)
                 & (Agent.id == Conversation.agent_id),
             )
+            .join(
+                ChannelConnection,
+                (ChannelConnection.workspace_id == Conversation.workspace_id)
+                & (ChannelConnection.id == Conversation.channel_connection_id),
+            )
             .where(
-                Conversation.status == "open",
+                Conversation.lifecycle_state == "active",
                 Conversation.last_message_at.is_not(None),
             )
         )

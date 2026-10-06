@@ -58,7 +58,12 @@ Do not split into microservices, add Redis or introduce a workflow framework wit
 - Catalog and PostgreSQL remain authoritative for structured commerce facts.
 - Qdrant is derived and rebuildable; every retrieval is tenant/source filtered and revalidated against active PostgreSQL state.
 - Public rendering uses server-validated product/source evidence, never identifiers parsed from model prose.
-- Async ingestion and future outbound delivery persist work before external calls and retry idempotently.
+- Async ingestion and outbound delivery persist work before external calls and retry idempotently.
+- Shared channel services serialize inbound work by server-resolved connection, persist a
+  verified event before its normalized message, and namespace every external ID by connection.
+- Outbound runners claim persisted deliveries with a bounded lease and fencing token. Provider
+  adapters receive normalized rendered content and return only safe delivery results or
+  classified retryable/terminal errors.
 
 ## Tenant boundary
 
@@ -79,6 +84,10 @@ Storage paths, vector payloads, job identities, cache keys, external channel map
 ### Social inbound
 
 `verified webhook -> connection lookup -> event dedupe -> normalized persisted message -> AI or assigned human workflow -> durable outbound attempt -> provider delivery state`
+
+Provider signature verification remains outside the shared service. The service accepts a
+typed verified envelope, locks the resolved connection to tolerate concurrent/reordered events,
+and decides whether automation may continue from the persisted handling mode.
 
 ## Contract ownership
 

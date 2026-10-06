@@ -5,8 +5,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.models import Agent
+from agent_hub_api.conversations.models import Conversation
 from agent_hub_api.leads.models import Lead
-from agent_hub_api.widget.models import Conversation
 
 LeadRow = tuple[Lead, UUID, UUID, str]
 

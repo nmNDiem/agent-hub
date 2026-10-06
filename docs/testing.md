@@ -35,6 +35,11 @@ Use at least two workspaces with similar products, knowledge and external-lookin
 - Contact identity linking/merge has negative tenant and reversal tests.
 - Analytics definitions match persisted fixtures and do not expose PII.
 
+The shared-foundation suite uses fake adapters and two workspaces to cover connection-scoped
+event/message identity, payload-fingerprint conflicts, reordered events, handling-mode gating,
+delivery idempotency, lease fencing, exhausted leases, bounded retry and terminal acceptance.
+Provider tasks add signature/challenge fixtures and provider-specific payload/media limits.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

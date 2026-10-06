@@ -5,8 +5,6 @@ from agent_hub_api.agents.models import (
     AgentCatalogCollection,
     AgentLocation,
     AgentRevision,
-    AgentWebChannel,
-    WidgetDomain,
 )
 from agent_hub_api.catalog.models import (
     CatalogCollection,
@@ -27,6 +25,15 @@ from agent_hub_api.catalog.models import (
     SizeGuide,
     VariantOptionValue,
 )
+from agent_hub_api.channels.models import (
+    ChannelAgentBinding,
+    ChannelConnection,
+    ChannelMessageMapping,
+    ChannelThreadMapping,
+    ChannelWebhookEvent,
+    OutboundDelivery,
+)
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.database import Base
 from agent_hub_api.identity.models import AuthSession, EmailToken, User
 from agent_hub_api.knowledge.models import (
@@ -46,10 +53,10 @@ from agent_hub_api.knowledge.models import (
 from agent_hub_api.leads.models import Lead
 from agent_hub_api.telemetry.models import UsageEvent, WorkspaceUsageMonth
 from agent_hub_api.widget.models import (
-    Conversation,
-    ConversationMessage,
     VisitorImageUpload,
+    WebsiteChannelConfig,
     WidgetCatalogImageGrant,
+    WidgetDomain,
     WidgetRateWindow,
     WidgetSession,
 )
@@ -60,7 +67,11 @@ __all__ = [
     "AgentCatalogCollection",
     "AgentLocation",
     "AgentRevision",
-    "AgentWebChannel",
+    "ChannelAgentBinding",
+    "ChannelConnection",
+    "ChannelMessageMapping",
+    "ChannelThreadMapping",
+    "ChannelWebhookEvent",
     "AuthSession",
     "Base",
     "CatalogImport",
@@ -84,6 +95,7 @@ __all__ = [
     "KnowledgeGeneration",
     "Location",
     "LocationVariant",
+    "OutboundDelivery",
     "Lead",
     "MediaAsset",
     "UsageEvent",
@@ -106,4 +118,5 @@ __all__ = [
     "WidgetSession",
     "WorkspaceUsageMonth",
     "WidgetDomain",
+    "WebsiteChannelConfig",
 ]

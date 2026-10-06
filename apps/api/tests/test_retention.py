@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.leads.models import Lead
 from agent_hub_api.models import Base
@@ -20,8 +21,6 @@ from agent_hub_api.operations.retention import RetentionSweeper, RetentionSweepR
 from agent_hub_api.telemetry.models import UsageEvent
 from agent_hub_api.widget.image_storage import VisitorImageStorageError
 from agent_hub_api.widget.models import (
-    Conversation,
-    ConversationMessage,
     VisitorImageUpload,
     WidgetCatalogImageGrant,
     WidgetRateWindow,
@@ -116,8 +115,9 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 workspace_id=expired_workspace_id,
                 agent_id=1,
                 revision_id=1,
+                channel_connection_id=1,
                 session_id=expired_session.id,
-                status="open",
+                lifecycle_state="active",
                 retention_until=expired,
                 last_message_at=expired,
             )
@@ -126,8 +126,9 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 workspace_id=live_workspace_id,
                 agent_id=2,
                 revision_id=2,
+                channel_connection_id=2,
                 session_id=live_session.id,
-                status="open",
+                lifecycle_state="active",
                 retention_until=live_until,
                 last_message_at=now,
             )
@@ -138,6 +139,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 conversation_id=expired_conversation.id,
                 sequence_no=1,
                 actor="visitor",
+                direction="inbound",
                 text="private expired chat",
                 status="completed",
             )
@@ -146,6 +148,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 conversation_id=live_conversation.id,
                 sequence_no=1,
                 actor="visitor",
+                direction="inbound",
                 text="live chat",
                 status="completed",
             )
@@ -275,8 +278,8 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
             assert expired_session.revoked_at.replace(tzinfo=UTC) == now
             assert live_session is not None and live_session.revoked_at is None
             assert expired_conversation is not None
-            assert expired_conversation.status == "deleted"
-            assert live_conversation is not None and live_conversation.status == "open"
+            assert expired_conversation.lifecycle_state == "deleted"
+            assert live_conversation is not None and live_conversation.lifecycle_state == "active"
             assert image is not None
             assert image.status == "cleanup_pending"
             assert image.analysis_json is None

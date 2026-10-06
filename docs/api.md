@@ -46,6 +46,10 @@ Canonical events:
 
 Provider route names are finalized in each approved task, but every adapter follows these contracts:
 
+The M1.1 foundation adds no public provider route. Provider tasks verify their bounded raw
+request first, then pass a typed verified envelope into the shared channel service. Website
+HTTP and SSE routes remain unchanged.
+
 ### Connection management
 
 - Owner/admin creates, verifies, reads health, reauthorizes and revokes a workspace channel connection.
@@ -66,6 +70,10 @@ Webhook responses never expose workspace existence or internal processing detail
 ### Outbound delivery
 
 An outbound request creates/reuses a persisted delivery by idempotency key. Delivery exposes normalized `queued | sending | delivered | failed_retryable | failed_terminal` state and safe provider error classification. Retries are bounded and never repeat a terminally accepted provider message.
+
+Delivery claims use a short lease and fencing token. A stale runner cannot complete or fail a
+newer claim, and a lease abandoned on the final allowed attempt becomes terminal rather than
+remaining indefinitely in `sending`.
 
 ### Inbox and contacts
 

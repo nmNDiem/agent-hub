@@ -11,6 +11,12 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 - Safe product/source evidence and visitor-image metadata.
 - Owner/admin read-only history with stable cursor pagination.
 - Retention and deletion behavior for local-pilot visitor data.
+- Channel-neutral conversation/message ownership with explicit inbound/outbound direction.
+- A connection-scoped external thread/message identity model for social adapters.
+- Independent `active | deleted` lifecycle, `open | pending | resolved` workflow status and
+  `ai | human | paused` handling mode; existing Website conversations default to
+  `active/open/ai`.
+- Persisted outbound delivery state with lease fencing and bounded retry.
 
 ## Complete domain capability
 
@@ -28,6 +34,7 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 - Persist inbound messages before processing and outbound attempts before provider delivery.
 - Public/widget sessions cannot read another session's thread.
 - AI/human authorship and delivery state are explicit and auditable.
+- Only `ai` mode may schedule automated generation; duplicate inbound work never schedules it.
 - Message DTOs omit private object paths, credentials and raw provider payloads.
 - Handoff does not falsely claim that a human is available.
 

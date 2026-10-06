@@ -59,24 +59,30 @@ Product and variant SKU uniqueness is workspace-scoped and archived rows continu
 
 ## Channels
 
-- `channel_connections`: workspace, provider (`web | facebook | zalo`), display/external account identity, encrypted credential reference, lifecycle, health and timestamps.
-- `channel_agent_bindings`: connection to allowed published agent/revision behavior with tenant-safe keys.
-- `channel_webhook_events`: provider/connection/external event ID, payload fingerprint, received/processed state and safe error; unique for dedupe.
-- `channel_message_mappings`: normalized message to provider external message/thread IDs and delivery state.
-- `outbound_deliveries`: message, connection, idempotency key, attempt schedule, provider result and terminal/retryable state.
+- `channel_connections`: workspace, provider (`web | facebook | zalo`), display/external account identity, opaque credential reference, `active | revoked` lifecycle, health and timestamps. No credential value is stored in this table.
+- `channel_agent_bindings`: one connection to its allowed agent and active published revision with tenant-safe keys.
+- `website_channel_configs`: Website-only presentation and handoff configuration; origins remain in `widget_domains` and reference the shared connection.
+- `channel_webhook_events`: connection/external event ID, payload fingerprint, received/processed state and safe error; unique per connection for dedupe. Raw payloads are not retained.
+- `channel_thread_mappings`: a connection-namespaced external thread mapped to one normalized conversation.
+- `channel_message_mappings`: a normalized message mapped to its connection/thread and optional provider message ID; IDs are unique only within the connection.
+- `outbound_deliveries`: message, connection, idempotency key, attempt schedule, lease/fencing state, safe provider result and terminal/retryable state.
 
 Raw provider payloads and access tokens are not general-purpose conversation metadata. Retain only fields needed for validation, retry, audit and supported rendering.
 
 ## Conversations
 
-- `conversations`: BIGINT ID, UUIDv7 public ID, workspace, agent/revision, channel connection, channel thread identity, contact optional, handling mode, status, assignee, last-message time and retention.
-- `messages`: workspace/conversation, actor (`visitor | assistant | human | tool | system`), normalized text/attachment references, direction, processing/delivery state and timestamps.
+- `conversations`: BIGINT ID, UUIDv7 public ID, workspace, agent/revision, channel connection, optional Website session, `active | deleted` lifecycle, `open | pending | resolved` workflow status, `ai | human | paused` handling mode, last-message time and retention. Contact and assignee relationships arrive with their owning M1 tasks.
+- `conversation_messages`: workspace/conversation, actor (`visitor | assistant | human | tool | system`), normalized text/evidence, `inbound | outbound` direction, processing state and timestamps. Provider delivery state is owned by `outbound_deliveries` rather than duplicated here.
 - `message_evidence`: validated product/source references associated with a message.
 - `agent_tool_calls`: redacted tool identity, result reference, status, latency and usage facts.
 - `conversation_assignments`, `conversation_notes`, `conversation_tags`: workspace-safe operating workflow records.
 - Website `widget_sessions` bind an opaque token hash to workspace, agent, revision, origin, conversation and expiry.
 
 Provider retries map to the same normalized message/delivery record. AI/human handling mode is explicit; it is not inferred from the latest message text.
+
+The Website migration preserves existing public conversation IDs, session links, request keys,
+transcripts, leads, images, usage and retention deadlines. Social adapters must supply an
+explicit retention deadline; they do not inherit the local Website 24-hour default.
 
 ## Contacts and leads
 

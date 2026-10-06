@@ -13,17 +13,18 @@ from fastapi import status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent, AgentRevision, AgentWebChannel, WidgetDomain
+from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.agents.runtime import AgentConversationTurn, AgentRuntimeUsage
+from agent_hub_api.channels.models import ChannelAgentBinding, ChannelConnection
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.leads.schemas import contact_consent_text, contact_consent_version
 from agent_hub_api.telemetry.service import TelemetryService
 from agent_hub_api.widget.models import (
-    Conversation,
-    ConversationMessage,
     VisitorImageUpload,
+    WidgetDomain,
     WidgetRateWindow,
     WidgetSession,
 )
@@ -181,23 +182,30 @@ class WidgetVisitorService:
         async with self.session.begin():
             row = (
                 await self.session.execute(
-                    select(Agent, AgentWebChannel, AgentRevision)
+                    select(Agent, ChannelConnection, ChannelAgentBinding, AgentRevision)
                     .join(
-                        AgentWebChannel,
-                        (AgentWebChannel.workspace_id == Agent.workspace_id)
-                        & (AgentWebChannel.agent_id == Agent.id),
+                        ChannelAgentBinding,
+                        (ChannelAgentBinding.workspace_id == Agent.workspace_id)
+                        & (ChannelAgentBinding.agent_id == Agent.id),
+                    )
+                    .join(
+                        ChannelConnection,
+                        (ChannelConnection.workspace_id == ChannelAgentBinding.workspace_id)
+                        & (ChannelConnection.id == ChannelAgentBinding.connection_id),
                     )
                     .join(
                         AgentRevision,
-                        (AgentRevision.workspace_id == AgentWebChannel.workspace_id)
-                        & (AgentRevision.agent_id == AgentWebChannel.agent_id)
-                        & (AgentRevision.id == AgentWebChannel.active_revision_id),
+                        (AgentRevision.workspace_id == ChannelAgentBinding.workspace_id)
+                        & (AgentRevision.agent_id == ChannelAgentBinding.agent_id)
+                        & (AgentRevision.id == ChannelAgentBinding.active_revision_id),
                     )
                     .where(
                         Agent.public_id == public_agent_id,
                         Agent.archived_at.is_(None),
                         Agent.status == "published",
-                        AgentWebChannel.enabled.is_(True),
+                        ChannelConnection.provider == "web",
+                        ChannelConnection.lifecycle_state == "active",
+                        ChannelAgentBinding.enabled.is_(True),
                     )
                 )
             ).one_or_none()
@@ -207,7 +215,7 @@ class WidgetVisitorService:
                     "WIDGET_UNAVAILABLE",
                     "Chatbot hiện không khả dụng.",
                 )
-            agent, channel, revision = row
+            agent, channel, _, revision = row
             allowed = await self.session.scalar(
                 select(WidgetDomain.id).where(
                     WidgetDomain.workspace_id == agent.workspace_id,
@@ -280,11 +288,23 @@ class WidgetVisitorService:
             ) from exc
         row = (
             await self.session.execute(
-                select(WidgetSession, AgentWebChannel, AgentRevision, Agent)
+                select(
+                    WidgetSession,
+                    ChannelConnection,
+                    ChannelAgentBinding,
+                    AgentRevision,
+                    Agent,
+                )
                 .join(
-                    AgentWebChannel,
-                    (AgentWebChannel.workspace_id == WidgetSession.workspace_id)
-                    & (AgentWebChannel.id == WidgetSession.channel_id),
+                    ChannelConnection,
+                    (ChannelConnection.workspace_id == WidgetSession.workspace_id)
+                    & (ChannelConnection.id == WidgetSession.channel_id),
+                )
+                .join(
+                    ChannelAgentBinding,
+                    (ChannelAgentBinding.workspace_id == WidgetSession.workspace_id)
+                    & (ChannelAgentBinding.connection_id == WidgetSession.channel_id)
+                    & (ChannelAgentBinding.agent_id == WidgetSession.agent_id),
                 )
                 .join(
                     AgentRevision,
@@ -306,13 +326,15 @@ class WidgetVisitorService:
                 "INVALID_WIDGET_SESSION",
                 "Phiên chat không hợp lệ.",
             )
-        widget_session, channel, revision, agent = row
+        widget_session, channel, binding, revision, agent = row
         now = datetime.now(UTC)
         if (
             widget_session.revoked_at is not None
             or _aware(widget_session.expires_at) <= now
             or widget_session.normalized_origin != normalized_origin
-            or not channel.enabled
+            or channel.provider != "web"
+            or channel.lifecycle_state != "active"
+            or not binding.enabled
             or agent.status != "published"
             or agent.archived_at is not None
         ):
@@ -363,6 +385,7 @@ class WidgetVisitorService:
                     workspace_id=context.workspace_id,
                     agent_id=context.agent_id,
                     revision_id=context.revision_id,
+                    channel_connection_id=context.channel_id,
                     session_id=context.session_id,
                     retention_until=retention_until,
                 )
@@ -550,6 +573,7 @@ class WidgetVisitorService:
                     conversation_id=conversation.id,
                     sequence_no=visitor_sequence,
                     actor="visitor",
+                    direction="inbound",
                     text=question,
                     status="completed",
                     request_key=request_key,
@@ -562,6 +586,7 @@ class WidgetVisitorService:
                 conversation_id=conversation.id,
                 sequence_no=visitor_sequence + 1,
                 actor="assistant",
+                direction="outbound",
                 text="",
                 status="pending",
                 response_id=response_id,
@@ -733,7 +758,7 @@ class WidgetVisitorService:
                     .with_for_update()
                 )
             )
-            conversation.status = "deleted"
+            conversation.lifecycle_state = "deleted"
             await self.session.execute(
                 delete(ConversationMessage).where(
                     ConversationMessage.conversation_id == conversation.id
@@ -795,7 +820,7 @@ class WidgetVisitorService:
             Conversation.workspace_id == context.workspace_id,
             Conversation.public_id == public_id,
             Conversation.session_id == context.session_id,
-            Conversation.status == "open",
+            Conversation.lifecycle_state == "active",
         )
         if for_update:
             statement = statement.with_for_update()
@@ -853,6 +878,6 @@ class WidgetVisitorService:
     def _conversation_response(conversation: Conversation) -> WidgetConversationResponse:
         return WidgetConversationResponse(
             public_id=conversation.public_id,
-            status=cast(Literal["open", "deleted"], conversation.status),
+            status="open" if conversation.lifecycle_state == "active" else "deleted",
             retention_until=conversation.retention_until,
         )

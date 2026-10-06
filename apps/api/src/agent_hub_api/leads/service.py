@@ -13,6 +13,7 @@ from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agent_hub_api.conversations.models import Conversation
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.identity.models import User
@@ -26,7 +27,6 @@ from agent_hub_api.leads.schemas import (
     LeadStatus,
     contact_consent_version,
 )
-from agent_hub_api.widget.models import Conversation
 from agent_hub_api.widget.visitor_service import WidgetVisitorService
 from agent_hub_api.workspaces.service import WorkspaceService
 
@@ -133,7 +133,7 @@ class LeadService:
                         Conversation.workspace_id == context.workspace_id,
                         Conversation.session_id == context.session_id,
                         Conversation.public_id == conversation_public_id,
-                        Conversation.status == "open",
+                        Conversation.lifecycle_state == "active",
                     )
                     .with_for_update()
                 )

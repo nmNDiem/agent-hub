@@ -10,7 +10,7 @@ from agent_hub_api.widget.public_schemas import PublicAvailabilitySummary, Publi
 
 class ConversationSummary(BaseModel):
     public_id: UUID
-    channel: Literal["web"] = "web"
+    channel: Literal["web", "facebook", "zalo"]
     agent_public_id: UUID
     agent_name: str
     started_at: datetime

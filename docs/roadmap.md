@@ -27,6 +27,8 @@ Goal: operate Website, Facebook Messenger and Zalo conversations through one sec
 
 ### M1.1 Shared channel foundation
 
+Status: **Complete**
+
 - Normalized inbound/outbound contracts and capability-aware rendering.
 - Channel connections and encrypted credential lifecycle.
 - Verified webhooks, deduplication, ordering and bounded retries.
@@ -34,6 +36,8 @@ Goal: operate Website, Facebook Messenger and Zalo conversations through one sec
 - Contact/channel identity mapping without trusting provider payload tenancy.
 
 ### M1.2 Facebook Messenger
+
+Status: **Current**
 
 - Page connection and revocation flow.
 - Verified inbound messages and supported attachments.
