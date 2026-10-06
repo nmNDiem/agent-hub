@@ -1,6 +1,6 @@
 # API implementation conventions (companion to master API contract)
 
-**Canonical route names/endpoint families and SSE names live in [`../05-api-contract.md`](../05-api-contract.md).** Do not implement old proposed `/shops/*`, `/public/bots/*`, `/auth/me` paths from the independently drafted design package; do not introduce them as aliases. `workspace` is the API tenant and `agent` is the domain entity (chatbot in UI).
+**Historical route names/endpoint families and SSE names were recorded in [`../root/05-api-contract.md`](../root/05-api-contract.md).** Do not implement old proposed `/shops/*`, `/public/bots/*`, `/auth/me` paths from the independently drafted design package; do not introduce them as aliases. `workspace` is the API tenant and `agent` is the domain entity (chatbot in UI).
 
 ## API identity and serialization
 - `/api/v1` prefix, JSON/UTF-8; generate stable OpenAPI in FastAPI and typed frontend client from that spec.

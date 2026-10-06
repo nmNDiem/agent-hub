@@ -1,23 +1,27 @@
-# Responsive, accessibility and interaction quality
+# Responsive and accessibility
 
-## Responsive matrix
-| Width | Admin shell | Dashboard | Playground | Widget |
-|---|---|---|---|---|
-| >=1280 | expanded sidebar and topbar | 4 KPIs; 8/4 chart/list | persistent config/chat columns | floating 380–420 px panel |
-| 1024–1279 | compact sidebar | 2×2 KPIs; chart/list may stack | 38/62 split if readable | floating panel capped to viewport |
-| 768–1023 | collapsible Sheet nav | 2-column cards, stacked main | tabs, chat full width | floating panel |
-| <768 | Sheet nav; compact topbar | 1-column cards and scrollable table alternative | tabs + fixed composer | full-screen or safe-area bottom sheet |
+## Responsive behavior
 
-Viewport/touch: handle on-screen keyboard via `dvh`, safe-area insets, and sticky chat composer. Table on mobile may use list cards instead of horizontal scroll, preserving all important actions.
+Review at 1440, 1024, 768, 390 and 320 px. Desktop multi-pane workspaces become tabs or list-to-detail navigation below approximately 1024 px. Tables may become cards or bounded horizontal regions without hiding primary actions. Chat composers respect `dvh`, safe-area insets and on-screen keyboards.
 
-## Keyboard navigation
-Skip-link; Tab order sidebar → topbar → main; Escape closes menu/dialog/widget and returns focus; Enter/Space toggles launcher; list arrow keys only where ARIA semantics require; upload button accessible without drag/drop. Do not trap focus in normal chat pane; trap only modal/full-screen widget when appropriate.
+## Keyboard and focus
 
-## Semantics and announcements
-Heading hierarchy single `h1`; charts offer text or tabular equivalent; icon-only actions have `aria-label`; status includes word labels; streaming replies announced politely with throttled updates to avoid screen-reader spam; validation text linked via `aria-describedby`; image cards have meaningful product alt text; decorations `aria-hidden`.
+- Provide a skip link and logical heading/order.
+- All controls are keyboard reachable with visible focus.
+- Escape closes modal/sheet/widget and restores focus to its trigger.
+- Trap focus only in true modal/full-screen overlays.
+- Primary mobile targets are at least 44 by 44 px.
+- Streaming and list updates do not unexpectedly steal focus or scroll position.
 
-## Contrast, sizing, localization
-Text contrast >=4.5:1 where required; large text >=3:1; visible focus; minimum mobile targets 44×44 px for key actions. Never rely only on green/red badges; `vi-VN` numeral, currency and dates; Vietnamese length expansion tested, avoid hardcoded widths for label text. Respect `prefers-reduced-motion` and `prefers-contrast` where feasible.
+## Semantics
 
-## Performance feel
-Do not block shell on dashboard analytics; defer charts and image thumbnails, image lazy loading, preserve chat scroll position when history loads, scroll to bottom only if user is already near bottom. Streaming UI batches updates; avoid replaying full conversation after every token.
+- One page `h1`; labels and errors connected with `aria-describedby`.
+- Icon-only buttons have accessible names.
+- Status, assignment and delivery state include readable text.
+- Streaming announcements are polite and throttled.
+- Charts include a textual/table equivalent.
+- Product imagery has meaningful alt text; decorative imagery is hidden.
+
+## Localization and motion
+
+Vietnamese diacritics and longer labels must not clip. Use locale-aware numbers, currency and timestamps. Meet WCAG contrast expectations, respect reduced motion and never rely on animation or color alone.

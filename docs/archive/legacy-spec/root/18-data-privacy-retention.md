@@ -14,7 +14,7 @@ These are local-pilot defaults, not an approved production policy. Knowledge ver
 ## Erasure workflow
 Verify requester and authorized workspace; record deletion request; immediately revoke retrievability in Postgres, then remove/soft-disable user-visible records and clean Qdrant points, Storage files and connector identifiers; propagate to future backups per feasible retention schedule; log the outcome without logging erased content. Handle dependent shared workspace/member records explicitly. Stale Qdrant points must not be usable because retrieval revalidates active Postgres generations. Provider retention cannot be assumed; verify current OpenAI, Qdrant hosting and Supabase terms/policies at deployment.
 
-The operator command and restore/privacy checklist are documented in [`operations/local-pilot-runbook.md`](operations/local-pilot-runbook.md).
+The operator command and restore/privacy checklist are documented in the archived [`local-pilot-runbook.md`](../operations/local-pilot-runbook.md).
 
 ## Controls
 Private buckets for shopper images and source files, narrowly scoped signed access URLs, content-type/signature validation, size caps, malware controls if appropriate, per-workspace encryption/permission boundaries, audit trail for privileged reads, redacted model traces, key rotation and session invalidation. Never place personal customer images in public sample datasets or analytics dashboards by default.

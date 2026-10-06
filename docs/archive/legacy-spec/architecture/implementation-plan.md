@@ -1,6 +1,6 @@
 # Implementation detail mapped to master phases
 
-**AUTHORITATIVE phases:** [`../09-roadmap.md`](../09-roadmap.md), [`../10-codex-backlog.md`](../10-codex-backlog.md), [`../22-phase-gates.md`](../22-phase-gates.md). The independently drafted design handoff used another F0–F3 sequence; it is **withdrawn**. Do not pull auth/catalog/RAG/widget into F0.
+**HISTORICAL phases:** [`../root/09-roadmap.md`](../root/09-roadmap.md), [`../root/10-codex-backlog.md`](../root/10-codex-backlog.md), [`../root/22-phase-gates.md`](../root/22-phase-gates.md). Current guidance lives outside the archive.
 
 | Phase | Architecture details | UI/design deliverable |
 |---|---|---|
@@ -28,7 +28,7 @@ F3 remains one authoritative roadmap phase and one release gate. Implement it as
 | F3.4 grounded agent runtime | OpenAI generation adapter, simple orchestration across retrieval and catalog tools, normalized product-card output, prompt-injection defenses and usage bounds | Answers do not fabricate SKU, price, stock, discounts or commitments; generic schemas and unknown inventory work; prompt-injection, cost/token/tool-call and safe-error regressions pass |
 | F3.5 dashboard knowledge UI and Playground | Knowledge upload/status/error UI, agent configuration UI and authenticated Playground SSE with stop/loading/error, grounded sources and schema-neutral product cards | Integrated dashboard flow is usable and accessible; SSE cancellation/errors are handled; source and product-card rendering works for product-only and multi-option fixtures |
 
-The F3 release gate in [`../22-phase-gates.md`](../22-phase-gates.md) closes only after F3.1 through F3.5 pass together. F3.2 must remain testable without external providers; F3.3 is the separately verifiable OpenAI/Qdrant integration boundary defined by [ADR-0002](adr/0002-qdrant-embedding-providers.md).
+The historical F3 release gate in [`../root/22-phase-gates.md`](../root/22-phase-gates.md) closes only after F3.1 through F3.5 pass together. F3.2 must remain testable without external providers; F3.3 is the separately verifiable OpenAI/Qdrant integration boundary defined by [ADR-0002](../../adr/0002-qdrant-embedding-providers.md).
 
 ## F4 delivered implementation slices
 

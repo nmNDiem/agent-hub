@@ -1,22 +1,29 @@
-# Design documentation
+# Design guidance
 
-## Reference images and precedence
-1. `../../assets/reference/01-admin-dashboard.png`: overarching admin visual language.
-2. `../../assets/reference/02-chatbot-playground.png`: assistant setup + test surface.
-3. `../../assets/reference/03-website-chat-widget.png`: shop-facing embeddable widget.
-4. `../../assets/reference/04-catalog-page.png`: implemented Vietnamese admin density, navigation and table/detail treatment.
+Read this file, the relevant screen group and [`../reference/frontend.md`](../reference/frontend.md) for UI work. Do not load every screen spec by default.
 
-Precedence on conflicts: **product decisions → documented UX/behaviour/accessibility → design tokens/components → screenshots**. AI-generated examples contain fictional data and may contain misplaced elements or mislabeled menu entries. Design decisions can be updated deliberately; do not turn them into random one-off CSS overrides.
+## Authority
 
-## Main documents
-- `design-system.md` and `tokens.json` — tokens, typography, spacing, layouts, themes and visual criteria.
-- `component-spec.md` — shared components, interactions and semantic behaviour.
-- `navigation-and-ia.md` — route map, nav, shop switching, permissions and empty modules.
-- `screens/dashboard.md`, `screens/playground.md`, `screens/widget.md`, `screens/conversations.md`, `screens/leads.md`, `screens/chatbots.md`, `screens/catalog-and-knowledge.md`, `screens/auth-and-onboarding.md` — screen-level specs.
-- `flows-and-states.md` — journeys, state machines and edge cases.
-- `responsive-accessibility.md` — responsive sizing, a11y and motion.
-- `reference-assets.md` — reference image handoff/what not to implement from images.
-- `qa.md` — checklists with verifiable acceptance conditions.
+Product/domain behavior and security rules override visual guidance. Shared design rules override screen-specific improvisation. Reference images are visual inspiration only; their people, products, prices, metrics, dates, identifiers and connection states are fictional.
 
-## Design language
-The design direction is a premium, approachable SaaS control panel. Use a neutral/light foundation, restrained blue emphasis, clear text, subtle hairlines, tasteful surfaces and fashion imagery only where it adds content. The admin UI is **not** a luxury storefront; per-shop widget branding is independently configurable. The default interface is Vietnamese (`vi-VN`) with architecture prepared for `en`; reference images happen to show English and are not a language requirement.
+## Files
+
+- [`design-system.md`](design-system.md): visual tokens and shared components.
+- [`navigation-and-flows.md`](navigation-and-flows.md): information architecture, user journeys and common async states.
+- [`responsive-accessibility.md`](responsive-accessibility.md): responsive, keyboard and screen-reader rules.
+- [`screens/onboarding.md`](screens/onboarding.md): authentication and workspace entry.
+- [`screens/catalog-knowledge.md`](screens/catalog-knowledge.md): catalog, import and knowledge.
+- [`screens/agent-workbench.md`](screens/agent-workbench.md): agent configuration, Playground, publish and channel settings.
+- [`screens/inbox-contacts.md`](screens/inbox-contacts.md): overview, unified inbox, contacts/leads and analytics.
+- [`screens/widget.md`](screens/widget.md): Website visitor widget.
+
+## Reference assets
+
+| Asset | Use |
+|---|---|
+| `assets/reference/01-admin-dashboard.png` | Admin shell, hierarchy and density |
+| `assets/reference/02-chatbot-playground.png` | Workbench/test layout |
+| `assets/reference/03-website-chat-widget.png` | Widget proportions and interaction pattern |
+| `assets/reference/04-catalog-page.png` | Vietnamese catalog density and table/detail hierarchy |
+
+Never use mockup data as runtime content or claim Facebook/Zalo is connected from a decorative screenshot.
