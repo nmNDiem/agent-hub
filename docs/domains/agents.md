@@ -34,4 +34,4 @@ Publishing creates an immutable snapshot. Later edits remain draft until republi
 - Product/source evidence is validated server-side before rendering.
 - Model output cannot directly perform business writes; tools independently validate scope and policy.
 
-Runtime mechanics are in [`../reference/agent-runtime.md`](../reference/agent-runtime.md).
+Runtime/API boundaries are in [`../architecture.md`](../architecture.md) and [`../api.md`](../api.md).

@@ -82,9 +82,9 @@ Storage paths, vector payloads, job identities, cache keys, external channel map
 
 ## Contract ownership
 
-- Logical entities and invariants: [`reference/data-model.md`](reference/data-model.md)
-- HTTP/SSE/webhook contracts: [`reference/api.md`](reference/api.md)
-- Agent and retrieval mechanics: [`reference/agent-runtime.md`](reference/agent-runtime.md)
-- Channel normalization/delivery: [`reference/channels.md`](reference/channels.md)
-- Frontend boundaries: [`reference/frontend.md`](reference/frontend.md)
+- Logical entities and identifiers: [`data-model.md`](data-model.md)
+- HTTP, SSE and webhook contracts: [`api.md`](api.md)
+- Agent/retrieval behavior: [`domains/agents.md`](domains/agents.md) and [`domains/knowledge.md`](domains/knowledge.md)
+- Channel normalization/delivery: [`domains/channels.md`](domains/channels.md)
+- Frontend behavior: [`ui.md`](ui.md)
 - Security invariants: [`security.md`](security.md)

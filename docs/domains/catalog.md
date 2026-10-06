@@ -31,4 +31,4 @@ The catalog is the authoritative structured source for products, variants, optio
 - Import MERGE never treats absence from a file as deletion.
 - Import analysis/commit never fetches arbitrary remote image URLs.
 
-Detailed entities and API contracts are in [`../reference/data-model.md`](../reference/data-model.md) and [`../reference/api.md`](../reference/api.md).
+Detailed entities and API contracts are in [`../data-model.md`](../data-model.md) and [`../api.md`](../api.md).

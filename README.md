@@ -27,7 +27,7 @@ docs/        Current product/engineering documentation
 assets/      Visual references, not production catalog assets
 ```
 
-Start reading at [`docs/README.md`](docs/README.md). It provides task-specific reading routes so contributors and AI agents do not load the full documentation set. Historical F0-F5 plans and superseded specs are under `docs/archive/` and are not current guidance.
+Start reading at [`docs/README.md`](docs/README.md). It provides minimal task-specific reading routes so contributors and AI agents do not load the full documentation set. Historical specifications remain available through Git history rather than the working tree.
 
 ## Install
 
@@ -89,7 +89,7 @@ pytest -m postgres
 Remove-Item Env:RUN_POSTGRES_INTEGRATION_TESTS
 ```
 
-See [`docs/operations/local-development.md`](docs/operations/local-development.md) for setup, Qdrant/provider notes and command boundaries. Automated chatbot checks must not incur paid service calls; the owner runs explicitly budgeted provider checks manually.
+See [`docs/operations.md`](docs/operations.md) for setup, provider notes and command boundaries. Automated chatbot checks must not incur paid service calls; the owner runs explicitly budgeted provider checks manually.
 
 ## Documentation model
 
@@ -99,7 +99,7 @@ See [`docs/operations/local-development.md`](docs/operations/local-development.m
 - [`docs/security.md`](docs/security.md): mandatory security/privacy invariants.
 - [`docs/roadmap.md`](docs/roadmap.md): delivery order; M1 Omnichannel Operations is current.
 - `docs/domains/`: behavior by business domain.
-- `docs/reference/`: technical contracts read only when relevant.
-- `docs/design/`: UI system and grouped screen guidance.
+- [`docs/data-model.md`](docs/data-model.md), [`docs/api.md`](docs/api.md) and [`docs/testing.md`](docs/testing.md): technical contracts.
+- [`docs/ui.md`](docs/ui.md): interface and accessibility guidance.
+- [`docs/operations.md`](docs/operations.md): local setup and operating procedures.
 - `docs/tasks/`: only currently approved implementation specifications.
-- `docs/archive/`: history, never the default source of requirements.

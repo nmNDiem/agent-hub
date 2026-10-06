@@ -6,7 +6,9 @@ This is the canonical logical model. Alembic migrations and SQLAlchemy models ar
 
 - Tenant-owned rows carry `workspace_id` or a provably workspace-scoped composite parent relationship.
 - Use UTC timestamps and explicit lifecycle state. Use workspace timezone only for reporting/calendar boundaries.
-- Internal rows use BIGINT identity unless [`identifiers.md`](identifiers.md) defines a public UUIDv7.
+- Use UUIDv7 for `users.id`, `workspaces.id` and externally addressed IDs such as `agents.public_id`, `conversations.public_id` and visitor image handles. Generate UUIDv7 server-side through the tested adapter; never silently substitute UUIDv4 or require PostgreSQL native `uuidv7()`.
+- Use BIGINT identity for dense internal rows such as memberships, products, variants, messages, documents, chunks, jobs and events. Provider/channel IDs remain opaque strings namespaced by provider and connection. Bearer/session tokens are cryptographically random values stored only as hashes, never UUIDv7.
+- UUIDs identify resources but do not authorize access. Use `created_at` plus a deterministic tie-breaker for chronology rather than deriving business time from UUIDv7.
 - Cross-domain references must prevent cross-workspace linkage with composite keys or equivalent transactional checks.
 - Index by `workspace_id` plus the actual ordering/filter pattern. Avoid queries inside loops.
 - Archive/revoke before destructive external cleanup when external state can fail.

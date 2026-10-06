@@ -30,4 +30,4 @@ Knowledge supplies grounded workspace-specific context such as shop profile, FAQ
 - Deletion revokes authoritative access before asynchronous vector/Storage cleanup.
 - Catalog price, SKU, options and stock are never sourced from RAG.
 
-Storage and processing details are in [`../reference/storage.md`](../reference/storage.md).
+Storage and processing controls are in [`../security.md`](../security.md) and [`../operations.md`](../operations.md).

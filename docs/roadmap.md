@@ -17,7 +17,7 @@ Status: **Complete**
 | F4 Website widget and vision | Publishing, anonymous scoped sessions, SSE, product cards and visitor image flow |
 | F5 Local operations | Consented leads, conversation history, dashboard usage/quota, retention and observability |
 
-Detailed F0-F5 implementation history and verification evidence are preserved under [`archive/`](archive/). They are not active roadmap documents.
+Detailed F0-F5 implementation history remains available through Git history and is not duplicated in current docs.
 
 ## M1 — Omnichannel Operations
 
@@ -68,7 +68,7 @@ Goal: operate Website, Facebook Messenger and Zalo conversations through one sec
 - Lead conversion, product interest and unresolved conversation signals.
 - Definitions based on persisted events; no invented cost or business uplift.
 
-M1 task specs are created one at a time in [`tasks/`](tasks/) and must preserve the boundaries in [`reference/channels.md`](reference/channels.md).
+M1 task specs are created one at a time in [`tasks/`](tasks/) and must preserve the boundaries in [`domains/channels.md`](domains/channels.md) and [`api.md`](api.md).
 
 ## M2 — Product Intelligence and Experience
 

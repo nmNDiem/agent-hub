@@ -59,4 +59,4 @@ These choices do not reopen committed product scope:
 
 An owner request may add or supersede a decision. Update this register, the affected domain document and the active task in the same change. Do not silently reinterpret a roadmap capability as optional, or treat an open implementation detail as permission to change the confirmed stack.
 
-Historical ADRs are preserved under [`archive/adr/`](archive/adr/).
+Superseded details remain available through Git history; they are not duplicated in the current documentation tree.

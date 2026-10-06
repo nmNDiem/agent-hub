@@ -1,6 +1,6 @@
 # AgentHub — Instructions for Codex
 
-Read this file and follow the task-specific route in [`docs/README.md`](docs/README.md) before changing code. Do not load the entire documentation tree. Material under `docs/archive/` is historical and is not current guidance unless a current document explicitly links to it.
+Read this file and follow the minimal task-specific route in [`docs/README.md`](docs/README.md) before changing code. Do not load the entire documentation tree. Historical specifications are available through Git history and are not current guidance.
 
 ## 1. Decision precedence
 
@@ -47,7 +47,7 @@ While implementing:
 - Validate all external input, including webhook signatures/raw bodies, upload bytes and model/tool output.
 - Persist and deduplicate inbound/outbound channel work before external side effects; keep retries idempotent and bounded.
 - Add Alembic migrations for schema changes; never edit a production database manually or edit generated artifacts.
-- Use UUIDv7 only as defined in `docs/reference/identifiers.md`; never silently substitute UUIDv4 or require PostgreSQL native `uuidv7()`.
+- Use UUIDv7 only as defined in `docs/data-model.md`; never silently substitute UUIDv4 or require PostgreSQL native `uuidv7()`.
 - Keep `.env.example` minimal. Stable limits and tuning defaults belong in typed configuration.
 - Do not add dependencies, Redis, extra model providers, workflow frameworks or services without a scoped reason and approved task.
 - Reuse existing components and abstractions; keep changes focused and remove dead code/imports introduced by the task.
@@ -57,7 +57,7 @@ Before completion:
 - Run relevant existing lint, type, unit, integration and migration checks; report exact commands and results.
 - Do not run paid chatbot/provider flows automatically. Use fakes/local substitutes and give the owner manual provider steps.
 - Add a negative cross-workspace test for every newly exposed tenant-owned resource.
-- Update the single authoritative domain/reference/design document rather than copying behavior into multiple files.
+- Update the single authoritative domain/core document rather than copying behavior into multiple files.
 - Report schema/configuration impact, manual verification and known limitations.
 - Create a focused Conventional Commit with a clear subject and detailed body describing what changed and why.
 

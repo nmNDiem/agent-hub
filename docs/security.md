@@ -61,4 +61,4 @@ These rules apply to every phase and override convenience or UI assumptions.
 
 ## Required security tests
 
-Every newly exposed tenant resource requires a negative cross-workspace test. Channel work additionally requires invalid signature/challenge, wrong connection, duplicate/reordered event, revoked token, media limit and outbound retry tests. See [`reference/testing.md`](reference/testing.md).
+Every newly exposed tenant resource requires a negative cross-workspace test. Channel work additionally requires invalid signature/challenge, wrong connection, duplicate/reordered event, revoked token, media limit and outbound retry tests. See [`testing.md`](testing.md).

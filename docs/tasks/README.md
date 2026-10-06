@@ -14,4 +14,4 @@ Documentation impact
 Out of scope
 ```
 
-After completion, move the task record and final evidence to `../archive/completed-tasks/`. Do not accumulate a second roadmap here.
+After completion, update the authoritative docs and remove the task file; Git preserves its history. Do not accumulate a second roadmap here.

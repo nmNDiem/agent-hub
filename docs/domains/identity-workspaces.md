@@ -28,4 +28,4 @@ Identity authenticates people; workspaces define tenant ownership and authorizat
 - Slugs, UUIDs and frontend-hidden controls do not grant authorization.
 - Cross-workspace resources return a non-leaking denial appropriate to the route.
 
-See [`../reference/data-model.md`](../reference/data-model.md), [`../reference/api.md`](../reference/api.md) and [`../security.md`](../security.md).
+See [`../data-model.md`](../data-model.md), [`../api.md`](../api.md) and [`../security.md`](../security.md).

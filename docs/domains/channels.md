@@ -29,4 +29,4 @@ M1 adds the shared social-channel foundation, Facebook Messenger and Zalo:
 - The agent response remains channel-neutral text plus structured evidence. Each adapter renders the supported subset safely.
 - Feature parity is not assumed. Unsupported cards/attachments use an explicit fallback.
 
-Provider implementation detail belongs in [`../reference/channels.md`](../reference/channels.md).
+Provider transport and webhook contracts belong in [`../api.md`](../api.md).

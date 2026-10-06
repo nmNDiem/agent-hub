@@ -31,4 +31,4 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 - Message DTOs omit private object paths, credentials and raw provider payloads.
 - Handoff does not falsely claim that a human is available.
 
-The M1 UI is described in [`../design/screens/inbox-contacts.md`](../design/screens/inbox-contacts.md).
+The M1 UI is described in [`../ui.md`](../ui.md).
