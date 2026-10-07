@@ -17,10 +17,16 @@ from agent_hub_api.agents.runtime import AgentRuntimeBudget, AgentRuntimeService
 from agent_hub_api.catalog.router import router as catalog_router
 from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
+from agent_hub_api.channels.contracts import CredentialVault
+from agent_hub_api.channels.vault import SupabaseCredentialVault
 from agent_hub_api.conversations.router import router as conversations_router
 from agent_hub_api.core.config import Settings, get_settings
 from agent_hub_api.core.database import create_database_engine, create_session_factory
 from agent_hub_api.core.errors import ApiError, api_error_handler
+from agent_hub_api.facebook.contracts import FacebookGraphGateway
+from agent_hub_api.facebook.graph import HttpFacebookGraphGateway
+from agent_hub_api.facebook.router import admin_router as facebook_admin_router
+from agent_hub_api.facebook.router import webhook_router as facebook_webhook_router
 from agent_hub_api.health import router as health_router
 from agent_hub_api.identity.dependencies import LoginRateLimiter
 from agent_hub_api.identity.email_delivery import EmailDelivery
@@ -62,6 +68,8 @@ def create_app(
     agent_runtime_factory: AgentRuntimeFactory | None = None,
     widget_image_storage: VisitorImageStorage | None = None,
     vision_gateway: VisionGateway | None = None,
+    credential_vault: CredentialVault | None = None,
+    facebook_graph_gateway: FacebookGraphGateway | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
@@ -101,6 +109,16 @@ def create_app(
     if session_factory is None and runtime_settings.database_url is not None:
         owned_engine = create_database_engine(runtime_settings.database_url)
         session_factory = create_session_factory(owned_engine)
+    if credential_vault is None and session_factory is not None:
+        credential_vault = SupabaseCredentialVault(session_factory)
+    if (
+        facebook_graph_gateway is None
+        and runtime_settings.facebook_graph_api_version is not None
+    ):
+        facebook_graph_gateway = HttpFacebookGraphGateway(
+            api_version=runtime_settings.facebook_graph_api_version,
+            timeout_seconds=runtime_settings.facebook_graph_timeout_seconds,
+        )
     if agent_runtime_factory is None and all(
         (
             runtime_settings.openai_api_key,
@@ -162,6 +180,8 @@ def create_app(
     application.state.agent_runtime_factory = agent_runtime_factory
     application.state.widget_image_storage = widget_image_storage
     application.state.vision_gateway = vision_gateway
+    application.state.credential_vault = credential_vault
+    application.state.facebook_graph_gateway = facebook_graph_gateway
     application.state.widget_image_enabled = (
         widget_image_storage is not None
         and vision_gateway is not None
@@ -276,6 +296,8 @@ def create_app(
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)
+    application.include_router(facebook_admin_router)
+    application.include_router(facebook_webhook_router)
     if runtime_settings.email_delivery_enabled:
         application.include_router(email_router)
     return application

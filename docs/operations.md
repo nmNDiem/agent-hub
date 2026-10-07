@@ -26,6 +26,23 @@ Individual services use `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker` and `p
 
 PostgreSQL owns relational state, Supabase Storage owns uploaded objects and Qdrant is derived/rebuildable. Restore rehearsal uses synthetic data in an isolated non-production target.
 
+## Facebook Messenger
+
+Production uses Supabase Vault for Page access tokens. Enable Vault in the Supabase project,
+grant the API database role only the required `vault.create_secret`, `vault.secrets` and
+`vault.decrypted_secrets` access, and verify store/resolve/revoke before accepting Page tokens.
+Supabase keeps the per-project root key outside database data; backup/restore and project
+migration procedures must preserve that key or re-store all Page credentials.
+
+Set server-only `FACEBOOK_APP_SECRET`, a random `FACEBOOK_WEBHOOK_VERIFY_TOKEN`, and an explicitly
+reviewed `FACEBOOK_GRAPH_API_VERSION`. Configure Meta's callback at
+`/api/v1/webhooks/facebook`. Connection creation validates the Page token and subscribes only the
+`messages` field. The Meta app/Page setup needs `pages_manage_metadata` and `pages_messaging`, and
+the token must come from an actor allowed to perform the Page messaging task. Obtain the required
+Advanced Access and switch the Meta app to its reviewed production mode before serving people who
+do not have an app/Page role. No live provider request belongs in automated tests; use the fake
+Graph/Vault adapters and perform real Page/App verification manually in a non-production Meta app.
+
 ## Quality commands
 
 Frontend/widget:

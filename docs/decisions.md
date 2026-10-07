@@ -23,6 +23,7 @@ Status values are `Confirmed`, `Open` and `Superseded`.
 | Backend | FastAPI and Python 3.12 |
 | Database | Supabase PostgreSQL accessed server-side through SQLAlchemy 2 async and asyncpg |
 | Migrations | Alembic; schema changes use migrations rather than manual production edits |
+| Channel credential vault | Supabase Vault; application tables retain only opaque Vault UUID references and Supabase manages the per-project root key |
 | Storage | Supabase Storage with private buckets for customer uploads and knowledge documents |
 | Authentication | Custom FastAPI-owned email/password authentication; no Supabase Auth dependency |
 | AI provider | OpenAI behind server-side generation, vision and embedding adapters |
@@ -51,7 +52,7 @@ These choices do not reopen committed product scope:
 - Exact OpenAI model IDs, embedding dimensions and production budgets.
 - Facebook and Zalo app/account prerequisites, token rotation, provider-specific message windows and supported payload subsets.
 - Production retention periods, jurisdiction-specific privacy wording and processor disclosures.
-- Email provider, production domains, secrets management and backup objectives.
+- Email provider, production domains and backup objectives beyond the required Supabase Vault key-preservation procedure.
 - External catalog/knowledge connector vendors and synchronization SLAs.
 - Commercial plan structure, payment provider and billing rules for M3.
 

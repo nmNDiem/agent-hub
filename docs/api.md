@@ -56,6 +56,20 @@ HTTP and SSE routes remain unchanged.
 - Credential submission responses never echo tokens.
 - Connection-to-agent binding validates same-workspace ownership and a usable published agent revision.
 
+The Facebook first-slice routes are:
+
+- `GET|POST /api/v1/workspaces/{workspace_id}/channels/facebook` for owner/admin-safe listing
+  and Page connection;
+- `POST /api/v1/workspaces/{workspace_id}/channels/facebook/{connection_id}/health` for token
+  validation and Page webhook subscription repair;
+- `DELETE /api/v1/workspaces/{workspace_id}/channels/facebook/{connection_id}` for local-first
+  revocation;
+- `GET|POST /api/v1/webhooks/facebook` for Meta challenge and signed delivery.
+
+Connection responses expose Page identity and lifecycle/health timestamps, never the Page token
+or Vault reference. The POST webhook supports authenticated text events only in this slice and
+acknowledges authenticated events for unknown/revoked Pages without exposing tenant state.
+
 ### Webhooks
 
 1. Read a strictly bounded raw body required for provider verification.

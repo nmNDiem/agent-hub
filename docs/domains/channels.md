@@ -30,6 +30,12 @@ M1.2 adds Facebook Messenger on the shared foundation:
 - Facebook capability/message-window/opt-out enforcement;
 - delivery status visible to operators.
 
+The first delivered slice uses the official Graph API and HTTPS Page webhooks. Owner/admin
+connection validates the Page token, subscribes the Page to the `messages` webhook field and
+binds it to a published agent revision. Challenge and `X-Hub-Signature-256` validation happen
+before payload parsing or connection lookup. This slice accepts text messages only; attachments,
+outbound delivery, message-window policy and inbox UI remain later M1.2 work.
+
 ## Boundaries
 
 - Adapters translate provider payloads; they do not implement independent agent reasoning.
@@ -45,8 +51,13 @@ M1.2 adds Facebook Messenger on the shared foundation:
 ## Credential boundary
 
 Connections persist an opaque `credential_ref`, never a provider token. The shared
-`CredentialVault` contract defines store, resolve and revoke behavior. A production vault and
-key-management choice must be approved and implemented before Facebook or Zalo accepts real
-credentials.
+`CredentialVault` contract defines store, resolve and revoke behavior. A production vault must
+be configured before Facebook or Zalo accepts real credentials.
+
+The approved production implementation is Supabase Vault. `channel_connections.credential_ref`
+contains a `supabase-vault:<uuid>` reference only. Supabase manages the project root key outside
+the database; the application database role must have only the Vault access required by the
+server adapter. A local revoke takes effect before best-effort provider unsubscribe/secret
+deletion, so a provider outage cannot leave inbound processing enabled.
 
 Provider transport and webhook contracts belong in [`../api.md`](../api.md).

@@ -14,6 +14,9 @@ These rules apply to every phase and override convenience or UI assumptions.
 
 - Database credentials, Supabase service keys, OpenAI keys, Qdrant credentials, channel access tokens and JWT signing keys remain server-side and out of logs, browser bundles and commits.
 - Channel credentials are encrypted at rest using an approved key-management approach and are never returned after initial submission.
+- Facebook Page tokens use Supabase Vault authenticated encryption. Application records contain
+  only opaque Vault UUID references; Vault root-key preservation and least-privilege access are
+  deployment requirements.
 - Webhook authenticity is validated with the provider mechanism before connection lookup or message processing.
 
 ## Tenant-owned data

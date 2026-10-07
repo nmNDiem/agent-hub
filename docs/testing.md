@@ -40,6 +40,12 @@ event/message identity, payload-fingerprint conflicts, reordered events, handlin
 delivery idempotency, lease fencing, exhausted leases, bounded retry and terminal acceptance.
 Provider tasks add signature/challenge fixtures and provider-specific payload/media limits.
 
+The M1.1 migration gate has an opt-in PostgreSQL rehearsal that upgrades to `20261005_0013`,
+seeds a Website connection/session/conversation with inbound and outbound messages, upgrades to
+`20261006_0014`, verifies all shared-channel backfills and downgrades to `20261005_0013`. The
+Facebook first slice additionally covers challenge/signature failure, raw-body size, Page and
+workspace isolation, duplicate/reordered text events, health and revoked-connection behavior.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

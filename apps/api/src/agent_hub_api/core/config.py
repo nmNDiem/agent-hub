@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from typing import Literal
 
@@ -128,6 +129,12 @@ class Settings(BaseSettings):
     knowledge_embedding_batch_size: int = 64
     knowledge_orphan_grace_seconds: int = 3_600
     knowledge_worker_poll_seconds: int = 2
+    facebook_app_secret: str | None = Field(default=None, repr=False)
+    facebook_webhook_verify_token: str | None = Field(default=None, repr=False)
+    facebook_graph_api_version: str | None = None
+    facebook_graph_timeout_seconds: int = 10
+    facebook_webhook_max_bytes: int = 256 * 1024
+    facebook_message_retention_days: int = 30
 
     @model_validator(mode="after")
     def validate_knowledge_limits(self) -> "Settings":
@@ -156,6 +163,9 @@ class Settings(BaseSettings):
             "knowledge_embedding_batch_size",
             "knowledge_orphan_grace_seconds",
             "knowledge_worker_poll_seconds",
+            "facebook_graph_timeout_seconds",
+            "facebook_webhook_max_bytes",
+            "facebook_message_retention_days",
             "openai_timeout_seconds",
             "agent_runtime_max_question_chars",
             "agent_runtime_max_history_turns",
@@ -216,6 +226,9 @@ class Settings(BaseSettings):
         "vision_model",
         "widget_public_base_url",
         "widget_abuse_hash_key",
+        "facebook_app_secret",
+        "facebook_webhook_verify_token",
+        "facebook_graph_api_version",
         mode="before",
     )
     @classmethod
@@ -244,6 +257,20 @@ class Settings(BaseSettings):
         if parsed.scheme == "http" and parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
             raise ValueError("HTTP widget public base URL is limited to local loopback")
         return value.rstrip("/")
+
+    @field_validator("facebook_graph_api_version")
+    @classmethod
+    def validate_facebook_graph_api_version(cls, value: str | None) -> str | None:
+        if value is not None and re.fullmatch(r"v[1-9][0-9]*\.0", value) is None:
+            raise ValueError("Facebook Graph API version must look like vNN.0")
+        return value
+
+    @field_validator("facebook_app_secret", "facebook_webhook_verify_token")
+    @classmethod
+    def validate_facebook_secrets(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode()) < 16:
+            raise ValueError("Facebook secrets must contain at least 16 bytes")
+        return value
 
     @field_validator("widget_abuse_hash_key")
     @classmethod
