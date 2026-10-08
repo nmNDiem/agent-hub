@@ -153,7 +153,7 @@ async def receive_webhook(
         )
     raw_body = await _bounded_raw_body(request, settings.facebook_webhook_max_bytes)
     try:
-        events = FacebookWebhookAdapter(settings.facebook_app_secret).verify_and_normalize(
+        batch = FacebookWebhookAdapter(settings.facebook_app_secret).verify_and_parse(
             raw_body=raw_body,
             headers=request.headers,
         )
@@ -169,7 +169,7 @@ async def receive_webhook(
         days=settings.facebook_message_retention_days
     )
     channel_service = ChannelService(session)
-    for event in events:
+    for event in batch.messages:
         try:
             await channel_service.ingest_verified(event, retention_until=retention_until)
         except ChannelStateError as exc:
@@ -179,6 +179,21 @@ async def receive_webhook(
                     "FACEBOOK_EVENT_CONFLICT",
                     "Facebook webhook không thể được xử lý.",
                 ) from exc
+    for receipt in batch.delivery_receipts:
+        try:
+            await channel_service.record_delivery_receipts(
+                provider="facebook",
+                external_account_id=receipt.external_account_id,
+                external_thread_id=receipt.external_thread_id,
+                external_message_ids=receipt.external_message_ids,
+                delivered_at=receipt.delivered_at,
+            )
+        except ChannelStateError as exc:
+            raise ApiError(
+                status.HTTP_409_CONFLICT,
+                "FACEBOOK_DELIVERY_RECEIPT_CONFLICT",
+                "Facebook delivery receipt không thể được xử lý.",
+            ) from exc
     return Response(content="EVENT_RECEIVED", media_type="text/plain")
 
 

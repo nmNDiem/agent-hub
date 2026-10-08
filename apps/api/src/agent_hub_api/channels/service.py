@@ -16,6 +16,7 @@ from agent_hub_api.channels.contracts import (
     VerifiedInboundEvent,
 )
 from agent_hub_api.channels.models import (
+    ChannelDeliveryReceipt,
     ChannelMessageMapping,
     ChannelThreadMapping,
     ChannelWebhookEvent,
@@ -273,6 +274,11 @@ class ChannelService:
                 delivery.updated_at = claim_time
                 return None
             connection, message, thread = context
+            if connection.lifecycle_state != "active":
+                delivery.state = "failed_terminal"
+                delivery.safe_error_code = "CONNECTION_INACTIVE"
+                delivery.updated_at = claim_time
+                return None
             token = secrets.token_hex(32)
             delivery.state = "sending"
             delivery.attempt_count += 1
@@ -287,6 +293,7 @@ class ChannelService:
                 request=DeliveryRequest(
                     delivery_id=delivery.id,
                     provider=cast(ChannelProvider, connection.provider),
+                    external_account_id=connection.external_account_id,
                     credential_ref=connection.credential_ref,
                     external_thread_id=thread.external_thread_id,
                     idempotency_key=delivery.idempotency_key,
@@ -301,12 +308,26 @@ class ChannelService:
             raise ValueError("Provider message ID must contain 1 to 500 characters")
         async with self.session.begin():
             delivery = await self._locked_claim(claim)
-            delivery.state = "delivered"
+            completed_at = datetime.now(UTC)
+            receipt = await self.repository.delivery_receipt(
+                delivery.connection_id, external_message_id
+            )
+            matched_receipt = (
+                receipt
+                if receipt is not None
+                and receipt.external_thread_id == claim.request.external_thread_id
+                else None
+            )
+            delivery.state = "delivered" if matched_receipt is not None else "accepted"
             delivery.provider_message_id = external_message_id
+            delivery.accepted_at = completed_at
+            delivery.delivered_at = (
+                matched_receipt.delivered_at if matched_receipt is not None else None
+            )
             delivery.lease_token = None
             delivery.lease_expires_at = None
             delivery.safe_error_code = None
-            delivery.updated_at = datetime.now(UTC)
+            delivery.updated_at = completed_at
             mapping = (
                 await self.session.scalars(
                     select(ChannelMessageMapping).where(
@@ -317,6 +338,74 @@ class ChannelService:
                 )
             ).one()
             mapping.external_message_id = external_message_id
+
+    async def record_delivery_receipts(
+        self,
+        *,
+        provider: ChannelProvider,
+        external_account_id: str,
+        external_thread_id: str,
+        external_message_ids: tuple[str, ...],
+        delivered_at: datetime,
+    ) -> int:
+        if delivered_at.tzinfo is None:
+            raise ValueError("Delivery receipt time must be timezone-aware")
+        if not external_account_id or len(external_account_id) > 255:
+            raise ValueError("External account ID must contain 1 to 255 characters")
+        if not external_thread_id or len(external_thread_id) > 500:
+            raise ValueError("External thread ID must contain 1 to 500 characters")
+        if not external_message_ids or len(external_message_ids) > 100:
+            raise ValueError("Delivery receipt must contain 1 to 100 message IDs")
+        if any(not message_id or len(message_id) > 500 for message_id in external_message_ids):
+            raise ValueError("Provider message IDs must contain 1 to 500 characters")
+
+        matched = 0
+        async with self.session.begin():
+            connection = await self.repository.connection_for_external_account(
+                provider,
+                external_account_id,
+                for_update=True,
+                active_only=False,
+            )
+            if connection is None:
+                return 0
+            for external_message_id in dict.fromkeys(external_message_ids):
+                receipt = await self.repository.delivery_receipt(
+                    connection.id, external_message_id
+                )
+                if receipt is None:
+                    receipt = ChannelDeliveryReceipt(
+                        workspace_id=connection.workspace_id,
+                        connection_id=connection.id,
+                        provider_message_id=external_message_id,
+                        external_thread_id=external_thread_id,
+                        delivered_at=delivered_at,
+                    )
+                    self.session.add(receipt)
+                else:
+                    if receipt.external_thread_id != external_thread_id:
+                        raise ChannelStateError("DELIVERY_RECEIPT_IDENTITY_CONFLICT")
+                    if _aware(delivered_at) < _aware(receipt.delivered_at):
+                        receipt.delivered_at = delivered_at
+
+                context = await self.repository.delivery_by_provider_message(
+                    connection.id, external_message_id
+                )
+                if context is None:
+                    continue
+                delivery, thread = context
+                if thread.external_thread_id != external_thread_id:
+                    raise ChannelStateError("DELIVERY_RECEIPT_IDENTITY_CONFLICT")
+                if delivery.state not in {"accepted", "delivered"}:
+                    continue
+                delivery.state = "delivered"
+                if delivery.delivered_at is None or _aware(delivered_at) < _aware(
+                    delivery.delivered_at
+                ):
+                    delivery.delivered_at = delivered_at
+                delivery.updated_at = datetime.now(UTC)
+                matched += 1
+        return matched
 
     async def fail_delivery(
         self,

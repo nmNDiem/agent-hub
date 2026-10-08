@@ -273,6 +273,85 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
                     directions = [(row.actor, row.direction) for row in direction_rows]
                     assert directions == [("visitor", "inbound"), ("assistant", "outbound")]
 
+                async with engine.begin() as connection:
+                    outbound_message_id = await connection.scalar(
+                        text(
+                            """
+                            SELECT id FROM conversation_messages
+                            WHERE conversation_id = :conversation_id AND sequence_no = 2
+                            """
+                        ),
+                        {"conversation_id": conversation_id},
+                    )
+                    delivery_id = await connection.scalar(
+                        text(
+                            """
+                            INSERT INTO outbound_deliveries
+                                (workspace_id, connection_id, message_id, idempotency_key,
+                                 state, provider_message_id)
+                            VALUES
+                                (:workspace_id, :connection_id, :message_id, 'legacy-delivery',
+                                 'delivered', 'legacy-provider-mid')
+                            RETURNING id
+                            """
+                        ),
+                        {
+                            "workspace_id": workspace_id,
+                            "connection_id": channel_id,
+                            "message_id": outbound_message_id,
+                        },
+                    )
+
+                await asyncio.to_thread(_migrate, "20261008_0015")
+
+                async with engine.begin() as connection:
+                    delivery = (
+                        await connection.execute(
+                            text(
+                                """
+                                SELECT state, accepted_at, delivered_at
+                                FROM outbound_deliveries WHERE id = :delivery_id
+                                """
+                            ),
+                            {"delivery_id": delivery_id},
+                        )
+                    ).one()
+                    assert delivery.state == "accepted"
+                    assert delivery.accepted_at is not None
+                    assert delivery.delivered_at is None
+                    await connection.execute(
+                        text(
+                            """
+                            INSERT INTO channel_delivery_receipts
+                                (workspace_id, connection_id, provider_message_id,
+                                 external_thread_id, delivered_at)
+                            VALUES
+                                (:workspace_id, :connection_id, 'legacy-provider-mid',
+                                 'website-thread', :delivered_at)
+                            """
+                        ),
+                        {
+                            "workspace_id": workspace_id,
+                            "connection_id": channel_id,
+                            "delivered_at": now,
+                        },
+                    )
+
+                await asyncio.to_thread(_migrate, "20261006_0014", downgrade=True)
+
+                async with engine.connect() as connection:
+                    restored_delivery_state = await connection.scalar(
+                        text(
+                            "SELECT state FROM outbound_deliveries WHERE id = :delivery_id"
+                        ),
+                        {"delivery_id": delivery_id},
+                    )
+                    assert restored_delivery_state == "delivered"
+                    receipt_table = await connection.scalar(
+                        text("SELECT to_regclass('channel_delivery_receipts')")
+                    )
+                    assert receipt_table is None
+
                 await asyncio.to_thread(_migrate, "20261005_0013", downgrade=True)
 
                 async with engine.connect() as connection:

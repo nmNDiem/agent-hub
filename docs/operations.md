@@ -15,7 +15,11 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Individual services use `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker` and `pnpm dev:widget` when their dependencies are configured. Use only isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-only.
+Individual services use `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker`,
+`pnpm dev:channel-worker` and `pnpm dev:widget` when their dependencies are configured. The
+channel worker claims persisted outbound deliveries and must run anywhere Facebook outbound text
+is enabled. Use only isolated development PostgreSQL/Storage/Qdrant resources; secrets remain
+server-only.
 
 ## Health, logs and retention
 
@@ -42,6 +46,11 @@ the token must come from an actor allowed to perform the Page messaging task. Ob
 Advanced Access and switch the Meta app to its reviewed production mode before serving people who
 do not have an app/Page role. No live provider request belongs in automated tests; use the fake
 Graph/Vault adapters and perform real Page/App verification manually in a non-production Meta app.
+
+The channel worker resolves Page tokens only for a claimed send and never logs tokens, message
+text or raw provider errors. `CHANNEL_WORKER_POLL_SECONDS` controls idle polling and defaults to
+two seconds. A `FACEBOOK_DELIVERY_UNKNOWN` terminal result requires operator reconciliation;
+requeueing it blindly can duplicate a reply whose Graph response was lost.
 
 ## Quality commands
 

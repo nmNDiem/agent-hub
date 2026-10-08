@@ -103,6 +103,7 @@ class RenderedOutboundMessage:
 class DeliveryRequest:
     delivery_id: int
     provider: ChannelProvider
+    external_account_id: str | None
     credential_ref: str | None
     external_thread_id: str
     idempotency_key: str

@@ -4,19 +4,28 @@ from agent_hub_api.facebook.contracts import (
     FacebookGraphGateway,
     FacebookPageIdentity,
     FacebookProviderError,
+    FacebookSendError,
 )
 
 
 class HttpFacebookGraphGateway(FacebookGraphGateway):
-    def __init__(self, *, api_version: str, timeout_seconds: int) -> None:
+    def __init__(
+        self,
+        *,
+        api_version: str,
+        timeout_seconds: int,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self.api_version = api_version
         self.timeout_seconds = timeout_seconds
+        self.transport = transport
 
     async def validate_page_token(self, page_access_token: str) -> FacebookPageIdentity:
         try:
             async with httpx.AsyncClient(
                 base_url=f"https://graph.facebook.com/{self.api_version}",
                 timeout=self.timeout_seconds,
+                transport=self.transport,
             ) as client:
                 response = await client.get(
                     "/me",
@@ -63,6 +72,7 @@ class HttpFacebookGraphGateway(FacebookGraphGateway):
             async with httpx.AsyncClient(
                 base_url=f"https://graph.facebook.com/{self.api_version}",
                 timeout=self.timeout_seconds,
+                transport=self.transport,
             ) as client:
                 response = await client.request(
                     method,
@@ -76,3 +86,68 @@ class HttpFacebookGraphGateway(FacebookGraphGateway):
                 raise FacebookProviderError("FACEBOOK_SUBSCRIPTION_FAILED")
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             raise FacebookProviderError("FACEBOOK_SUBSCRIPTION_FAILED") from exc
+
+    async def send_text(
+        self,
+        *,
+        page_id: str,
+        recipient_id: str,
+        text: str,
+        page_access_token: str,
+    ) -> str:
+        try:
+            async with httpx.AsyncClient(
+                base_url=f"https://graph.facebook.com/{self.api_version}",
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = await client.post(
+                    f"/{page_id}/messages",
+                    headers={"Authorization": f"Bearer {page_access_token}"},
+                    json={
+                        "recipient": {"id": recipient_id},
+                        "messaging_type": "RESPONSE",
+                        "message": {"text": text},
+                    },
+                )
+        except httpx.TimeoutException as exc:
+            raise FacebookSendError("FACEBOOK_DELIVERY_UNKNOWN", retryable=False) from exc
+        except httpx.TransportError as exc:
+            raise FacebookSendError("FACEBOOK_DELIVERY_UNKNOWN", retryable=False) from exc
+
+        if response.is_error:
+            raise self._send_error(response)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise FacebookSendError("FACEBOOK_DELIVERY_UNKNOWN", retryable=False) from exc
+        message_id = payload.get("message_id") if isinstance(payload, dict) else None
+        if not isinstance(message_id, str) or not message_id or len(message_id) > 500:
+            raise FacebookSendError("FACEBOOK_DELIVERY_UNKNOWN", retryable=False)
+        return message_id
+
+    @staticmethod
+    def _send_error(response: httpx.Response) -> FacebookSendError:
+        provider_code: int | None = None
+        is_transient = False
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            error = payload.get("error")
+            if isinstance(error, dict):
+                raw_code = error.get("code")
+                if isinstance(raw_code, int):
+                    provider_code = raw_code
+                is_transient = error.get("is_transient") is True
+
+        if response.status_code in {401, 403} or provider_code in {10, 190, 200}:
+            return FacebookSendError("FACEBOOK_REAUTH_REQUIRED", retryable=False)
+        if response.status_code >= 500:
+            return FacebookSendError("FACEBOOK_DELIVERY_UNKNOWN", retryable=False)
+        if response.status_code == 429 or is_transient:
+            return FacebookSendError("FACEBOOK_UNAVAILABLE", retryable=True)
+        if provider_code in {1, 2, 4, 17, 32, 341, 613}:
+            return FacebookSendError("FACEBOOK_RATE_LIMITED", retryable=True)
+        return FacebookSendError("FACEBOOK_SEND_REJECTED", retryable=False)

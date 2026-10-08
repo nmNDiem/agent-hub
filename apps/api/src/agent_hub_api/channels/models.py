@@ -206,12 +206,18 @@ class OutboundDelivery(Base):
         UniqueConstraint("connection_id", "idempotency_key", name="uq_delivery_idempotency"),
         UniqueConstraint("connection_id", "message_id", name="uq_delivery_message"),
         CheckConstraint(
-            "state IN ('queued','sending','delivered','failed_retryable','failed_terminal')",
+            "state IN "
+            "('queued','sending','accepted','delivered','failed_retryable','failed_terminal')",
             name="ck_deliveries_state",
         ),
         CheckConstraint("attempt_count >= 0", name="ck_deliveries_attempt_count"),
         CheckConstraint("max_attempts > 0", name="ck_deliveries_max_attempts"),
         Index("ix_deliveries_claim", "state", "next_attempt_at", "lease_expires_at", "id"),
+        Index(
+            "ix_deliveries_connection_provider_message",
+            "connection_id",
+            "provider_message_id",
+        ),
         Index("ix_deliveries_workspace_connection", "workspace_id", "connection_id", "id"),
     )
 
@@ -230,7 +236,41 @@ class OutboundDelivery(Base):
     )
     provider_message_id: Mapped[str | None] = mapped_column(String(500), nullable=True)
     safe_error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
+
+
+class ChannelDeliveryReceipt(Base):
+    __tablename__ = "channel_delivery_receipts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "connection_id"],
+            ["channel_connections.workspace_id", "channel_connections.id"],
+            name="fk_delivery_receipts_workspace_connection",
+        ),
+        UniqueConstraint(
+            "connection_id",
+            "provider_message_id",
+            name="uq_delivery_receipt_provider_message",
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_delivery_receipts_workspace_id"),
+        Index(
+            "ix_delivery_receipts_workspace_connection",
+            "workspace_id",
+            "connection_id",
+            "received_at",
+            "id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    connection_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    provider_message_id: Mapped[str] = mapped_column(String(500))
+    external_thread_id: Mapped[str] = mapped_column(String(500))
+    delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -14,6 +15,20 @@ class FacebookWebhookError(RuntimeError):
         self.code = code
 
 
+@dataclass(frozen=True, slots=True)
+class FacebookDeliveryReceipt:
+    external_account_id: str
+    external_thread_id: str
+    external_message_ids: tuple[str, ...]
+    delivered_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class FacebookWebhookBatch:
+    messages: tuple[VerifiedInboundEvent, ...]
+    delivery_receipts: tuple[FacebookDeliveryReceipt, ...]
+
+
 class FacebookWebhookAdapter:
     provider = "facebook"
 
@@ -23,6 +38,11 @@ class FacebookWebhookAdapter:
     def verify_and_normalize(
         self, *, raw_body: bytes, headers: Mapping[str, str]
     ) -> tuple[VerifiedInboundEvent, ...]:
+        return self.verify_and_parse(raw_body=raw_body, headers=headers).messages
+
+    def verify_and_parse(
+        self, *, raw_body: bytes, headers: Mapping[str, str]
+    ) -> FacebookWebhookBatch:
         signature = headers.get("x-hub-signature-256", "")
         expected = "sha256=" + hmac.new(self.app_secret, raw_body, hashlib.sha256).hexdigest()
         if len(signature) != len(expected) or not hmac.compare_digest(signature, expected):
@@ -38,6 +58,7 @@ class FacebookWebhookAdapter:
             raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
 
         normalized: list[VerifiedInboundEvent] = []
+        receipts: list[FacebookDeliveryReceipt] = []
         for entry in entries:
             if not isinstance(entry, dict):
                 raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
@@ -49,7 +70,12 @@ class FacebookWebhookAdapter:
                 event = self._normalize_item(page_id, item)
                 if event is not None:
                     normalized.append(event)
-        return tuple(normalized)
+                receipt = self._normalize_delivery(page_id, item)
+                if receipt is not None:
+                    receipts.append(receipt)
+        return FacebookWebhookBatch(
+            messages=tuple(normalized), delivery_receipts=tuple(receipts)
+        )
 
     def _normalize_item(
         self, page_id: str, item: object
@@ -90,6 +116,38 @@ class FacebookWebhookAdapter:
                 text=text_value,
                 occurred_at=occurred_at,
             ),
+        )
+
+    def _normalize_delivery(
+        self, page_id: str, item: object
+    ) -> FacebookDeliveryReceipt | None:
+        if not isinstance(item, dict):
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        delivery = item.get("delivery")
+        if not isinstance(delivery, dict):
+            return None
+        sender = item.get("sender")
+        recipient = item.get("recipient")
+        if not isinstance(sender, dict) or not isinstance(recipient, dict):
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        external_thread_id = self._bounded_string(sender.get("id"), maximum=500)
+        recipient_id = self._bounded_string(recipient.get("id"), maximum=255)
+        if recipient_id != page_id:
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        mids = delivery.get("mids")
+        if not isinstance(mids, list) or not mids or len(mids) > 100:
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        external_message_ids = tuple(
+            self._bounded_string(message_id, maximum=500) for message_id in mids
+        )
+        delivered_at = self._occurred_at(delivery.get("watermark"))
+        if delivered_at is None:
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        return FacebookDeliveryReceipt(
+            external_account_id=page_id,
+            external_thread_id=external_thread_id,
+            external_message_ids=tuple(dict.fromkeys(external_message_ids)),
+            delivered_at=delivered_at,
         )
 
     @staticmethod

@@ -20,10 +20,17 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from agent_hub_api.agents.models import Agent, AgentRevision
-from agent_hub_api.channels.models import ChannelConnection, ChannelThreadMapping
-from agent_hub_api.conversations.models import ConversationMessage
+from agent_hub_api.channels.models import (
+    ChannelConnection,
+    ChannelDeliveryReceipt,
+    ChannelThreadMapping,
+    OutboundDelivery,
+)
+from agent_hub_api.channels.service import ChannelService, DeliveryRunner
+from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.facebook.contracts import FacebookPageIdentity
+from agent_hub_api.facebook.outbound import FacebookOutboundAdapter
 from agent_hub_api.identity.security import CSRF_COOKIE
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base
@@ -57,6 +64,7 @@ class FakeGraph:
         self.identity = FacebookPageIdentity(page_id="page-123", name="Example Page")
         self.subscribed: list[str] = []
         self.unsubscribed: list[str] = []
+        self.sent: list[tuple[str, str, str]] = []
 
     async def validate_page_token(self, page_access_token: str) -> FacebookPageIdentity:
         assert page_access_token == "page-token-secret"
@@ -69,6 +77,18 @@ class FakeGraph:
     async def unsubscribe_page(self, page_id: str, page_access_token: str) -> None:
         assert page_access_token == "page-token-secret"
         self.unsubscribed.append(page_id)
+
+    async def send_text(
+        self,
+        *,
+        page_id: str,
+        recipient_id: str,
+        text: str,
+        page_access_token: str,
+    ) -> str:
+        assert page_access_token == "page-token-secret"
+        self.sent.append((page_id, recipient_id, text))
+        return "provider-mid-1"
 
 
 class AppFactory(Protocol):
@@ -209,6 +229,29 @@ def signed_payload(*, message_id: str, timestamp: int, text: str = "Xin chào") 
     return body, signature
 
 
+def signed_delivery_payload(*, message_id: str, watermark: int) -> tuple[bytes, str]:
+    body = json.dumps(
+        {
+            "object": "page",
+            "entry": [
+                {
+                    "id": "page-123",
+                    "messaging": [
+                        {
+                            "sender": {"id": "psid-456"},
+                            "recipient": {"id": "page-123"},
+                            "delivery": {"mids": [message_id], "watermark": watermark},
+                        }
+                    ],
+                }
+            ],
+        },
+        separators=(",", ":"),
+    ).encode()
+    signature = "sha256=" + hmac.new(APP_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    return body, signature
+
+
 def test_connection_and_verified_webhook_are_scoped_deduplicated_and_reorder_safe(
     app_factory: AppFactory,
 ) -> None:
@@ -291,6 +334,79 @@ def test_connection_and_verified_webhook_are_scoped_deduplicated_and_reorder_saf
 
         asyncio.run(assert_persisted())
 
+        async def queue_outbound() -> int:
+            async with session_factory() as session, session.begin():
+                conversation = (await session.scalars(select(Conversation))).one()
+                thread = (await session.scalars(select(ChannelThreadMapping))).one()
+                message = ConversationMessage(
+                    workspace_id=conversation.workspace_id,
+                    conversation_id=conversation.id,
+                    sequence_no=3,
+                    actor="assistant",
+                    direction="outbound",
+                    text="Phản hồi Facebook",
+                    status="completed",
+                    completed_at=datetime.now(UTC),
+                )
+                session.add(message)
+                await session.flush()
+                message_id = message.id
+                workspace_id = conversation.workspace_id
+                connection_id = conversation.channel_connection_id
+                thread_id = thread.id
+            async with session_factory() as session:
+                delivery = await ChannelService(session).queue_delivery(
+                    workspace_id=workspace_id,
+                    connection_id=connection_id,
+                    thread_mapping_id=thread_id,
+                    message_id=message_id,
+                    idempotency_key="facebook-response-1",
+                )
+                return delivery.id
+
+        delivery_id = asyncio.run(queue_outbound())
+        receipt_watermark = newest_timestamp + 2_000
+        receipt_body, receipt_signature = signed_delivery_payload(
+            message_id="provider-mid-1", watermark=receipt_watermark
+        )
+        early_receipt = owner_a.post(
+            "/api/v1/webhooks/facebook",
+            content=receipt_body,
+            headers={"x-hub-signature-256": receipt_signature},
+        )
+        assert early_receipt.status_code == 200, early_receipt.text
+
+        async def deliver() -> None:
+            async with session_factory() as session:
+                worked = await DeliveryRunner(
+                    ChannelService(session),
+                    {"facebook": FacebookOutboundAdapter(vault=vault, graph=graph)},
+                ).run_once()
+                assert worked is True
+
+        asyncio.run(deliver())
+        duplicate_receipt = owner_a.post(
+            "/api/v1/webhooks/facebook",
+            content=receipt_body,
+            headers={"x-hub-signature-256": receipt_signature},
+        )
+        assert duplicate_receipt.status_code == 200
+
+        async def assert_delivery() -> None:
+            async with session_factory() as session:
+                delivery = await session.get(OutboundDelivery, delivery_id)
+                assert delivery is not None
+                assert delivery.state == "delivered"
+                assert delivery.provider_message_id == "provider-mid-1"
+                assert delivery.accepted_at is not None
+                assert delivery.delivered_at == datetime.fromtimestamp(
+                    receipt_watermark / 1000, tz=UTC
+                ).replace(tzinfo=None)
+                assert await session.scalar(select(func.count(ChannelDeliveryReceipt.id))) == 1
+
+        asyncio.run(assert_delivery())
+        assert graph.sent == [("page-123", "psid-456", "Phản hồi Facebook")]
+
         health = owner_a.post(
             f"/api/v1/workspaces/{workspace_a['id']}/channels/facebook/{connection['id']}/health",
             headers=csrf_headers(owner_a),
@@ -321,7 +437,7 @@ def test_connection_and_verified_webhook_are_scoped_deduplicated_and_reorder_saf
                 assert stored is not None
                 assert stored.lifecycle_state == "revoked"
                 assert stored.credential_ref is None
-                assert await session.scalar(select(func.count(ConversationMessage.id))) == 2
+                assert await session.scalar(select(func.count(ConversationMessage.id))) == 3
 
         asyncio.run(assert_revoked())
 

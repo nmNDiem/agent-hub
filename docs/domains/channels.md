@@ -33,8 +33,16 @@ M1.2 adds Facebook Messenger on the shared foundation:
 The first delivered slice uses the official Graph API and HTTPS Page webhooks. Owner/admin
 connection validates the Page token, subscribes the Page to the `messages` webhook field and
 binds it to a published agent revision. Challenge and `X-Hub-Signature-256` validation happen
-before payload parsing or connection lookup. This slice accepts text messages only; attachments,
-outbound delivery, message-window policy and inbox UI remain later M1.2 work.
+before payload parsing or connection lookup. The current transport slice accepts inbound text,
+sends already-normalized outbound text through the versioned Graph Send API and records Graph
+acceptance separately from authenticated delivery receipts. A receipt may arrive before the send
+response and is reconciled by connection-scoped provider message ID. Attachments, AI response
+generation, message-window/opt-out policy and inbox UI remain later M1.2 work.
+
+Outbound work runs in a dedicated channel worker over the shared durable delivery queue. Explicit
+rate-limit/transient rejections use bounded retries. Ambiguous timeout, connection and HTTP 5xx
+results stop as `FACEBOOK_DELIVERY_UNKNOWN` for operator reconciliation because Meta's verified
+contract does not provide an idempotency key that would make automatic replay duplicate-safe.
 
 ## Boundaries
 

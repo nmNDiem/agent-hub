@@ -45,6 +45,11 @@ seeds a Website connection/session/conversation with inbound and outbound messag
 `20261006_0014`, verifies all shared-channel backfills and downgrades to `20261005_0013`. The
 Facebook first slice additionally covers challenge/signature failure, raw-body size, Page and
 workspace isolation, duplicate/reordered text events, health and revoked-connection behavior.
+The Facebook outbound gate continues the same rehearsal through `20261008_0015`, verifies legacy
+delivery backfill to provider acceptance plus receipt persistence, then rolls back through `0014`
+to `0013`. Mock Graph tests verify bearer-token placement, official text payloads, safe provider
+error classification, missing credentials, early/duplicate receipts and cross-workspace receipt
+isolation. No test sends a live provider message.
 
 ## Execution rules
 

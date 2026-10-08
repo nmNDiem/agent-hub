@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agent_hub_api.channels.models import (
     ChannelAgentBinding,
     ChannelConnection,
+    ChannelDeliveryReceipt,
     ChannelMessageMapping,
     ChannelThreadMapping,
     ChannelWebhookEvent,
@@ -21,13 +22,19 @@ class ChannelRepository:
         self.session = session
 
     async def connection_for_external_account(
-        self, provider: str, external_account_id: str, *, for_update: bool = False
+        self,
+        provider: str,
+        external_account_id: str,
+        *,
+        for_update: bool = False,
+        active_only: bool = True,
     ) -> ChannelConnection | None:
         statement = select(ChannelConnection).where(
             ChannelConnection.provider == provider,
             ChannelConnection.external_account_id == external_account_id,
-            ChannelConnection.lifecycle_state == "active",
         )
+        if active_only:
+            statement = statement.where(ChannelConnection.lifecycle_state == "active")
         if for_update:
             statement = statement.with_for_update()
         return (await self.session.scalars(statement)).one_or_none()
@@ -131,6 +138,45 @@ class ChannelRepository:
                 )
             )
         ).one_or_none()
+
+    async def delivery_receipt(
+        self, connection_id: int, provider_message_id: str
+    ) -> ChannelDeliveryReceipt | None:
+        return (
+            await self.session.scalars(
+                select(ChannelDeliveryReceipt).where(
+                    ChannelDeliveryReceipt.connection_id == connection_id,
+                    ChannelDeliveryReceipt.provider_message_id == provider_message_id,
+                )
+            )
+        ).one_or_none()
+
+    async def delivery_by_provider_message(
+        self, connection_id: int, provider_message_id: str
+    ) -> tuple[OutboundDelivery, ChannelThreadMapping] | None:
+        row = (
+            await self.session.execute(
+                select(OutboundDelivery, ChannelThreadMapping)
+                .join(
+                    ChannelMessageMapping,
+                    (ChannelMessageMapping.connection_id == OutboundDelivery.connection_id)
+                    & (ChannelMessageMapping.message_id == OutboundDelivery.message_id),
+                )
+                .join(
+                    ChannelThreadMapping,
+                    (ChannelThreadMapping.workspace_id == ChannelMessageMapping.workspace_id)
+                    & (ChannelThreadMapping.id == ChannelMessageMapping.thread_mapping_id),
+                )
+                .where(
+                    OutboundDelivery.connection_id == connection_id,
+                    OutboundDelivery.provider_message_id == provider_message_id,
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return row._tuple()
 
     async def claimable_delivery(self, now: datetime) -> OutboundDelivery | None:
         return (

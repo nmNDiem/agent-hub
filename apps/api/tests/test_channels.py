@@ -25,6 +25,7 @@ from agent_hub_api.channels.contracts import (
 from agent_hub_api.channels.models import (
     ChannelAgentBinding,
     ChannelConnection,
+    ChannelDeliveryReceipt,
     ChannelThreadMapping,
     ChannelWebhookEvent,
     OutboundDelivery,
@@ -265,6 +266,119 @@ def test_verified_inbound_is_connection_scoped_deduplicated_and_mode_aware(
     asyncio.run(scenario())
 
 
+def test_delivery_receipts_are_connection_scoped_and_reconcile_after_acceptance(
+    channel_database: tuple[async_sessionmaker[AsyncSession], AsyncEngine],
+) -> None:
+    factory, _ = channel_database
+    workspace_a = uuid4()
+    workspace_b = uuid4()
+    now = datetime.now(UTC)
+
+    async def queue_for(connection: ChannelConnection, *, key: str) -> OutboundDelivery:
+        async with factory() as session, session.begin():
+            binding = (
+                await session.scalars(
+                    select(ChannelAgentBinding).where(
+                        ChannelAgentBinding.connection_id == connection.id
+                    )
+                )
+            ).one()
+            assert binding.active_revision_id is not None
+            conversation = Conversation(
+                public_id=uuid4(),
+                workspace_id=connection.workspace_id,
+                agent_id=binding.agent_id,
+                revision_id=binding.active_revision_id,
+                channel_connection_id=connection.id,
+                retention_until=now + timedelta(days=30),
+            )
+            session.add(conversation)
+            await session.flush()
+            thread = ChannelThreadMapping(
+                workspace_id=connection.workspace_id,
+                connection_id=connection.id,
+                conversation_id=conversation.id,
+                external_thread_id="shared-psid",
+            )
+            message = ConversationMessage(
+                workspace_id=connection.workspace_id,
+                conversation_id=conversation.id,
+                sequence_no=1,
+                actor="assistant",
+                direction="outbound",
+                text="Hello",
+                status="completed",
+                completed_at=now,
+            )
+            session.add_all((thread, message))
+            await session.flush()
+            thread_id = thread.id
+            message_id = message.id
+        async with factory() as session:
+            return await ChannelService(session).queue_delivery(
+                workspace_id=connection.workspace_id,
+                connection_id=connection.id,
+                thread_mapping_id=thread_id,
+                message_id=message_id,
+                idempotency_key=key,
+            )
+
+    async def scenario() -> None:
+        connection_a = await seed_connection(
+            factory,
+            workspace_id=workspace_a,
+            slug="receipt-a",
+            external_account_id="page-a",
+        )
+        connection_b = await seed_connection(
+            factory,
+            workspace_id=workspace_b,
+            slug="receipt-b",
+            external_account_id="page-b",
+        )
+        delivery_a = await queue_for(connection_a, key="receipt-a")
+        delivery_b = await queue_for(connection_b, key="receipt-b")
+
+        async with factory() as session:
+            claim_a = await ChannelService(session).claim_delivery(now=now + timedelta(minutes=1))
+        assert claim_a is not None
+        async with factory() as session:
+            await ChannelService(session).complete_delivery(
+                claim_a, external_message_id="same-provider-mid"
+            )
+        async with factory() as session:
+            claim_b = await ChannelService(session).claim_delivery(now=now + timedelta(minutes=1))
+        assert claim_b is not None
+        async with factory() as session:
+            await ChannelService(session).complete_delivery(
+                claim_b, external_message_id="same-provider-mid"
+            )
+
+        delivered_at = now + timedelta(minutes=2)
+        async with factory() as session:
+            matched = await ChannelService(session).record_delivery_receipts(
+                provider="facebook",
+                external_account_id="page-a",
+                external_thread_id="shared-psid",
+                external_message_ids=("same-provider-mid",),
+                delivered_at=delivered_at,
+            )
+        assert matched == 1
+
+        async with factory() as session:
+            stored_a = await session.get(OutboundDelivery, delivery_a.id)
+            stored_b = await session.get(OutboundDelivery, delivery_b.id)
+            assert stored_a is not None and stored_a.state == "delivered"
+            assert stored_a.delivered_at == delivered_at.replace(tzinfo=None)
+            assert stored_b is not None and stored_b.state == "accepted"
+            receipts = (await session.scalars(select(ChannelDeliveryReceipt))).all()
+            assert len(receipts) == 1
+            assert receipts[0].workspace_id == workspace_a
+            assert receipts[0].connection_id == connection_a.id
+
+    asyncio.run(scenario())
+
+
 def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
     channel_database: tuple[async_sessionmaker[AsyncSession], AsyncEngine],
 ) -> None:
@@ -428,8 +542,10 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
             ) is None
             stored = await session.get(OutboundDelivery, accepted.id)
             assert stored is not None
-            assert stored.state == "delivered"
+            assert stored.state == "accepted"
             assert stored.provider_message_id == "provider-message-1"
+            assert stored.accepted_at is not None
+            assert stored.delivered_at is None
 
         async with factory() as session, session.begin():
             abandoned_message = ConversationMessage(
@@ -467,5 +583,40 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
             assert stored is not None
             assert stored.state == "failed_terminal"
             assert stored.safe_error_code == "DELIVERY_LEASE_EXPIRED"
+
+        async with factory() as session, session.begin():
+            revoked_message = ConversationMessage(
+                workspace_id=workspace_id,
+                conversation_id=conversation.id,
+                sequence_no=4,
+                actor="human",
+                direction="outbound",
+                text="Connection revoked",
+                status="completed",
+                completed_at=now,
+            )
+            session.add(revoked_message)
+            await session.flush()
+            revoked_message_id = revoked_message.id
+        async with factory() as session:
+            revoked_delivery = await ChannelService(session).queue_delivery(
+                workspace_id=workspace_id,
+                connection_id=connection.id,
+                thread_mapping_id=thread_id,
+                message_id=revoked_message_id,
+                idempotency_key="delivery-revoked",
+            )
+        async with factory() as session, session.begin():
+            stored_connection = await session.get(ChannelConnection, connection.id)
+            assert stored_connection is not None
+            stored_connection.lifecycle_state = "revoked"
+        async with factory() as session:
+            assert await ChannelService(session).claim_delivery(
+                now=now + timedelta(hours=3)
+            ) is None
+            stored = await session.get(OutboundDelivery, revoked_delivery.id)
+            assert stored is not None
+            assert stored.state == "failed_terminal"
+            assert stored.safe_error_code == "CONNECTION_INACTIVE"
 
     asyncio.run(scenario())

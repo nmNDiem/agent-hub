@@ -28,6 +28,7 @@ from agent_hub_api.catalog.models import (
 from agent_hub_api.channels.models import (
     ChannelAgentBinding,
     ChannelConnection,
+    ChannelDeliveryReceipt,
     ChannelMessageMapping,
     ChannelThreadMapping,
     ChannelWebhookEvent,
@@ -69,6 +70,7 @@ __all__ = [
     "AgentRevision",
     "ChannelAgentBinding",
     "ChannelConnection",
+    "ChannelDeliveryReceipt",
     "ChannelMessageMapping",
     "ChannelThreadMapping",
     "ChannelWebhookEvent",

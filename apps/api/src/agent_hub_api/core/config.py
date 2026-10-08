@@ -135,6 +135,7 @@ class Settings(BaseSettings):
     facebook_graph_timeout_seconds: int = 10
     facebook_webhook_max_bytes: int = 256 * 1024
     facebook_message_retention_days: int = 30
+    channel_worker_poll_seconds: int = 2
 
     @model_validator(mode="after")
     def validate_knowledge_limits(self) -> "Settings":
@@ -166,6 +167,7 @@ class Settings(BaseSettings):
             "facebook_graph_timeout_seconds",
             "facebook_webhook_max_bytes",
             "facebook_message_retention_days",
+            "channel_worker_poll_seconds",
             "openai_timeout_seconds",
             "agent_runtime_max_question_chars",
             "agent_runtime_max_history_turns",

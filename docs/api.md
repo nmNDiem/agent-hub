@@ -67,7 +67,7 @@ The Facebook first-slice routes are:
 - `GET|POST /api/v1/webhooks/facebook` for Meta challenge and signed delivery.
 
 Connection responses expose Page identity and lifecycle/health timestamps, never the Page token
-or Vault reference. The POST webhook supports authenticated text events only in this slice and
+or Vault reference. The POST webhook supports authenticated text and `delivery.mids` events and
 acknowledges authenticated events for unknown/revoked Pages without exposing tenant state.
 
 ### Webhooks
@@ -83,11 +83,21 @@ Webhook responses never expose workspace existence or internal processing detail
 
 ### Outbound delivery
 
-An outbound request creates/reuses a persisted delivery by idempotency key. Delivery exposes normalized `queued | sending | delivered | failed_retryable | failed_terminal` state and safe provider error classification. Retries are bounded and never repeat a terminally accepted provider message.
+An outbound request creates/reuses a persisted delivery by idempotency key. Delivery exposes
+normalized `queued | sending | accepted | delivered | failed_retryable | failed_terminal` state
+and safe provider error classification. `accepted` means the provider returned a message ID;
+`delivered` requires an authenticated provider receipt. Retries are bounded and never repeat a
+terminally accepted provider message.
 
 Delivery claims use a short lease and fencing token. A stale runner cannot complete or fail a
 newer claim, and a lease abandoned on the final allowed attempt becomes terminal rather than
 remaining indefinitely in `sending`.
+
+Facebook sends `POST /{page-id}/messages` with a server-resolved Page token, a connection-scoped
+PSID recipient, `messaging_type=RESPONSE` and text only. Definite rate-limit/transient rejections
+may retry. Timeout, transport, malformed success and HTTP 5xx outcomes are terminal
+`FACEBOOK_DELIVERY_UNKNOWN`: their external side effect is ambiguous and automatic replay could
+duplicate a customer reply.
 
 ### Inbox and contacts
 
