@@ -107,7 +107,7 @@ def create_app(
     owned_vector_index = None
     owned_vision_gateway: OpenAIVisionGateway | None = None
     if session_factory is None and runtime_settings.database_url is not None:
-        owned_engine = create_database_engine(runtime_settings.database_url)
+        owned_engine = create_database_engine(runtime_settings)
         session_factory = create_session_factory(owned_engine)
     if credential_vault is None and session_factory is not None:
         credential_vault = SupabaseCredentialVault(session_factory)

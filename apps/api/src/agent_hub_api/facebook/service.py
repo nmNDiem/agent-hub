@@ -4,7 +4,7 @@ from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,19 +73,25 @@ class FacebookConnectionService:
             ).all()
         }
         latest_jobs: dict[int, ChannelResponseJob] = {}
-        for job in await self.session.scalars(
-            select(ChannelResponseJob)
+        latest_job_ids = (
+            select(func.max(ChannelResponseJob.id))
             .where(ChannelResponseJob.connection_id.in_(connection_ids))
-            .order_by(ChannelResponseJob.id.desc())
+            .group_by(ChannelResponseJob.connection_id)
+        )
+        for job in await self.session.scalars(
+            select(ChannelResponseJob).where(ChannelResponseJob.id.in_(latest_job_ids))
         ):
-            latest_jobs.setdefault(job.connection_id, job)
+            latest_jobs[job.connection_id] = job
         latest_deliveries: dict[int, OutboundDelivery] = {}
-        for delivery in await self.session.scalars(
-            select(OutboundDelivery)
+        latest_delivery_ids = (
+            select(func.max(OutboundDelivery.id))
             .where(OutboundDelivery.connection_id.in_(connection_ids))
-            .order_by(OutboundDelivery.id.desc())
+            .group_by(OutboundDelivery.connection_id)
+        )
+        for delivery in await self.session.scalars(
+            select(OutboundDelivery).where(OutboundDelivery.id.in_(latest_delivery_ids))
         ):
-            latest_deliveries.setdefault(delivery.connection_id, delivery)
+            latest_deliveries[delivery.connection_id] = delivery
 
         responses: list[FacebookConnectionResponse] = []
         for connection in connections:

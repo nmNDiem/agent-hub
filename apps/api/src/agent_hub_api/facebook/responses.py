@@ -471,7 +471,7 @@ class FacebookResponseService:
             try:
                 await storage.delete(object_key=object_key)
             except VisitorImageStorageError:
-                return True
+                return False
         async with self.session.begin():
             media = await self.session.get(ChannelInboundMedia, media_id)
             if media is not None and media.state == "cleanup_pending":

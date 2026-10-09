@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     app_name: str = "AgentHub API"
     app_env: Literal["local", "test", "staging", "production"] = "local"
     database_url: str | None = Field(default=None, repr=False)
+    database_pool_size: int = 5
+    database_pool_max_overflow: int = 0
+    database_pool_timeout_seconds: int = 10
+    database_connect_timeout_seconds: int = 10
     jwt_signing_key: str | None = Field(
         default=None,
         repr=False,
@@ -145,6 +149,18 @@ class Settings(BaseSettings):
     facebook_media_timeout_seconds: int = 10
     facebook_media_allowed_hosts: tuple[str, ...] = ("fbcdn.net", "facebook.com")
     channel_worker_poll_seconds: int = 2
+
+    @model_validator(mode="after")
+    def validate_database_pool(self) -> "Settings":
+        if not 1 <= self.database_pool_size <= 20:
+            raise ValueError("Database pool size must be between 1 and 20")
+        if not 0 <= self.database_pool_max_overflow <= 20:
+            raise ValueError("Database pool overflow must be between 0 and 20")
+        if not 1 <= self.database_pool_timeout_seconds <= 60:
+            raise ValueError("Database pool timeout must be between 1 and 60 seconds")
+        if not 1 <= self.database_connect_timeout_seconds <= 60:
+            raise ValueError("Database connect timeout must be between 1 and 60 seconds")
+        return self
 
     @model_validator(mode="after")
     def validate_knowledge_limits(self) -> "Settings":

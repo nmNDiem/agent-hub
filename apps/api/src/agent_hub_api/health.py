@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agent_hub_api.core.config import Settings
+from agent_hub_api.core.database import APPLICATION_DATABASE_REVISION
 
 router = APIRouter(tags=["operations"])
 logger = logging.getLogger(__name__)
@@ -58,8 +59,11 @@ async def readiness(request: Request) -> ReadinessResponse | JSONResponse:
     try:
         async with session_factory() as session:
             await session.execute(text("SELECT 1"))
-    except SQLAlchemyError:
+            revision = await session.scalar(text("SELECT version_num FROM alembic_version"))
+    except (SQLAlchemyError, TimeoutError, ConnectionError, OSError):
         return _not_ready(request, settings, "database_unavailable")
+    if revision != APPLICATION_DATABASE_REVISION:
+        return _not_ready(request, settings, "database_schema_mismatch")
     return ReadinessResponse(
         status="ready",
         service=settings.app_name,

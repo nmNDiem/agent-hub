@@ -72,7 +72,7 @@ async def _run(args: argparse.Namespace) -> dict[str, int | str]:
     settings = get_settings()
     if settings.database_url is None:
         raise ValueError("DATABASE_URL is required")
-    engine = create_database_engine(settings.database_url)
+    engine = create_database_engine(settings)
     vector_index = create_qdrant_index(settings)
     service = KnowledgeProfileService(
         session_factory=create_session_factory(engine),

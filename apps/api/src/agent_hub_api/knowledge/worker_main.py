@@ -23,7 +23,7 @@ async def main() -> None:
     if settings.supabase_url is None or settings.supabase_service_role_key is None:
         raise ValueError("Supabase Storage credentials are required to run the knowledge worker")
 
-    engine = create_database_engine(settings.database_url)
+    engine = create_database_engine(settings)
     sessions = create_session_factory(engine)
     vector_index = create_qdrant_index(settings)
     storage = SupabaseKnowledgeStorage(

@@ -23,7 +23,13 @@ isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-
 
 ## Health, logs and retention
 
-- `/health/live` checks the process. `/health/ready` checks PostgreSQL and avoids paid providers.
+- `/health/live` checks the process. `/health/ready` checks PostgreSQL connectivity and requires
+  the Alembic revision expected by the running application; it avoids paid providers and returns
+  only a safe unavailable state when the schema is stale.
+- Each API or worker process lazily maintains at most five PostgreSQL connections by default, with
+  no overflow, a ten-second pool checkout timeout and a ten-second connection timeout. These are
+  typed settings rather than `.env.example` requirements; size them deliberately when deployment
+  concurrency or the Supabase connection allowance changes.
 - Logs contain request ID, method, route template, status and duration only—never raw URL/query, headers, bodies, messages, images, tokens, object keys or PII.
 - Local retention: Website session/transcript 24 hours, unattached image 30 minutes, attached image one hour and consented lead 30 days.
 - Run a bounded idempotent cleanup pass with `pnpm ops:retention`. It revokes database access before Storage deletion; failed deletion remains retryable.

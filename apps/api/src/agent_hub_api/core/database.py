@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
+from agent_hub_api.core.config import Settings
+
+APPLICATION_DATABASE_REVISION = "20261008_0016"
+
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
@@ -23,8 +27,17 @@ class Base(DeclarativeBase):
 BIGINT_PRIMARY_KEY = BigInteger().with_variant(Integer, "sqlite")
 
 
-def create_database_engine(database_url: str) -> AsyncEngine:
-    return create_async_engine(database_url, pool_pre_ping=True)
+def create_database_engine(settings: Settings) -> AsyncEngine:
+    if settings.database_url is None:
+        raise ValueError("DATABASE_URL is required to create the database engine")
+    return create_async_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_pool_max_overflow,
+        pool_timeout=settings.database_pool_timeout_seconds,
+        connect_args={"timeout": settings.database_connect_timeout_seconds},
+    )
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

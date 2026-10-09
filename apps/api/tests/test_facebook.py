@@ -50,6 +50,7 @@ from agent_hub_api.facebook.responses import (
 from agent_hub_api.identity.security import CSRF_COOKIE
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base
+from agent_hub_api.widget.image_storage import VisitorImageStorageError
 
 PASSWORD = "secure-password-123"
 ORIGIN = "http://127.0.0.1:3000"
@@ -395,7 +396,7 @@ def test_image_and_opt_out_events_create_one_durable_job_without_duplicate_spend
 
         asyncio.run(assert_policy())
 
-        class CleanupStorage:
+        class FailingCleanupStorage:
             async def upload(self, *, object_key: str, content: bytes, content_type: str) -> None:
                 raise AssertionError("cleanup must not upload media")
 
@@ -403,7 +404,20 @@ def test_image_and_opt_out_events_create_one_durable_job_without_duplicate_spend
                 raise AssertionError("cleanup must not download media")
 
             async def delete(self, *, object_key: str) -> None:
-                raise AssertionError("pending media has no stored object")
+                raise VisitorImageStorageError("temporary cleanup failure")
+
+        class CleanupStorage:
+            def __init__(self) -> None:
+                self.deleted: list[str] = []
+
+            async def upload(self, *, object_key: str, content: bytes, content_type: str) -> None:
+                raise AssertionError("cleanup must not upload media")
+
+            async def download(self, *, object_key: str, max_bytes: int) -> bytes:
+                raise AssertionError("cleanup must not download media")
+
+            async def delete(self, *, object_key: str) -> None:
+                self.deleted.append(object_key)
 
         async def assert_expired_media_cleanup() -> None:
             async with session_factory() as session, session.begin():
@@ -413,6 +427,17 @@ def test_image_and_opt_out_events_create_one_durable_job_without_duplicate_spend
                     )
                 ).one()
                 media.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+                media.object_key = "workspaces/example/facebook-media/expired.jpg"
+            async with session_factory() as session:
+                worked = await FacebookResponseService(
+                    session,
+                    Settings(
+                        app_env="test",
+                        jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+                    ),
+                ).cleanup_once(FailingCleanupStorage())
+                assert worked is False
+            storage = CleanupStorage()
             async with session_factory() as session:
                 cleaned = await FacebookResponseService(
                     session,
@@ -420,8 +445,9 @@ def test_image_and_opt_out_events_create_one_durable_job_without_duplicate_spend
                         app_env="test",
                         jwt_signing_key="test-signing-key-with-at-least-32-bytes",
                     ),
-                ).cleanup_once(CleanupStorage())
+                ).cleanup_once(storage)
                 assert cleaned is True
+                assert storage.deleted == ["workspaces/example/facebook-media/expired.jpg"]
             async with session_factory() as session:
                 media = (
                     await session.scalars(

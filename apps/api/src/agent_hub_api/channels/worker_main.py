@@ -46,7 +46,7 @@ async def main() -> None:
     ):
         raise ValueError("Grounded generation, vision and retrieval must be configured")
 
-    engine = create_database_engine(settings.database_url)
+    engine = create_database_engine(settings)
     sessions = create_session_factory(engine)
     vault = SupabaseCredentialVault(sessions)
     graph = HttpFacebookGraphGateway(

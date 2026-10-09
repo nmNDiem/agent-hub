@@ -76,3 +76,17 @@ def test_agent_runtime_limits_reject_unbounded_provider_configuration() -> None:
         EnvironmentOnlySettings.model_validate(
             {"agent_runtime_max_knowledge_chunks": 21}
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("database_pool_size", 0, "pool size"),
+        ("database_pool_max_overflow", -1, "pool overflow"),
+        ("database_pool_timeout_seconds", 0, "pool timeout"),
+        ("database_connect_timeout_seconds", 61, "connect timeout"),
+    ],
+)
+def test_database_pool_limits_are_bounded(field: str, value: int, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        EnvironmentOnlySettings.model_validate({field: value})

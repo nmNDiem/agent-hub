@@ -22,7 +22,7 @@ async def main() -> None:
             service_key=settings.supabase_service_role_key,
             bucket=settings.storage_private_bucket,
         )
-    engine = create_database_engine(settings.database_url)
+    engine = create_database_engine(settings)
     try:
         result = await RetentionSweeper(
             create_session_factory(engine), settings, storage
