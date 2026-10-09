@@ -30,6 +30,10 @@ isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-
   no overflow, a ten-second pool checkout timeout and a ten-second connection timeout. These are
   typed settings rather than `.env.example` requirements; size them deliberately when deployment
   concurrency or the Supabase connection allowance changes.
+- Prefer Supabase's Direct connection for these long-lived processes when the runtime has IPv6.
+  Use the Session Pooler on port `5432` only for IPv4-only runtimes. Do not switch SQLAlchemy with
+  asyncpg to Transaction Pooler port `6543` without separately validating prepared statements,
+  transaction semantics and migration tooling.
 - Logs contain request ID, method, route template, status and duration only—never raw URL/query, headers, bodies, messages, images, tokens, object keys or PII.
 - Local retention: Website session/transcript 24 hours, unattached image 30 minutes, attached image one hour and consented lead 30 days.
 - Run a bounded idempotent cleanup pass with `pnpm ops:retention`. It revokes database access before Storage deletion; failed deletion remains retryable.
