@@ -51,6 +51,12 @@ to `0013`. Mock Graph tests verify bearer-token placement, official text payload
 error classification, missing credentials, early/duplicate receipts and cross-workspace receipt
 isolation. No test sends a live provider message.
 
+The M1.2 completion gate continues through `20261008_0016`, verifies thread-policy backfill,
+response/media tables and downgrade removal, then rehearses rollback through `0015`, `0014` and
+`0013`. Fake tests cover duplicate-to-single-model-run behavior, response fencing, exact opt
+keywords, 24-hour enforcement, media host/redirect/MIME/byte/pixel limits, private cleanup,
+same-Page credential rotation, cross-workspace denial and accessible connection UI states.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

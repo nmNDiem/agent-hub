@@ -18,7 +18,7 @@ from agent_hub_api.widget.vision import VisionResult
 from agent_hub_api.workspaces.models import Workspace
 from agent_hub_api.workspaces.service import WorkspaceService
 
-UsageSurface = Literal["widget", "playground"]
+UsageSurface = Literal["widget", "playground", "facebook"]
 
 
 def month_bounds(timezone_name: str, now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -130,13 +130,14 @@ class TelemetryService:
         agent_id: int,
         conversation_id: int,
         result: VisionResult,
+        surface: UsageSurface = "widget",
     ) -> None:
         self.session.add(
             UsageEvent(
                 workspace_id=workspace_id,
                 agent_id=agent_id,
                 conversation_id=conversation_id,
-                surface="widget",
+                surface=surface,
                 kind="vision",
                 status="completed",
                 provider="openai" if self.settings.vision_model else None,

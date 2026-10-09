@@ -118,6 +118,8 @@ def create_app(
         facebook_graph_gateway = HttpFacebookGraphGateway(
             api_version=runtime_settings.facebook_graph_api_version,
             timeout_seconds=runtime_settings.facebook_graph_timeout_seconds,
+            app_id=runtime_settings.facebook_app_id,
+            app_secret=runtime_settings.facebook_app_secret,
         )
     if agent_runtime_factory is None and all(
         (

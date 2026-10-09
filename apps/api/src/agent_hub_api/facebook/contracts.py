@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 
@@ -6,6 +7,11 @@ from typing import Protocol
 class FacebookPageIdentity:
     page_id: str
     name: str
+    app_id: str | None = None
+    expires_at: datetime | None = None
+    data_access_expires_at: datetime | None = None
+    permissions: frozenset[str] = frozenset({"pages_messaging"})
+    tasks: frozenset[str] = frozenset({"MESSAGE"})
 
 
 class FacebookGraphGateway(Protocol):
@@ -26,7 +32,9 @@ class FacebookGraphGateway(Protocol):
 
 
 class FacebookProviderError(RuntimeError):
-    pass
+    def __init__(self, safe_code: str) -> None:
+        super().__init__(safe_code)
+        self.safe_code = safe_code
 
 
 class FacebookSendError(FacebookProviderError):

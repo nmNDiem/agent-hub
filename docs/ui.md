@@ -12,6 +12,11 @@ Primary areas are Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channel
 
 The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, unread, status, notes, tags and delivery state as M1 lands.
 
+The workbench channel switch includes adjacent Website and Facebook views. Facebook renders real
+Page cards with agent binding, health, last verification and latest queue/delivery state, plus
+connect, reauthorize, recheck and revoke actions for owner/admin. Page tokens are write-only
+password fields and disappear after submission. Reply composition remains in the M1.4 inbox.
+
 ## Shared behavior
 
 - Every async surface supports loading, ready, empty, error and forbidden; mutations add submitting/success and message delivery adds queued/sending/delivered/failed.

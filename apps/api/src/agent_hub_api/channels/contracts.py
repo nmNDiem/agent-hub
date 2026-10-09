@@ -19,15 +19,20 @@ class ChannelCapabilities:
 
 @dataclass(frozen=True, slots=True)
 class NormalizedAttachment:
-    kind: Literal["image"]
+    kind: Literal["image", "audio", "video", "file"]
     provider_media_id: str
     content_type: str | None = None
+    source_url: str | None = None
 
     def __post_init__(self) -> None:
         if not self.provider_media_id or len(self.provider_media_id) > 500:
             raise ValueError("Provider media ID must contain 1 to 500 characters")
         if self.content_type is not None and len(self.content_type) > 100:
             raise ValueError("Attachment content type exceeds 100 characters")
+        if self.source_url is not None and (
+            not self.source_url.startswith("https://") or len(self.source_url) > 2_000
+        ):
+            raise ValueError("Attachment URL must be bounded HTTPS")
 
 
 @dataclass(frozen=True, slots=True)

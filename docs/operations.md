@@ -17,9 +17,9 @@ pnpm dev
 
 Individual services use `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker`,
 `pnpm dev:channel-worker` and `pnpm dev:widget` when their dependencies are configured. The
-channel worker claims persisted outbound deliveries and must run anywhere Facebook outbound text
-is enabled. Use only isolated development PostgreSQL/Storage/Qdrant resources; secrets remain
-server-only.
+channel worker claims persisted Facebook response jobs, performs bounded private-media cleanup
+and sends outbound deliveries; it must run anywhere Facebook automation is enabled. Use only
+isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-only.
 
 ## Health, logs and retention
 
@@ -38,8 +38,9 @@ grant the API database role only the required `vault.create_secret`, `vault.secr
 Supabase keeps the per-project root key outside database data; backup/restore and project
 migration procedures must preserve that key or re-store all Page credentials.
 
-Set server-only `FACEBOOK_APP_SECRET`, a random `FACEBOOK_WEBHOOK_VERIFY_TOKEN`, and an explicitly
-reviewed `FACEBOOK_GRAPH_API_VERSION`. Configure Meta's callback at
+Set server-only `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, a random
+`FACEBOOK_WEBHOOK_VERIFY_TOKEN`, and an explicitly reviewed `FACEBOOK_GRAPH_API_VERSION`.
+Configure Meta's callback at
 `/api/v1/webhooks/facebook`. Connection creation validates the Page token and subscribes only the
 `messages` field. The Meta app/Page setup needs `pages_manage_metadata` and `pages_messaging`, and
 the token must come from an actor allowed to perform the Page messaging task. Obtain the required
@@ -51,6 +52,28 @@ The channel worker resolves Page tokens only for a claimed send and never logs t
 text or raw provider errors. `CHANNEL_WORKER_POLL_SECONDS` controls idle polling and defaults to
 two seconds. A `FACEBOOK_DELIVERY_UNKNOWN` terminal result requires operator reconciliation;
 requeueing it blindly can duplicate a reply whose Graph response was lost.
+
+### Meta App Review and Page verification
+
+Perform this checklist manually with a non-production Page before enabling production traffic;
+the automated suite never sends a live or paid request:
+
+1. Confirm the configured app ID/secret and pinned Graph version belong to the reviewed Meta app.
+2. Request/verify the permissions needed for Page subscription and messaging, including
+   `pages_manage_metadata` and `pages_messaging`, and ensure the authorizing person has the Page
+   `MESSAGE` task.
+3. Configure the HTTPS callback `/api/v1/webhooks/facebook`, enter the server-only verify token,
+   subscribe `messages`, and verify challenge plus signed text/image fixtures.
+4. Connect the Page from the agent's Facebook tab. Confirm the UI reports healthy without ever
+   displaying the submitted token; run **Kiểm tra lại** after permission changes.
+5. Send one Page message and one bounded JPEG/PNG/WebP image from a tester account. Confirm one
+   response job, one grounded reply, Graph acceptance and authenticated delivery receipt.
+6. Verify exact opt-out (`stop`, `unsubscribe`, `dừng`, `hủy đăng ký`, `không nhận tin`) blocks
+   automation, and exact opt-in (`start`, `subscribe`, `bắt đầu`, `đăng ký`, `nhận tin`) resumes it.
+7. Verify a normal response is not sent after 24 hours. Do not configure message tags, marketing
+   or proactive messaging for M1.2.
+8. Reauthorize with a new token for the same Page and confirm the old Vault secret is revoked;
+   verify a token for a different Page is rejected. Finally test local-first revoke.
 
 ## Quality commands
 

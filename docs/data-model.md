@@ -64,6 +64,8 @@ Product and variant SKU uniqueness is workspace-scoped and archived rows continu
 - `website_channel_configs`: Website-only presentation and handoff configuration; origins remain in `widget_domains` and reference the shared connection.
 - `channel_webhook_events`: connection/external event ID, payload fingerprint, received/processed state and safe error; unique per connection for dedupe. Raw payloads are not retained.
 - `channel_thread_mappings`: a connection-namespaced external thread mapped to one normalized conversation.
+- Facebook thread mappings also own latest inbound time and exact-keyword automation opt-in state;
+  this state is provider policy, not model-controlled consent inference.
 - `channel_message_mappings`: a normalized message mapped to its connection/thread and optional provider message ID; IDs are unique only within the connection.
 - `outbound_deliveries`: message, connection, idempotency key, attempt schedule, lease/fencing
   state, provider message ID, safe provider result and
@@ -72,6 +74,11 @@ Product and variant SKU uniqueness is workspace-scoped and archived rows continu
 - `channel_delivery_receipts`: minimal connection-scoped provider message/thread identity and
   delivery time. It intentionally retains reordered receipts until the matching accepted delivery
   can be reconciled and never stores the raw webhook payload.
+- `channel_response_jobs`: one workspace/connection/conversation-scoped job per inbound message,
+  with bounded attempts, lease/fencing state, safe failure and the resulting outbound message.
+- `channel_inbound_media`: message-scoped supported/unsupported attachment metadata, ephemeral
+  provider URL, private quarantine object metadata, expiry and cleanup state. Provider URLs are
+  cleared after fetch/failure and never enter API responses or logs.
 
 Raw provider payloads and access tokens are not general-purpose conversation metadata. Retain only fields needed for validation, retry, audit and supported rendering.
 

@@ -274,6 +274,24 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
                     assert directions == [("visitor", "inbound"), ("assistant", "outbound")]
 
                 async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            """
+                            INSERT INTO channel_thread_mappings
+                                (workspace_id, connection_id, conversation_id,
+                                 external_thread_id, last_seen_at)
+                            VALUES
+                                (:workspace_id, :connection_id, :conversation_id,
+                                 'migration-thread', :last_seen_at)
+                            """
+                        ),
+                        {
+                            "workspace_id": workspace_id,
+                            "connection_id": channel_id,
+                            "conversation_id": conversation_id,
+                            "last_seen_at": now,
+                        },
+                    )
                     outbound_message_id = await connection.scalar(
                         text(
                             """
@@ -337,13 +355,49 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
                         },
                     )
 
+                await asyncio.to_thread(_migrate, "20261008_0016")
+
+                async with engine.connect() as connection:
+                    policy = (
+                        await connection.execute(
+                            text(
+                                """
+                                SELECT last_inbound_at, automation_state
+                                FROM channel_thread_mappings
+                                WHERE connection_id = :connection_id
+                                """
+                            ),
+                            {"connection_id": channel_id},
+                        )
+                    ).one()
+                    assert policy.last_inbound_at is not None
+                    assert policy.automation_state == "opted_in"
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('channel_response_jobs')"))
+                        == "channel_response_jobs"
+                    )
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('channel_inbound_media')"))
+                        == "channel_inbound_media"
+                    )
+
+                await asyncio.to_thread(_migrate, "20261008_0015", downgrade=True)
+
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('channel_response_jobs')"))
+                        is None
+                    )
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('channel_inbound_media')"))
+                        is None
+                    )
+
                 await asyncio.to_thread(_migrate, "20261006_0014", downgrade=True)
 
                 async with engine.connect() as connection:
                     restored_delivery_state = await connection.scalar(
-                        text(
-                            "SELECT state FROM outbound_deliveries WHERE id = :delivery_id"
-                        ),
+                        text("SELECT state FROM outbound_deliveries WHERE id = :delivery_id"),
                         {"delivery_id": delivery_id},
                     )
                     assert restored_delivery_state == "delivered"

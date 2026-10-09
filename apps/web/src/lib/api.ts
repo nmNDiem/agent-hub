@@ -278,6 +278,43 @@ export type WidgetConfigUpdate = Pick<
   | "handoff_label"
 >;
 
+export type FacebookConnection = {
+  id: number;
+  provider: "facebook";
+  display_name: string;
+  external_account_id: string;
+  lifecycle_state: "active" | "revoked";
+  health_state:
+    | "unknown"
+    | "healthy"
+    | "permission_expired"
+    | "reauth_required"
+    | "webhook_subscription_failure"
+    | "delivery_unknown";
+  agent_public_id: string;
+  agent_name: string;
+  latest_queue_state:
+    | "queued"
+    | "running"
+    | "completed"
+    | "failed_retryable"
+    | "failed_terminal"
+    | "suppressed"
+    | null;
+  latest_delivery_state:
+    | "queued"
+    | "sending"
+    | "accepted"
+    | "delivered"
+    | "failed_retryable"
+    | "failed_terminal"
+    | null;
+  latest_safe_error_code: string | null;
+  last_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type LeadStatus = "new" | "contacted" | "closed";
 
 export type Lead = {
@@ -860,6 +897,35 @@ export const api = {
     request<WidgetConfig>(
       `/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}/pause`,
       { method: "POST" },
+    ),
+  listFacebookConnections: (workspaceId: string) =>
+    request<{ items: FacebookConnection[] }>(
+      `/api/v1/workspaces/${workspaceId}/channels/facebook`,
+    ),
+  connectFacebook: (
+    workspaceId: string,
+    payload: { agent_public_id: string; page_access_token: string },
+  ) => request<FacebookConnection>(
+    `/api/v1/workspaces/${workspaceId}/channels/facebook`,
+    { method: "POST", body: JSON.stringify(payload) },
+  ),
+  verifyFacebookConnection: (workspaceId: string, connectionId: number) =>
+    request<FacebookConnection>(
+      `/api/v1/workspaces/${workspaceId}/channels/facebook/${connectionId}/health`,
+      { method: "POST" },
+    ),
+  reauthorizeFacebookConnection: (
+    workspaceId: string,
+    connectionId: number,
+    pageAccessToken: string,
+  ) => request<FacebookConnection>(
+    `/api/v1/workspaces/${workspaceId}/channels/facebook/${connectionId}/reauthorize`,
+    { method: "POST", body: JSON.stringify({ page_access_token: pageAccessToken }) },
+  ),
+  revokeFacebookConnection: (workspaceId: string, connectionId: number) =>
+    request<void>(
+      `/api/v1/workspaces/${workspaceId}/channels/facebook/${connectionId}`,
+      { method: "DELETE" },
     ),
   streamPlaygroundMessage: async (
     workspaceId: string,

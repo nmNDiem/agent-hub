@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from agent_hub_api.channels.contracts import NormalizedInboundMessage, VerifiedInboundEvent
+from agent_hub_api.channels.contracts import (
+    NormalizedAttachment,
+    NormalizedInboundMessage,
+    VerifiedInboundEvent,
+)
 
 
 class FacebookWebhookError(RuntimeError):
@@ -73,26 +77,20 @@ class FacebookWebhookAdapter:
                 receipt = self._normalize_delivery(page_id, item)
                 if receipt is not None:
                     receipts.append(receipt)
-        return FacebookWebhookBatch(
-            messages=tuple(normalized), delivery_receipts=tuple(receipts)
-        )
+        return FacebookWebhookBatch(messages=tuple(normalized), delivery_receipts=tuple(receipts))
 
-    def _normalize_item(
-        self, page_id: str, item: object
-    ) -> VerifiedInboundEvent | None:
+    def _normalize_item(self, page_id: str, item: object) -> VerifiedInboundEvent | None:
         if not isinstance(item, dict):
             raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
         message = item.get("message")
         if not isinstance(message, dict):
             return None
-        if message.get("is_echo") is True or "attachments" in message:
+        if message.get("is_echo") is True:
             return None
         text_value = message.get("text")
-        if (
-            not isinstance(text_value, str)
-            or not text_value.strip()
-            or len(text_value) > 8_000
-        ):
+        if text_value is None:
+            text_value = ""
+        if not isinstance(text_value, str) or len(text_value) > 8_000:
             return None
         sender = item.get("sender")
         recipient = item.get("recipient")
@@ -103,6 +101,9 @@ class FacebookWebhookAdapter:
         if recipient_id != page_id:
             raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
         message_id = self._bounded_string(message.get("mid"), maximum=255)
+        attachments = self._attachments(message_id, message.get("attachments"))
+        if not text_value.strip() and not attachments:
+            return None
         occurred_at = self._occurred_at(item.get("timestamp"))
         canonical = json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return VerifiedInboundEvent(
@@ -115,12 +116,40 @@ class FacebookWebhookAdapter:
                 external_thread_id=sender_id,
                 text=text_value,
                 occurred_at=occurred_at,
+                attachments=attachments,
             ),
         )
 
-    def _normalize_delivery(
-        self, page_id: str, item: object
-    ) -> FacebookDeliveryReceipt | None:
+    def _attachments(self, message_id: str, value: object) -> tuple[NormalizedAttachment, ...]:
+        if value is None:
+            return ()
+        if not isinstance(value, list) or len(value) > 10:
+            raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+        normalized: list[NormalizedAttachment] = []
+        for index, attachment in enumerate(value):
+            if not isinstance(attachment, dict):
+                raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+            raw_kind = attachment.get("type")
+            if raw_kind not in {"image", "audio", "video", "file"}:
+                continue
+            payload = attachment.get("payload")
+            if not isinstance(payload, dict):
+                raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+            source_url: str | None = None
+            if raw_kind == "image":
+                source_url = self._bounded_string(payload.get("url"), maximum=2_000)
+                if not source_url.startswith("https://"):
+                    raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
+            normalized.append(
+                NormalizedAttachment(
+                    kind=raw_kind,
+                    provider_media_id=f"{message_id}:{index}",
+                    source_url=source_url,
+                )
+            )
+        return tuple(normalized)
+
+    def _normalize_delivery(self, page_id: str, item: object) -> FacebookDeliveryReceipt | None:
         if not isinstance(item, dict):
             raise FacebookWebhookError("FACEBOOK_PAYLOAD_INVALID")
         delivery = item.get("delivery")

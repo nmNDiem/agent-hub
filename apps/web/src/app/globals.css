@@ -430,6 +430,35 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .channel-status.published { color: hsl(145 55% 27%); background: hsl(145 60% 94%); }
 .channel-status.paused { color: var(--muted-foreground); background: var(--muted); }
 .web-channel-panel > .feedback-banner { margin: 14px 18px 0; }
+.facebook-channel-state { min-height: 360px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 15px; color: var(--muted-foreground); background: var(--card); }
+.facebook-channel-panel { display: grid; gap: 16px; padding: 20px; border: 1px solid var(--border); border-radius: 15px; background: var(--card); box-shadow: 0 12px 32px color-mix(in srgb, var(--primary) 6%, transparent); }
+.facebook-channel-header, .facebook-page-summary, .facebook-page-actions, .facebook-reauthorize-form > div { display: flex; align-items: center; gap: 10px; }
+.facebook-channel-header { justify-content: space-between; }
+.facebook-channel-header h2, .facebook-page-card h3, .facebook-connect-form h3 { margin: 0; }
+.facebook-channel-header p:not(.eyebrow), .facebook-page-summary p, .facebook-connect-form p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 13px; }
+.facebook-policy-note, .facebook-health { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 750; }
+.facebook-policy-note { color: hsl(205 72% 34%); background: hsl(205 85% 94%); }
+.facebook-health { margin-left: auto; color: hsl(32 70% 35%); background: hsl(40 90% 94%); }
+.facebook-health.healthy { color: hsl(160 65% 28%); background: hsl(154 58% 92%); }
+.facebook-page-list { display: grid; gap: 12px; }
+.facebook-page-card { padding: 16px; border: 1px solid var(--border); border-radius: 13px; background: color-mix(in srgb, var(--muted) 25%, white); }
+.facebook-page-icon { width: 42px; height: 42px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 12px; color: white; background: #1877f2; }
+.facebook-page-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.facebook-page-facts div { padding: 10px; border-radius: 10px; background: var(--card); }
+.facebook-page-facts dt { color: var(--muted-foreground); font-size: 11px; }
+.facebook-page-facts dd { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
+.facebook-safe-error { margin: 0 0 12px; color: hsl(0 65% 38%); font: 600 12px/1.4 ui-monospace, monospace; }
+.facebook-empty { min-height: 150px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 13px; color: var(--muted-foreground); text-align: center; }
+.facebook-empty strong { color: var(--foreground); }
+.facebook-connect-form, .facebook-reauthorize-form { display: grid; gap: 9px; padding: 16px; border: 1px solid var(--border); border-radius: 13px; background: color-mix(in srgb, var(--primary) 3%, white); }
+.facebook-connect-form input, .facebook-reauthorize-form input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.facebook-connect-form label, .facebook-reauthorize-form label { font-size: 12px; font-weight: 750; }
+@media (max-width: 700px) {
+  .facebook-channel-header, .facebook-page-summary { align-items: flex-start; flex-wrap: wrap; }
+  .facebook-policy-note, .facebook-health { margin-left: 0; }
+  .facebook-page-facts { grid-template-columns: 1fr; }
+  .facebook-page-actions { align-items: stretch; flex-direction: column; }
+}
 .web-channel-grid { display: grid; grid-template-columns: minmax(440px, 1.04fr) minmax(390px, .96fr); min-height: 680px; }
 .web-channel-settings { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
 .web-channel-settings > fieldset { display: grid; gap: 13px; margin: 0; padding: 20px; border: 0; border-bottom: 1px solid var(--border); }

@@ -17,6 +17,8 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
   `ai | human | paused` handling mode; existing Website conversations default to
   `active/open/ai`.
 - Persisted outbound delivery state with lease fencing and bounded retry.
+- Facebook response jobs with independent lease fencing, one job per inbound message and explicit
+  completed/retryable/terminal/suppressed outcomes.
 
 ## Complete domain capability
 
@@ -35,6 +37,7 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 - Public/widget sessions cannot read another session's thread.
 - AI/human authorship and delivery state are explicit and auditable.
 - Only `ai` mode may schedule automated generation; duplicate inbound work never schedules it.
+- Provider opt-out and response-window policy is rechecked before generation completion and send.
 - Message DTOs omit private object paths, credentials and raw provider payloads.
 - Handoff does not falsely claim that a human is available.
 

@@ -37,7 +37,7 @@ Status: **Complete**
 
 ### M1.2 Facebook Messenger
 
-Status: **Current**
+Status: **Complete**
 
 - Page connection and revocation flow.
 - Verified inbound messages and supported attachments.

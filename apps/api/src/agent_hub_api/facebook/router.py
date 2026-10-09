@@ -14,6 +14,7 @@ from agent_hub_api.facebook.contracts import FacebookGraphGateway
 from agent_hub_api.facebook.schemas import (
     FacebookConnectionCreateRequest,
     FacebookConnectionListResponse,
+    FacebookConnectionReauthorizeRequest,
     FacebookConnectionResponse,
 )
 from agent_hub_api.facebook.service import FacebookConnectionService
@@ -95,6 +96,22 @@ async def verify_connection_health(
     return await _service(request, session).verify_health(user, workspace_id, connection_id)
 
 
+@admin_router.post(
+    "/{connection_id}/reauthorize",
+    response_model=FacebookConnectionResponse,
+    dependencies=[Depends(require_csrf)],
+)
+async def reauthorize_connection(
+    workspace_id: UUID,
+    connection_id: int,
+    payload: FacebookConnectionReauthorizeRequest,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> FacebookConnectionResponse:
+    return await _service(request, session).reauthorize(user, workspace_id, connection_id, payload)
+
+
 @admin_router.delete(
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -165,10 +182,12 @@ async def receive_webhook(
         )
         raise ApiError(http_status, exc.code, "Facebook webhook không hợp lệ.") from exc
 
-    retention_until = datetime.now(UTC) + timedelta(
-        days=settings.facebook_message_retention_days
+    retention_until = datetime.now(UTC) + timedelta(days=settings.facebook_message_retention_days)
+    channel_service = ChannelService(
+        session,
+        response_window_hours=settings.facebook_response_window_hours,
+        response_job_max_attempts=settings.facebook_response_job_max_attempts,
     )
-    channel_service = ChannelService(session)
     for event in batch.messages:
         try:
             await channel_service.ingest_verified(event, retention_until=retention_until)

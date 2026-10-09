@@ -50,7 +50,7 @@ class UsageEvent(Base):
             name="fk_usage_events_workspace_conversation",
             ondelete="SET NULL",
         ),
-        CheckConstraint("surface IN ('widget','playground')", name="ck_usage_surface"),
+        CheckConstraint("surface IN ('widget','playground','facebook')", name="ck_usage_surface"),
         CheckConstraint("kind IN ('generation','vision')", name="ck_usage_kind"),
         CheckConstraint("status IN ('completed','failed')", name="ck_usage_status"),
         CheckConstraint("model_calls >= 0", name="ck_usage_model_calls"),

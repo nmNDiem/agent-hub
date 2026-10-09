@@ -30,14 +30,27 @@ M1.2 adds Facebook Messenger on the shared foundation:
 - Facebook capability/message-window/opt-out enforcement;
 - delivery status visible to operators.
 
-The first delivered slice uses the official Graph API and HTTPS Page webhooks. Owner/admin
-connection validates the Page token, subscribes the Page to the `messages` webhook field and
-binds it to a published agent revision. Challenge and `X-Hub-Signature-256` validation happen
-before payload parsing or connection lookup. The current transport slice accepts inbound text,
-sends already-normalized outbound text through the versioned Graph Send API and records Graph
-acceptance separately from authenticated delivery receipts. A receipt may arrive before the send
-response and is reconciled by connection-scoped provider message ID. Attachments, AI response
-generation, message-window/opt-out policy and inbox UI remain later M1.2 work.
+The completed M1.2 adapter uses the official Graph API and HTTPS Page webhooks. Owner/admin
+connection validates app ownership, token/data-access expiry, `pages_messaging`, Page `MESSAGE`
+task access and the expected Page before subscribing the `messages` field and binding a published
+agent revision. Reauthorization accepts only the same Page, rotates its Vault credential and
+best-effort revokes the previous secret. Health distinguishes healthy, expired permission,
+reauthorization, webhook-subscription and unknown-delivery states.
+
+Challenge and `X-Hub-Signature-256` validation happen before payload parsing or connection lookup.
+Text and image events are persisted/deduplicated before acknowledgement. Audio, video and file
+attachments are retained only as safe unsupported metadata. Image URLs are ephemeral worker input:
+each HTTPS hop is allowlisted and bounded by redirect, timeout, bytes, decoded pixels and MIME;
+sanitized bytes enter private Storage quarantine and the URL is cleared. Expired/failed objects
+remain eligible for bounded cleanup.
+
+A leased/fenced response job reuses the published grounded runtime, catalog/knowledge scope and
+workspace quota, then atomically creates one outbound message and delivery. Duplicate webhook
+delivery cannot schedule another model turn. Exact `stop | unsubscribe | dừng | hủy đăng ký |
+không nhận tin` and `start | subscribe | bắt đầu | đăng ký | nhận tin` commands control thread
+automation after whitespace trim and case-folding. Sends use `messaging_type=RESPONSE` only while
+the latest inbound message is within 24 hours. Message tags, marketing and proactive messages are
+not supported.
 
 Outbound work runs in a dedicated channel worker over the shared durable delivery queue. Explicit
 rate-limit/transient rejections use bounded retries. Ambiguous timeout, connection and HTTP 5xx

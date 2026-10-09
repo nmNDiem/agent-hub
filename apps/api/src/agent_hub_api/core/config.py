@@ -130,11 +130,20 @@ class Settings(BaseSettings):
     knowledge_orphan_grace_seconds: int = 3_600
     knowledge_worker_poll_seconds: int = 2
     facebook_app_secret: str | None = Field(default=None, repr=False)
+    facebook_app_id: str | None = None
     facebook_webhook_verify_token: str | None = Field(default=None, repr=False)
     facebook_graph_api_version: str | None = None
     facebook_graph_timeout_seconds: int = 10
     facebook_webhook_max_bytes: int = 256 * 1024
     facebook_message_retention_days: int = 30
+    facebook_response_window_hours: int = 24
+    facebook_response_job_lease_seconds: int = 120
+    facebook_response_job_max_attempts: int = 3
+    facebook_media_max_bytes: int = 5 * 1024 * 1024
+    facebook_media_max_pixels: int = 20_000_000
+    facebook_media_max_redirects: int = 3
+    facebook_media_timeout_seconds: int = 10
+    facebook_media_allowed_hosts: tuple[str, ...] = ("fbcdn.net", "facebook.com")
     channel_worker_poll_seconds: int = 2
 
     @model_validator(mode="after")
@@ -167,6 +176,13 @@ class Settings(BaseSettings):
             "facebook_graph_timeout_seconds",
             "facebook_webhook_max_bytes",
             "facebook_message_retention_days",
+            "facebook_response_window_hours",
+            "facebook_response_job_lease_seconds",
+            "facebook_response_job_max_attempts",
+            "facebook_media_max_bytes",
+            "facebook_media_max_pixels",
+            "facebook_media_max_redirects",
+            "facebook_media_timeout_seconds",
             "channel_worker_poll_seconds",
             "openai_timeout_seconds",
             "agent_runtime_max_question_chars",
@@ -229,6 +245,7 @@ class Settings(BaseSettings):
         "widget_public_base_url",
         "widget_abuse_hash_key",
         "facebook_app_secret",
+        "facebook_app_id",
         "facebook_webhook_verify_token",
         "facebook_graph_api_version",
         mode="before",
@@ -266,6 +283,23 @@ class Settings(BaseSettings):
         if value is not None and re.fullmatch(r"v[1-9][0-9]*\.0", value) is None:
             raise ValueError("Facebook Graph API version must look like vNN.0")
         return value
+
+    @field_validator("facebook_app_id")
+    @classmethod
+    def validate_facebook_app_id(cls, value: str | None) -> str | None:
+        if value is not None and (not value.isdigit() or len(value) > 64):
+            raise ValueError("Facebook app ID must be a numeric provider identifier")
+        return value
+
+    @field_validator("facebook_media_allowed_hosts")
+    @classmethod
+    def validate_facebook_media_allowed_hosts(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(host.casefold().strip().rstrip(".") for host in value)
+        if not normalized or any(
+            not host or ":" in host or "/" in host or host.startswith(".") for host in normalized
+        ):
+            raise ValueError("Facebook media hosts must be DNS suffixes")
+        return normalized
 
     @field_validator("facebook_app_secret", "facebook_webhook_verify_token")
     @classmethod
@@ -322,6 +356,16 @@ class Settings(BaseSettings):
                 not origin.startswith("https://") for origin in self.allowed_origins
             ):
                 raise ValueError("HTTPS allowed origins are required outside local/test")
+            facebook_values = (
+                self.facebook_app_id,
+                self.facebook_app_secret,
+                self.facebook_webhook_verify_token,
+                self.facebook_graph_api_version,
+            )
+            if any(facebook_values) and not all(facebook_values):
+                raise ValueError(
+                    "Facebook app ID, secret, verify token and Graph version are required together"
+                )
         return self
 
 

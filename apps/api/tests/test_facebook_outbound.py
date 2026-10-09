@@ -13,6 +13,7 @@ from agent_hub_api.channels.contracts import (
 from agent_hub_api.channels.vault import CredentialVaultError
 from agent_hub_api.facebook.contracts import (
     FacebookPageIdentity,
+    FacebookProviderError,
     FacebookSendError,
 )
 from agent_hub_api.facebook.graph import HttpFacebookGraphGateway
@@ -49,6 +50,99 @@ class UnexpectedGraphGateway:
         page_access_token: str,
     ) -> str:
         raise AssertionError("send_text must not be called")
+
+
+def test_graph_validates_token_app_permissions_expiry_and_page_task() -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        if request.url.path.endswith("/me"):
+            return httpx.Response(
+                200,
+                json={"id": "page-1", "name": "Example Page", "tasks": ["MESSAGE"]},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "is_valid": True,
+                    "app_id": "123456",
+                    "expires_at": 4_000_000_000,
+                    "data_access_expires_at": 4_000_000_000,
+                    "scopes": ["pages_messaging"],
+                    "granular_scopes": [],
+                }
+            },
+        )
+
+    gateway = HttpFacebookGraphGateway(
+        api_version="v99.0",
+        timeout_seconds=5,
+        app_id="123456",
+        app_secret="secret-app-token",
+        transport=httpx.MockTransport(handler),
+    )
+    identity = asyncio.run(gateway.validate_page_token("secret-page-token"))
+    assert identity.page_id == "page-1"
+    assert identity.permissions == frozenset({"pages_messaging"})
+    assert identity.tasks == frozenset({"MESSAGE"})
+    assert len(captured) == 2
+    assert captured[0].headers["authorization"] == "Bearer secret-page-token"
+    assert captured[1].headers["authorization"] == "Bearer 123456|secret-app-token"
+
+
+@pytest.mark.parametrize(
+    ("tasks", "debug_data", "safe_code"),
+    [
+        (["MESSAGE"], {"is_valid": False, "app_id": "123456"}, "FACEBOOK_REAUTH_REQUIRED"),
+        (
+            ["MESSAGE"],
+            {"is_valid": True, "app_id": "other", "scopes": ["pages_messaging"]},
+            "FACEBOOK_APP_MISMATCH",
+        ),
+        (
+            ["MESSAGE"],
+            {"is_valid": True, "app_id": "123456", "scopes": []},
+            "FACEBOOK_PERMISSION_EXPIRED",
+        ),
+        (
+            [],
+            {"is_valid": True, "app_id": "123456", "scopes": ["pages_messaging"]},
+            "FACEBOOK_PERMISSION_EXPIRED",
+        ),
+        (
+            ["MESSAGE"],
+            {
+                "is_valid": True,
+                "app_id": "123456",
+                "scopes": ["pages_messaging"],
+                "expires_at": 1,
+            },
+            "FACEBOOK_PERMISSION_EXPIRED",
+        ),
+    ],
+)
+def test_graph_rejects_invalid_token_policy(
+    tasks: list[str], debug_data: dict[str, object], safe_code: str
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/me"):
+            return httpx.Response(
+                200,
+                json={"id": "page-1", "name": "Example Page", "tasks": tasks},
+            )
+        return httpx.Response(200, json={"data": debug_data})
+
+    gateway = HttpFacebookGraphGateway(
+        api_version="v99.0",
+        timeout_seconds=5,
+        app_id="123456",
+        app_secret="secret-app-token",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(FacebookProviderError, match=safe_code):
+        asyncio.run(gateway.validate_page_token("secret-page-token"))
 
 
 def test_graph_send_text_uses_bearer_auth_and_official_response_contract() -> None:
@@ -110,9 +204,7 @@ def test_graph_send_text_maps_provider_errors_without_exposing_payload(
     gateway = HttpFacebookGraphGateway(
         api_version="v99.0",
         timeout_seconds=5,
-        transport=httpx.MockTransport(
-            lambda _: httpx.Response(status_code, json=payload)
-        ),
+        transport=httpx.MockTransport(lambda _: httpx.Response(status_code, json=payload)),
     )
 
     async def scenario() -> None:

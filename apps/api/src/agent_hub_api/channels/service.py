@@ -17,7 +17,9 @@ from agent_hub_api.channels.contracts import (
 )
 from agent_hub_api.channels.models import (
     ChannelDeliveryReceipt,
+    ChannelInboundMedia,
     ChannelMessageMapping,
+    ChannelResponseJob,
     ChannelThreadMapping,
     ChannelWebhookEvent,
     OutboundDelivery,
@@ -56,17 +58,23 @@ class ClaimedDelivery:
 
 
 class ChannelService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        response_window_hours: int = 24,
+        response_job_max_attempts: int = 3,
+    ) -> None:
         self.session = session
         self.repository = ChannelRepository(session)
+        self.response_window_hours = response_window_hours
+        self.response_job_max_attempts = response_job_max_attempts
 
     async def ingest_verified(
         self, event: VerifiedInboundEvent, *, retention_until: datetime
     ) -> InboundResult:
         if retention_until.tzinfo is None:
             raise ValueError("Channel retention deadline must be timezone-aware")
-        if event.message.attachments:
-            raise ChannelStateError("UNSUPPORTED_ATTACHMENT")
         async with self.session.begin():
             connection = await self.repository.connection_for_external_account(
                 event.provider, event.external_account_id, for_update=True
@@ -152,6 +160,7 @@ class ChannelService:
                     conversation_id=conversation.id,
                     external_thread_id=event.message.external_thread_id,
                     last_seen_at=event.message.occurred_at or now,
+                    last_inbound_at=event.message.occurred_at or now,
                 )
                 self.session.add(thread)
                 await self.session.flush()
@@ -164,6 +173,16 @@ class ChannelService:
                 observed_at = event.message.occurred_at or now
                 if _aware(observed_at) > _aware(thread.last_seen_at):
                     thread.last_seen_at = observed_at
+                if thread.last_inbound_at is None or _aware(observed_at) > _aware(
+                    thread.last_inbound_at
+                ):
+                    thread.last_inbound_at = observed_at
+
+            keyword = event.message.text.strip().casefold()
+            if keyword in {"stop", "unsubscribe", "dừng", "hủy đăng ký", "không nhận tin"}:
+                thread.automation_state = "opted_out"
+            elif keyword in {"start", "subscribe", "bắt đầu", "đăng ký", "nhận tin"}:
+                thread.automation_state = "opted_in"
 
             message = ConversationMessage(
                 workspace_id=connection.workspace_id,
@@ -187,6 +206,41 @@ class ChannelService:
                     direction="inbound",
                 )
             )
+            media_expiry = now + timedelta(hours=1)
+            supported_input = bool(event.message.text.strip())
+            for attachment in event.message.attachments:
+                supported = attachment.kind == "image" and attachment.source_url is not None
+                supported_input = supported_input or supported
+                self.session.add(
+                    ChannelInboundMedia(
+                        workspace_id=connection.workspace_id,
+                        connection_id=connection.id,
+                        message_id=message.id,
+                        provider_media_id=attachment.provider_media_id,
+                        kind=attachment.kind,
+                        state="pending" if supported else "unsupported",
+                        source_url=attachment.source_url if supported else None,
+                        content_type=attachment.content_type,
+                        safe_error_code=None if supported else "FACEBOOK_MEDIA_UNSUPPORTED",
+                        expires_at=media_expiry,
+                    )
+                )
+            should_generate = (
+                conversation.handling_mode == "ai"
+                and connection.health_state in {"unknown", "healthy"}
+                and thread.automation_state == "opted_in"
+                and supported_input
+            )
+            if should_generate:
+                self.session.add(
+                    ChannelResponseJob(
+                        workspace_id=connection.workspace_id,
+                        connection_id=connection.id,
+                        conversation_id=conversation.id,
+                        inbound_message_id=message.id,
+                        max_attempts=self.response_job_max_attempts,
+                    )
+                )
             conversation.last_message_at = now
             webhook.message_id = message.id
             webhook.state = "processed"
@@ -197,7 +251,7 @@ class ChannelService:
                 conversation_id=conversation.id,
                 message_id=message.id,
                 duplicate=False,
-                should_generate=conversation.handling_mode == "ai",
+                should_generate=should_generate,
             )
 
     async def queue_delivery(
@@ -215,9 +269,7 @@ class ChannelService:
         if max_attempts < 1 or max_attempts > 10:
             raise ValueError("Delivery max attempts must be between 1 and 10")
         async with self.session.begin():
-            connection = await self.repository.connection_for_update(
-                workspace_id, connection_id
-            )
+            connection = await self.repository.connection_for_update(workspace_id, connection_id)
             if connection is None:
                 raise ChannelStateError("DELIVERY_SCOPE_MISMATCH")
             existing = await self.repository.delivery_by_key(connection_id, idempotency_key)
@@ -279,6 +331,20 @@ class ChannelService:
                 delivery.safe_error_code = "CONNECTION_INACTIVE"
                 delivery.updated_at = claim_time
                 return None
+            latest_inbound = thread.last_inbound_at or thread.last_seen_at
+            if connection.provider == "facebook" and (
+                connection.health_state not in {"unknown", "healthy"}
+                or thread.automation_state != "opted_in"
+                or _aware(latest_inbound) < claim_time - timedelta(hours=self.response_window_hours)
+            ):
+                delivery.state = "failed_terminal"
+                delivery.safe_error_code = (
+                    "FACEBOOK_RESPONSE_WINDOW_EXPIRED"
+                    if connection.health_state in {"unknown", "healthy"}
+                    else "FACEBOOK_REAUTH_REQUIRED"
+                )
+                delivery.updated_at = claim_time
+                return None
             token = secrets.token_hex(32)
             delivery.state = "sending"
             delivery.attempt_count += 1
@@ -301,9 +367,7 @@ class ChannelService:
                 ),
             )
 
-    async def complete_delivery(
-        self, claim: ClaimedDelivery, *, external_message_id: str
-    ) -> None:
+    async def complete_delivery(self, claim: ClaimedDelivery, *, external_message_id: str) -> None:
         if not external_message_id or len(external_message_id) > 500:
             raise ValueError("Provider message ID must contain 1 to 500 characters")
         async with self.session.begin():
@@ -370,9 +434,7 @@ class ChannelService:
             if connection is None:
                 return 0
             for external_message_id in dict.fromkeys(external_message_ids):
-                receipt = await self.repository.delivery_receipt(
-                    connection.id, external_message_id
-                )
+                receipt = await self.repository.delivery_receipt(connection.id, external_message_id)
                 if receipt is None:
                     receipt = ChannelDeliveryReceipt(
                         workspace_id=connection.workspace_id,
@@ -429,6 +491,20 @@ class ChannelService:
             delivery.lease_token = None
             delivery.lease_expires_at = None
             delivery.updated_at = failed_at
+            if safe_error_code in {
+                "FACEBOOK_DELIVERY_UNKNOWN",
+                "FACEBOOK_REAUTH_REQUIRED",
+            }:
+                connection = await self.repository.connection_for_update(
+                    delivery.workspace_id, delivery.connection_id
+                )
+                if connection is not None:
+                    connection.health_state = (
+                        "delivery_unknown"
+                        if safe_error_code == "FACEBOOK_DELIVERY_UNKNOWN"
+                        else "reauth_required"
+                    )
+                    connection.updated_at = failed_at
 
     async def _locked_claim(self, claim: ClaimedDelivery) -> OutboundDelivery:
         delivery = await self.session.get(OutboundDelivery, claim.delivery_id, with_for_update=True)

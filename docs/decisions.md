@@ -50,7 +50,7 @@ Status values are `Confirmed`, `Open` and `Superseded`.
 These choices do not reopen committed product scope:
 
 - Exact OpenAI model IDs, embedding dimensions and production budgets.
-- Facebook and Zalo app/account prerequisites, token rotation, provider-specific message windows and supported payload subsets.
+- Zalo app/account prerequisites, token rotation, provider-specific message windows and supported payload subsets.
 - Production retention periods, jurisdiction-specific privacy wording and processor disclosures.
 - Email provider, production domains and backup objectives beyond the required Supabase Vault key-preservation procedure.
 - External catalog/knowledge connector vendors and synchronization SLAs.

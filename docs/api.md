@@ -62,13 +62,17 @@ The Facebook first-slice routes are:
   and Page connection;
 - `POST /api/v1/workspaces/{workspace_id}/channels/facebook/{connection_id}/health` for token
   validation and Page webhook subscription repair;
+- `POST /api/v1/workspaces/{workspace_id}/channels/facebook/{connection_id}/reauthorize` for
+  same-Page Vault credential rotation;
 - `DELETE /api/v1/workspaces/{workspace_id}/channels/facebook/{connection_id}` for local-first
   revocation;
 - `GET|POST /api/v1/webhooks/facebook` for Meta challenge and signed delivery.
 
-Connection responses expose Page identity and lifecycle/health timestamps, never the Page token
-or Vault reference. The POST webhook supports authenticated text and `delivery.mids` events and
-acknowledges authenticated events for unknown/revoked Pages without exposing tenant state.
+Connection responses expose Page identity, agent binding, lifecycle/health timestamps and latest
+safe queue/delivery state, never the Page token or Vault reference. The POST webhook supports
+authenticated text/image/unsupported-attachment metadata and `delivery.mids` events, persists
+response work before acknowledgement and acknowledges unknown/revoked Pages without exposing
+tenant state.
 
 ### Webhooks
 
@@ -98,6 +102,10 @@ PSID recipient, `messaging_type=RESPONSE` and text only. Definite rate-limit/tra
 may retry. Timeout, transport, malformed success and HTTP 5xx outcomes are terminal
 `FACEBOOK_DELIVERY_UNKNOWN`: their external side effect is ambiguous and automatic replay could
 duplicate a customer reply.
+
+The adapter rejects generation completion and send outside 24 hours from the latest inbound
+message or while the thread is opted out. M1.2 has no message-tag, marketing or proactive-send
+contract.
 
 ### Inbox and contacts
 
