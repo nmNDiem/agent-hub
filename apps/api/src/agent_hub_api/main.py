@@ -54,6 +54,12 @@ from agent_hub_api.widget.vision import (
 )
 from agent_hub_api.workspaces.router import profile_router
 from agent_hub_api.workspaces.router import router as workspaces_router
+from agent_hub_api.zalo.contracts import ZaloGateway
+from agent_hub_api.zalo.gateway import HttpZaloGateway
+from agent_hub_api.zalo.router import admin_router as zalo_admin_router
+from agent_hub_api.zalo.router import oauth_router as zalo_oauth_router
+from agent_hub_api.zalo.router import webhook_router as zalo_webhook_router
+from agent_hub_api.zalo.tokens import ZaloTokenManager
 
 logger = logging.getLogger("agent_hub_api.requests")
 
@@ -70,6 +76,7 @@ def create_app(
     vision_gateway: VisionGateway | None = None,
     credential_vault: CredentialVault | None = None,
     facebook_graph_gateway: FacebookGraphGateway | None = None,
+    zalo_gateway: ZaloGateway | None = None,
 ) -> FastAPI:
     runtime_settings = settings or get_settings()
     if runtime_settings.email_delivery_enabled and email_delivery is None:
@@ -111,16 +118,28 @@ def create_app(
         session_factory = create_session_factory(owned_engine)
     if credential_vault is None and session_factory is not None:
         credential_vault = SupabaseCredentialVault(session_factory)
-    if (
-        facebook_graph_gateway is None
-        and runtime_settings.facebook_graph_api_version is not None
-    ):
+    if facebook_graph_gateway is None and runtime_settings.facebook_graph_api_version is not None:
         facebook_graph_gateway = HttpFacebookGraphGateway(
             api_version=runtime_settings.facebook_graph_api_version,
             timeout_seconds=runtime_settings.facebook_graph_timeout_seconds,
             app_id=runtime_settings.facebook_app_id,
             app_secret=runtime_settings.facebook_app_secret,
         )
+    if (
+        zalo_gateway is None
+        and runtime_settings.zalo_app_id is not None
+        and runtime_settings.zalo_app_secret is not None
+    ):
+        zalo_gateway = HttpZaloGateway(
+            app_id=runtime_settings.zalo_app_id,
+            app_secret=runtime_settings.zalo_app_secret,
+            timeout_seconds=runtime_settings.zalo_api_timeout_seconds,
+        )
+    zalo_token_manager = (
+        ZaloTokenManager(session_factory, vault=credential_vault, gateway=zalo_gateway)
+        if session_factory is not None and credential_vault is not None and zalo_gateway is not None
+        else None
+    )
     if agent_runtime_factory is None and all(
         (
             runtime_settings.openai_api_key,
@@ -184,6 +203,8 @@ def create_app(
     application.state.vision_gateway = vision_gateway
     application.state.credential_vault = credential_vault
     application.state.facebook_graph_gateway = facebook_graph_gateway
+    application.state.zalo_gateway = zalo_gateway
+    application.state.zalo_token_manager = zalo_token_manager
     application.state.widget_image_enabled = (
         widget_image_storage is not None
         and vision_gateway is not None
@@ -300,6 +321,9 @@ def create_app(
     application.include_router(knowledge_router)
     application.include_router(facebook_admin_router)
     application.include_router(facebook_webhook_router)
+    application.include_router(zalo_admin_router)
+    application.include_router(zalo_oauth_router)
+    application.include_router(zalo_webhook_router)
     if runtime_settings.email_delivery_enabled:
         application.include_router(email_router)
     return application

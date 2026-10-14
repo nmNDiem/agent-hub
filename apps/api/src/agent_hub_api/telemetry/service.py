@@ -18,7 +18,7 @@ from agent_hub_api.widget.vision import VisionResult
 from agent_hub_api.workspaces.models import Workspace
 from agent_hub_api.workspaces.service import WorkspaceService
 
-UsageSurface = Literal["widget", "playground", "facebook"]
+UsageSurface = Literal["widget", "playground", "facebook", "zalo"]
 
 
 def month_bounds(timezone_name: str, now: datetime | None = None) -> tuple[datetime, datetime]:

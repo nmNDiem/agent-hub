@@ -74,6 +74,23 @@ authenticated text/image/unsupported-attachment metadata and `delivery.mids` eve
 response work before acknowledgement and acknowledges unknown/revoked Pages without exposing
 tenant state.
 
+The Zalo routes are:
+
+- `GET /api/v1/workspaces/{workspace_id}/channels/zalo` for scoped connection status;
+- `POST /api/v1/workspaces/{workspace_id}/channels/zalo/oauth/start` for a PKCE authorization URL;
+- `GET /api/v1/channels/zalo/oauth/callback` for the single-use, authenticated OAuth callback;
+- `PUT /api/v1/workspaces/{workspace_id}/channels/zalo/{connection_id}/webhook-secret` for the
+  separate write-only OA signing secret;
+- `POST /api/v1/workspaces/{workspace_id}/channels/zalo/{connection_id}/health` and
+  `DELETE /api/v1/workspaces/{workspace_id}/channels/zalo/{connection_id}` for verification and
+  local revocation;
+- `POST /api/v1/webhooks/zalo` for signed OA events.
+
+The OAuth start response contains only the Zalo authorization URL and expiry. Callback state is
+hashed at rest, expires after ten minutes and is consumed before provider exchange. Callback
+redirects use the configured AgentHub origin and fixed chatbot path. Connection responses expose
+neither tokens, OA secret nor Vault references.
+
 ### Webhooks
 
 1. Read a strictly bounded raw body required for provider verification.
@@ -84,6 +101,10 @@ tenant state.
 6. Return provider-required acknowledgement within its verified timing contract; longer work runs durably.
 
 Webhook responses never expose workspace existence or internal processing details.
+
+Zalo is the provider-specific exception to step 2's lookup ordering: the adapter may parse only
+the bounded app/OA identity needed to find the server-owned candidate connection and its OA secret.
+It then verifies `X-ZEvent-Signature` before normalization, persistence or tenant processing.
 
 ### Outbound delivery
 
@@ -106,6 +127,12 @@ duplicate a customer reply.
 The adapter rejects generation completion and send outside 24 hours from the latest inbound
 message or while the thread is opted out. M1.2 has no message-tag, marketing or proactive-send
 contract.
+
+Zalo sends `POST https://openapi.zalo.me/v3.0/oa/message/cs` with a refreshed server-resolved
+access token, connection-scoped user ID and text of at most 2,000 characters. The shared worker
+enforces the 48-hour reply window and opt-out state before calling the adapter. Authentication
+rejections require OAuth reconnect; definite rate-limit/transient errors retry with the shared
+bounded policy, while ambiguous delivery results are terminal.
 
 ### Inbox and contacts
 

@@ -443,6 +443,7 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .facebook-page-list { display: grid; gap: 12px; }
 .facebook-page-card { padding: 16px; border: 1px solid var(--border); border-radius: 13px; background: color-mix(in srgb, var(--muted) 25%, white); }
 .facebook-page-icon { width: 42px; height: 42px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 12px; color: white; background: #1877f2; }
+.facebook-page-icon.zalo-page-icon { background: #0068ff; }
 .facebook-page-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .facebook-page-facts div { padding: 10px; border-radius: 10px; background: var(--card); }
 .facebook-page-facts dt { color: var(--muted-foreground); font-size: 11px; }

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -50,6 +51,46 @@ class ChannelConnection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
+
+
+class ChannelOAuthAttempt(Base):
+    __tablename__ = "channel_oauth_attempts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id"],
+            ["agents.workspace_id", "agents.id"],
+            name="fk_channel_oauth_attempts_workspace_agent",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id", "revision_id"],
+            ["agent_revisions.workspace_id", "agent_revisions.agent_id", "agent_revisions.id"],
+            name="fk_channel_oauth_attempts_workspace_revision",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "reauthorize_connection_id"],
+            ["channel_connections.workspace_id", "channel_connections.id"],
+            name="fk_channel_oauth_attempts_workspace_connection",
+        ),
+        UniqueConstraint("state_hash", name="uq_channel_oauth_attempts_state_hash"),
+        CheckConstraint("provider IN ('zalo')", name="ck_channel_oauth_attempts_provider"),
+        Index("ix_channel_oauth_attempts_expiry", "expires_at", "consumed_at", "id"),
+        Index("ix_channel_oauth_attempts_workspace", "workspace_id", "provider", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    revision_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    provider: Mapped[str] = mapped_column(String(16))
+    state_hash: Mapped[str] = mapped_column(String(64))
+    verifier_credential_ref: Mapped[str] = mapped_column(String(500))
+    reauthorize_connection_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    succeeded: Mapped[bool] = mapped_column(Boolean(), default=False)
+    safe_error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
 class ChannelAgentBinding(Base):

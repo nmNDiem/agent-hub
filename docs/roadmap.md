@@ -46,7 +46,9 @@ Status: **Complete**
 
 ### M1.3 Zalo
 
-- Official-account connection and revocation flow.
+Status: **Complete**
+
+- OAuth v4 Official Account connection, automatic token refresh and revocation flow.
 - Verified inbound messages and supported attachments.
 - Outbound delivery through the shared pipeline.
 - Zalo-specific constraints isolated inside its adapter.

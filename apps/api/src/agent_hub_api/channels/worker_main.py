@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.openai_generation import create_openai_generation_gateway
 from agent_hub_api.agents.runtime import AgentRuntimeBudget, AgentRuntimeService
+from agent_hub_api.channels.contracts import ChannelProvider, OutboundAdapter
+from agent_hub_api.channels.responses import ChannelResponseRunner, ChannelResponseService
 from agent_hub_api.channels.service import ChannelService, DeliveryRunner
 from agent_hub_api.channels.vault import SupabaseCredentialVault
 from agent_hub_api.core.config import get_settings
@@ -15,13 +17,15 @@ from agent_hub_api.core.database import create_database_engine, create_session_f
 from agent_hub_api.facebook.graph import HttpFacebookGraphGateway
 from agent_hub_api.facebook.media import FacebookMediaDownloader, FacebookMediaLimits
 from agent_hub_api.facebook.outbound import FacebookOutboundAdapter
-from agent_hub_api.facebook.responses import FacebookResponseRunner, FacebookResponseService
 from agent_hub_api.knowledge.runtime import (
     create_openai_embedding_provider,
     create_qdrant_index,
 )
 from agent_hub_api.widget.image_storage import SupabaseVisitorImageStorage
 from agent_hub_api.widget.vision import create_openai_vision_gateway
+from agent_hub_api.zalo.gateway import HttpZaloGateway
+from agent_hub_api.zalo.outbound import ZaloOutboundAdapter
+from agent_hub_api.zalo.tokens import ZaloOAuthAttemptCleanup, ZaloTokenManager
 
 logger = logging.getLogger("agent_hub_api.channel_worker")
 
@@ -30,8 +34,6 @@ async def main() -> None:
     settings = get_settings()
     if settings.database_url is None:
         raise ValueError("DATABASE_URL is required to run the channel worker")
-    if settings.facebook_graph_api_version is None:
-        raise ValueError("FACEBOOK_GRAPH_API_VERSION is required to run the channel worker")
     if settings.supabase_url is None or settings.supabase_service_role_key is None:
         raise ValueError("Supabase private Storage is required to run the channel worker")
     if not all(
@@ -49,13 +51,24 @@ async def main() -> None:
     engine = create_database_engine(settings)
     sessions = create_session_factory(engine)
     vault = SupabaseCredentialVault(sessions)
-    graph = HttpFacebookGraphGateway(
-        api_version=settings.facebook_graph_api_version,
-        timeout_seconds=settings.facebook_graph_timeout_seconds,
-        app_id=settings.facebook_app_id,
-        app_secret=settings.facebook_app_secret,
-    )
-    adapter = FacebookOutboundAdapter(vault=vault, graph=graph)
+    oauth_cleanup = ZaloOAuthAttemptCleanup(sessions, vault=vault)
+    adapters: dict[ChannelProvider, OutboundAdapter] = {}
+    if settings.facebook_graph_api_version is not None:
+        graph = HttpFacebookGraphGateway(
+            api_version=settings.facebook_graph_api_version,
+            timeout_seconds=settings.facebook_graph_timeout_seconds,
+            app_id=settings.facebook_app_id,
+            app_secret=settings.facebook_app_secret,
+        )
+        adapters["facebook"] = FacebookOutboundAdapter(vault=vault, graph=graph)
+    if settings.zalo_app_id is not None and settings.zalo_app_secret is not None:
+        zalo_gateway = HttpZaloGateway(
+            app_id=settings.zalo_app_id,
+            app_secret=settings.zalo_app_secret,
+            timeout_seconds=settings.zalo_api_timeout_seconds,
+        )
+        zalo_tokens = ZaloTokenManager(sessions, vault=vault, gateway=zalo_gateway)
+        adapters["zalo"] = ZaloOutboundAdapter(tokens=zalo_tokens, gateway=zalo_gateway)
     generation = create_openai_generation_gateway(settings)
     embedding = create_openai_embedding_provider(settings)
     vector_index = create_qdrant_index(settings)
@@ -88,8 +101,8 @@ async def main() -> None:
         while True:
             try:
                 async with sessions() as session:
-                    response_service = FacebookResponseService(session, settings)
-                    worked = await FacebookResponseRunner(
+                    response_service = ChannelResponseService(session, settings)
+                    worked = await ChannelResponseRunner(
                         response_service,
                         runtime_factory=runtime_factory,
                         media_downloader=media_downloader,
@@ -102,11 +115,17 @@ async def main() -> None:
                                 session,
                                 response_window_hours=settings.facebook_response_window_hours,
                                 response_job_max_attempts=settings.facebook_response_job_max_attempts,
+                                response_window_hours_by_provider={
+                                    "facebook": settings.facebook_response_window_hours,
+                                    "zalo": settings.zalo_response_window_hours,
+                                },
                             ),
-                            {"facebook": adapter},
+                            adapters,
                         ).run_once()
                     if not worked:
                         worked = await response_service.cleanup_once(storage)
+                    if not worked:
+                        worked = await oauth_cleanup.run_once()
             except Exception as exc:
                 logger.error(
                     "channel_delivery_iteration_failed error_type=%s",

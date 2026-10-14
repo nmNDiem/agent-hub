@@ -64,10 +64,12 @@ class ChannelService:
         *,
         response_window_hours: int = 24,
         response_job_max_attempts: int = 3,
+        response_window_hours_by_provider: dict[ChannelProvider, int] | None = None,
     ) -> None:
         self.session = session
         self.repository = ChannelRepository(session)
         self.response_window_hours = response_window_hours
+        self.response_window_hours_by_provider = response_window_hours_by_provider or {}
         self.response_job_max_attempts = response_job_max_attempts
 
     async def ingest_verified(
@@ -209,7 +211,11 @@ class ChannelService:
             media_expiry = now + timedelta(hours=1)
             supported_input = bool(event.message.text.strip())
             for attachment in event.message.attachments:
-                supported = attachment.kind == "image" and attachment.source_url is not None
+                supported = (
+                    connection.provider == "facebook"
+                    and attachment.kind == "image"
+                    and attachment.source_url is not None
+                )
                 supported_input = supported_input or supported
                 self.session.add(
                     ChannelInboundMedia(
@@ -221,7 +227,11 @@ class ChannelService:
                         state="pending" if supported else "unsupported",
                         source_url=attachment.source_url if supported else None,
                         content_type=attachment.content_type,
-                        safe_error_code=None if supported else "FACEBOOK_MEDIA_UNSUPPORTED",
+                        safe_error_code=(
+                            None
+                            if supported
+                            else f"{connection.provider.upper()}_MEDIA_UNSUPPORTED"
+                        ),
                         expires_at=media_expiry,
                     )
                 )
@@ -332,16 +342,20 @@ class ChannelService:
                 delivery.updated_at = claim_time
                 return None
             latest_inbound = thread.last_inbound_at or thread.last_seen_at
-            if connection.provider == "facebook" and (
+            window_hours = self.response_window_hours_by_provider.get(
+                cast(ChannelProvider, connection.provider), self.response_window_hours
+            )
+            if connection.provider in {"facebook", "zalo"} and (
                 connection.health_state not in {"unknown", "healthy"}
                 or thread.automation_state != "opted_in"
-                or _aware(latest_inbound) < claim_time - timedelta(hours=self.response_window_hours)
+                or _aware(latest_inbound) < claim_time - timedelta(hours=window_hours)
             ):
                 delivery.state = "failed_terminal"
+                provider_prefix = connection.provider.upper()
                 delivery.safe_error_code = (
-                    "FACEBOOK_RESPONSE_WINDOW_EXPIRED"
+                    f"{provider_prefix}_RESPONSE_WINDOW_EXPIRED"
                     if connection.health_state in {"unknown", "healthy"}
-                    else "FACEBOOK_REAUTH_REQUIRED"
+                    else f"{provider_prefix}_REAUTH_REQUIRED"
                 )
                 delivery.updated_at = claim_time
                 return None
@@ -358,6 +372,8 @@ class ChannelService:
                 lease_token=token,
                 request=DeliveryRequest(
                     delivery_id=delivery.id,
+                    workspace_id=delivery.workspace_id,
+                    connection_id=delivery.connection_id,
                     provider=cast(ChannelProvider, connection.provider),
                     external_account_id=connection.external_account_id,
                     credential_ref=connection.credential_ref,
@@ -494,6 +510,8 @@ class ChannelService:
             if safe_error_code in {
                 "FACEBOOK_DELIVERY_UNKNOWN",
                 "FACEBOOK_REAUTH_REQUIRED",
+                "ZALO_DELIVERY_UNKNOWN",
+                "ZALO_REAUTH_REQUIRED",
             }:
                 connection = await self.repository.connection_for_update(
                     delivery.workspace_id, delivery.connection_id
@@ -501,7 +519,11 @@ class ChannelService:
                 if connection is not None:
                     connection.health_state = (
                         "delivery_unknown"
-                        if safe_error_code == "FACEBOOK_DELIVERY_UNKNOWN"
+                        if safe_error_code
+                        in {
+                            "FACEBOOK_DELIVERY_UNKNOWN",
+                            "ZALO_DELIVERY_UNKNOWN",
+                        }
                         else "reauth_required"
                     )
                     connection.updated_at = failed_at

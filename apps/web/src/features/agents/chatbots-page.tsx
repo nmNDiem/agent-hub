@@ -20,6 +20,7 @@ import { FeedbackBanner } from "@/components/feedback-banner";
 import { ChatbotPlayground } from "@/features/agents/chatbot-playground";
 import { FacebookChannelPanel } from "@/features/agents/facebook-channel-panel";
 import { WebChannelPanel } from "@/features/agents/web-channel-panel";
+import { ZaloChannelPanel } from "@/features/agents/zalo-channel-panel";
 import {
   api,
   type Agent,
@@ -76,7 +77,9 @@ export function ChatbotsPage() {
   const [savedNotice, setSavedNotice] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [mobileTab, setMobileTab] = useState<"config" | "chat">("chat");
-  const [activeView, setActiveView] = useState<"workbench" | "web" | "facebook">("workbench");
+  const [activeView, setActiveView] = useState<"workbench" | "web" | "facebook" | "zalo">(
+    searchParams.get("channel") === "zalo" ? "zalo" : "workbench",
+  );
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
   const selectedAgent = agents.find((item) => item.public_id === selectedId);
 
@@ -159,7 +162,7 @@ export function ChatbotsPage() {
     router.replace(`/app/${encodeURIComponent(params.workspaceSlug)}/chatbots?agent=${encodeURIComponent(publicId)}`, { scroll: false });
   }
 
-  function openChannel(channel: "web" | "facebook") {
+  function openChannel(channel: "web" | "facebook" | "zalo") {
     if (dirty && !window.confirm(
       "Bỏ thay đổi cấu hình chatbot chưa lưu để mở kênh?",
     )) return;
@@ -290,7 +293,7 @@ export function ChatbotsPage() {
             <div className="chatbot-agent-copy"><strong>{selectedAgent.name}</strong><small>{selectedAgent.status === "published" ? "Đã phát hành" : selectedAgent.status === "paused" ? "Đã tạm dừng" : "Bản nháp"} · Catalog và {draft?.knowledgeBaseIds.length ?? 0} nguồn tri thức đang được dùng</small></div>
             <div className="chatbot-agent-actions">
               {dirty && <span className="status-pill pending">Có thay đổi chưa lưu</span>}
-              <div className="chatbot-view-switch" aria-label="Khu vực chatbot" role="group"><button aria-pressed={activeView === "workbench"} onClick={() => setActiveView("workbench")} type="button"><Bot size={15} /> Cấu hình & thử</button><button aria-pressed={activeView === "web"} onClick={() => openChannel("web")} type="button"><Globe2 size={15} /> Kênh Web</button><button aria-pressed={activeView === "facebook"} onClick={() => openChannel("facebook")} type="button"><MessagesSquare size={15} /> Facebook</button></div>
+              <div className="chatbot-view-switch" aria-label="Khu vực chatbot" role="group"><button aria-pressed={activeView === "workbench"} onClick={() => setActiveView("workbench")} type="button"><Bot size={15} /> Cấu hình & thử</button><button aria-pressed={activeView === "web"} onClick={() => openChannel("web")} type="button"><Globe2 size={15} /> Kênh Web</button><button aria-pressed={activeView === "facebook"} onClick={() => openChannel("facebook")} type="button"><MessagesSquare size={15} /> Facebook</button><button aria-pressed={activeView === "zalo"} onClick={() => openChannel("zalo")} type="button"><MessageSquareText size={15} /> Zalo</button></div>
               <label className="chatbot-agent-select"><span className="sr-only">Đổi chatbot</span><select aria-label="Đổi chatbot" onChange={(event) => selectAgent(event.target.value)} value={selectedId}>{agents.map((agent) => <option key={agent.public_id} value={agent.public_id}>{agent.name}</option>)}</select></label>
               {canWrite && <button aria-label="Tạo chatbot" className="icon-button" onClick={() => setShowCreate(true)} type="button"><Plus size={16} /></button>}
             </div>
@@ -318,6 +321,7 @@ export function ChatbotsPage() {
           </div></>}
           {activeView === "web" && <WebChannelPanel canWrite={canWrite} key={selectedAgent.public_id} onChanged={() => loadAgents(workspace.id, selectedAgent.public_id)} publicAgentId={selectedAgent.public_id} workspaceId={workspace.id} />}
           {activeView === "facebook" && <FacebookChannelPanel canWrite={canWrite} key={selectedAgent.public_id} publicAgentId={selectedAgent.public_id} workspaceId={workspace.id} />}
+          {activeView === "zalo" && <ZaloChannelPanel canWrite={canWrite} key={selectedAgent.public_id} publicAgentId={selectedAgent.public_id} workspaceId={workspace.id} />}
         </>
       )}
     </AppShell>

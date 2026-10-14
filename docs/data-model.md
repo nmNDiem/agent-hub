@@ -61,10 +61,13 @@ Product and variant SKU uniqueness is workspace-scoped and archived rows continu
 
 - `channel_connections`: workspace, provider (`web | facebook | zalo`), display/external account identity, opaque credential reference, `active | revoked` lifecycle, health and timestamps. No credential value is stored in this table.
 - `channel_agent_bindings`: one connection to its allowed agent and active published revision with tenant-safe keys.
+- `channel_oauth_attempts`: short-lived provider/user/workspace/agent/revision-bound authorization
+  state hash, Vault verifier reference, optional same-workspace reauthorization target, one-time
+  consumption and safe outcome. Authorization codes and raw state are never stored.
 - `website_channel_configs`: Website-only presentation and handoff configuration; origins remain in `widget_domains` and reference the shared connection.
 - `channel_webhook_events`: connection/external event ID, payload fingerprint, received/processed state and safe error; unique per connection for dedupe. Raw payloads are not retained.
 - `channel_thread_mappings`: a connection-namespaced external thread mapped to one normalized conversation.
-- Facebook thread mappings also own latest inbound time and exact-keyword automation opt-in state;
+- Facebook and Zalo thread mappings also own latest inbound time and exact-keyword automation opt-in state;
   this state is provider policy, not model-controlled consent inference.
 - `channel_message_mappings`: a normalized message mapped to its connection/thread and optional provider message ID; IDs are unique only within the connection.
 - `outbound_deliveries`: message, connection, idempotency key, attempt schedule, lease/fencing

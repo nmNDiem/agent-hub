@@ -315,6 +315,27 @@ export type FacebookConnection = {
   updated_at: string;
 };
 
+export type ZaloConnection = {
+  id: number;
+  provider: "zalo";
+  display_name: string;
+  external_account_id: string;
+  lifecycle_state: "active" | "revoked";
+  health_state:
+    | "unknown"
+    | "healthy"
+    | "permission_expired"
+    | "reauth_required"
+    | "webhook_subscription_failure"
+    | "delivery_unknown";
+  webhook_configured: boolean;
+  agent_public_id: string;
+  agent_name: string;
+  last_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type LeadStatus = "new" | "contacted" | "closed";
 
 export type Lead = {
@@ -925,6 +946,32 @@ export const api = {
   revokeFacebookConnection: (workspaceId: string, connectionId: number) =>
     request<void>(
       `/api/v1/workspaces/${workspaceId}/channels/facebook/${connectionId}`,
+      { method: "DELETE" },
+    ),
+  listZaloConnections: (workspaceId: string) =>
+    request<{ items: ZaloConnection[] }>(
+      `/api/v1/workspaces/${workspaceId}/channels/zalo`,
+    ),
+  startZaloOAuth: (
+    workspaceId: string,
+    payload: { agent_public_id: string; reauthorize_connection_id?: number },
+  ) => request<{ authorization_url: string; expires_at: string }>(
+    `/api/v1/workspaces/${workspaceId}/channels/zalo/oauth/start`,
+    { method: "POST", body: JSON.stringify(payload) },
+  ),
+  setZaloWebhookSecret: (workspaceId: string, connectionId: number, webhookSecret: string) =>
+    request<ZaloConnection>(
+      `/api/v1/workspaces/${workspaceId}/channels/zalo/${connectionId}/webhook-secret`,
+      { method: "PUT", body: JSON.stringify({ webhook_secret: webhookSecret }) },
+    ),
+  verifyZaloConnection: (workspaceId: string, connectionId: number) =>
+    request<ZaloConnection>(
+      `/api/v1/workspaces/${workspaceId}/channels/zalo/${connectionId}/health`,
+      { method: "POST" },
+    ),
+  revokeZaloConnection: (workspaceId: string, connectionId: number) =>
+    request<void>(
+      `/api/v1/workspaces/${workspaceId}/channels/zalo/${connectionId}`,
       { method: "DELETE" },
     ),
   streamPlaygroundMessage: async (

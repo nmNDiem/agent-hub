@@ -12,10 +12,15 @@ Primary areas are Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channel
 
 The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, unread, status, notes, tags and delivery state as M1 lands.
 
-The workbench channel switch includes adjacent Website and Facebook views. Facebook renders real
+The workbench channel switch includes adjacent Website, Facebook and Zalo views. Facebook renders real
 Page cards with agent binding, health, last verification and latest queue/delivery state, plus
 connect, reauthorize, recheck and revoke actions for owner/admin. Page tokens are write-only
 password fields and disappear after submission. Reply composition remains in the M1.4 inbox.
+
+Zalo starts authorization with a single OAuth action and never renders access or refresh token
+fields. After callback it shows OA identity, token/webhook health, verification, OAuth reconnect,
+revocation and a one-time password field for the separately issued OA webhook secret. The panel
+states that automatic replies are restricted to 48 hours.
 
 ## Shared behavior
 

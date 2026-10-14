@@ -57,6 +57,21 @@ rate-limit/transient rejections use bounded retries. Ambiguous timeout, connecti
 results stop as `FACEBOOK_DELIVERY_UNKNOWN` for operator reconciliation because Meta's verified
 contract does not provide an idempotency key that would make automatic replay duplicate-safe.
 
+M1.3 adds Zalo OA OAuth v4 with PKCE, one-time user/workspace/agent-bound state and server-side
+access/refresh token storage. The authorization callback validates the returned OA identity;
+reauthorization must return the same OA. Refresh runs under a locked connection because each
+refresh token is rotated, then replaces the Vault bundle and best-effort removes the old secret.
+OAuth does not provide the OA webhook signing secret, so an owner/admin supplies that separate
+secret once after authorization; the connection is not healthy until it is stored in Vault.
+
+Zalo `X-ZEvent-Signature` verification uses the bounded raw payload, configured app ID, event
+timestamp and connection-specific OA secret. A bounded OA-ID candidate lookup may occur solely to
+retrieve verification material; no tenant message processing happens until the signature passes.
+Text, image, audio, video, file, sticker and link events normalize into shared messages and media
+metadata. Shared response and delivery jobs dispatch by provider. Zalo sends customer-service text
+only within 48 hours of the latest verified inbound event; proactive, broadcast, transactional and
+paid message classes are not supported.
+
 ## Boundaries
 
 - Adapters translate provider payloads; they do not implement independent agent reasoning.
@@ -80,5 +95,8 @@ contains a `supabase-vault:<uuid>` reference only. Supabase manages the project 
 the database; the application database role must have only the Vault access required by the
 server adapter. A local revoke takes effect before best-effort provider unsubscribe/secret
 deletion, so a provider outage cannot leave inbound processing enabled.
+
+Zalo OAuth verifier, token bundle and OA webhook secret are separate secret values but are all
+server-only Vault material.
 
 Provider transport and webhook contracts belong in [`../api.md`](../api.md).

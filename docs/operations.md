@@ -17,8 +17,8 @@ pnpm dev
 
 Individual services use `pnpm dev:api`, `pnpm dev:web`, `pnpm dev:worker`,
 `pnpm dev:channel-worker` and `pnpm dev:widget` when their dependencies are configured. The
-channel worker claims persisted Facebook response jobs, performs bounded private-media cleanup
-and sends outbound deliveries; it must run anywhere Facebook automation is enabled. Use only
+channel worker claims persisted Facebook/Zalo response jobs, performs bounded private-media cleanup
+and sends outbound deliveries; it must run anywhere channel automation is enabled. Use only
 isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-only.
 
 ## Health, logs and retention
@@ -84,6 +84,21 @@ the automated suite never sends a live or paid request:
    or proactive messaging for M1.2.
 8. Reauthorize with a new token for the same Page and confirm the old Vault secret is revoked;
    verify a token for a different Page is rejected. Finally test local-first revoke.
+
+## Zalo Official Account
+
+Set server-only `ZALO_APP_ID`, `ZALO_APP_SECRET` and the exact
+`ZALO_OAUTH_REDIRECT_URI`. Production callback URLs must use HTTPS. In Zalo Developers, register
+the callback `/api/v1/channels/zalo/oauth/callback`, grant OA information/message permissions and
+configure the webhook URL `/api/v1/webhooks/zalo`. Complete authorization from the chatbot's Zalo
+tab, then copy the OA webhook signing secret into the write-only setup field; OAuth tokens are
+never copied into AgentHub manually.
+
+Manually verify authorization denial, same-OA reconnect, token refresh, signed text and attachment
+events, duplicate delivery, the 48-hour reply boundary and local revocation with a non-production
+OA. Do not enable broadcasts, templates, transactional, welcome, proactive or paid message
+classes. Automated tests use fake gateways and must never call live Zalo authorization or message
+APIs.
 
 ## Quality commands
 

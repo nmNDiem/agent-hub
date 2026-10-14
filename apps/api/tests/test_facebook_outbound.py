@@ -274,6 +274,8 @@ def test_outbound_adapter_terminalizes_missing_page_credential() -> None:
     )
     request = DeliveryRequest(
         delivery_id=1,
+        workspace_id=UUID(int=1),
+        connection_id=1,
         provider="facebook",
         external_account_id="page-1",
         credential_ref="supabase-vault:missing",

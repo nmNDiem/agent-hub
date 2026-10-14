@@ -57,6 +57,12 @@ response/media tables and downgrade removal, then rehearses rollback through `00
 keywords, 24-hour enforcement, media host/redirect/MIME/byte/pixel limits, private cleanup,
 same-Page credential rotation, cross-workspace denial and accessible connection UI states.
 
+The M1.3 gate continues through `20261014_0017` and covers PKCE/state construction, callback
+replay and initiating-user binding, OAuth token exchange, same-OA connection identity, Vault
+secret rotation, automatic refresh, invalid Zalo signatures, inbound deduplication and negative
+cross-workspace access. Provider gateways and Vault are faked; automated tests never authorize or
+send through a live Zalo OA.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

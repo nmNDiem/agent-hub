@@ -148,6 +148,14 @@ class Settings(BaseSettings):
     facebook_media_max_redirects: int = 3
     facebook_media_timeout_seconds: int = 10
     facebook_media_allowed_hosts: tuple[str, ...] = ("fbcdn.net", "facebook.com")
+    zalo_app_id: str | None = None
+    zalo_app_secret: str | None = Field(default=None, repr=False)
+    zalo_oauth_redirect_uri: str | None = None
+    zalo_api_timeout_seconds: int = 10
+    zalo_webhook_max_bytes: int = 256 * 1024
+    zalo_message_retention_days: int = 30
+    zalo_response_window_hours: int = 48
+    zalo_oauth_attempt_minutes: int = 10
     channel_worker_poll_seconds: int = 2
 
     @model_validator(mode="after")
@@ -199,6 +207,11 @@ class Settings(BaseSettings):
             "facebook_media_max_pixels",
             "facebook_media_max_redirects",
             "facebook_media_timeout_seconds",
+            "zalo_api_timeout_seconds",
+            "zalo_webhook_max_bytes",
+            "zalo_message_retention_days",
+            "zalo_response_window_hours",
+            "zalo_oauth_attempt_minutes",
             "channel_worker_poll_seconds",
             "openai_timeout_seconds",
             "agent_runtime_max_question_chars",
@@ -264,6 +277,9 @@ class Settings(BaseSettings):
         "facebook_app_id",
         "facebook_webhook_verify_token",
         "facebook_graph_api_version",
+        "zalo_app_id",
+        "zalo_app_secret",
+        "zalo_oauth_redirect_uri",
         mode="before",
     )
     @classmethod
@@ -307,6 +323,27 @@ class Settings(BaseSettings):
             raise ValueError("Facebook app ID must be a numeric provider identifier")
         return value
 
+    @field_validator("zalo_app_id")
+    @classmethod
+    def validate_zalo_app_id(cls, value: str | None) -> str | None:
+        if value is not None and (not value.isdigit() or len(value) > 64):
+            raise ValueError("Zalo app ID must be a numeric provider identifier")
+        return value
+
+    @field_validator("zalo_oauth_redirect_uri")
+    @classmethod
+    def validate_zalo_oauth_redirect_uri(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from urllib.parse import urlsplit
+
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("Zalo OAuth redirect URI must use HTTP(S)")
+        if parsed.username or parsed.password or parsed.fragment:
+            raise ValueError("Zalo OAuth redirect URI cannot contain credentials or a fragment")
+        return value
+
     @field_validator("facebook_media_allowed_hosts")
     @classmethod
     def validate_facebook_media_allowed_hosts(cls, value: tuple[str, ...]) -> tuple[str, ...]:
@@ -317,7 +354,7 @@ class Settings(BaseSettings):
             raise ValueError("Facebook media hosts must be DNS suffixes")
         return normalized
 
-    @field_validator("facebook_app_secret", "facebook_webhook_verify_token")
+    @field_validator("facebook_app_secret", "facebook_webhook_verify_token", "zalo_app_secret")
     @classmethod
     def validate_facebook_secrets(cls, value: str | None) -> str | None:
         if value is not None and len(value.encode()) < 16:
@@ -382,6 +419,14 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Facebook app ID, secret, verify token and Graph version are required together"
                 )
+            zalo_values = (self.zalo_app_id, self.zalo_app_secret, self.zalo_oauth_redirect_uri)
+            if any(zalo_values) and not all(zalo_values):
+                raise ValueError("Zalo app ID, secret and OAuth redirect URI are required together")
+            if (
+                self.zalo_oauth_redirect_uri is not None
+                and not self.zalo_oauth_redirect_uri.startswith("https://")
+            ):
+                raise ValueError("HTTPS Zalo OAuth redirect URI is required outside local/test")
         return self
 
 

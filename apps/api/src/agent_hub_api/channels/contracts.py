@@ -107,6 +107,8 @@ class RenderedOutboundMessage:
 @dataclass(frozen=True, slots=True)
 class DeliveryRequest:
     delivery_id: int
+    workspace_id: UUID
+    connection_id: int
     provider: ChannelProvider
     external_account_id: str | None
     credential_ref: str | None

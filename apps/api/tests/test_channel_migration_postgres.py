@@ -381,6 +381,26 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
                         == "channel_inbound_media"
                     )
 
+                await asyncio.to_thread(_migrate, "20261014_0017")
+
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(
+                            text("SELECT to_regclass('channel_oauth_attempts')")
+                        )
+                        == "channel_oauth_attempts"
+                    )
+
+                await asyncio.to_thread(_migrate, "20261008_0016", downgrade=True)
+
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(
+                            text("SELECT to_regclass('channel_oauth_attempts')")
+                        )
+                        is None
+                    )
+
                 await asyncio.to_thread(_migrate, "20261008_0015", downgrade=True)
 
                 async with engine.connect() as connection:
