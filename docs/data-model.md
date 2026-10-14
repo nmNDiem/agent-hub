@@ -87,11 +87,19 @@ Raw provider payloads and access tokens are not general-purpose conversation met
 
 ## Conversations
 
-- `conversations`: BIGINT ID, UUIDv7 public ID, workspace, agent/revision, channel connection, optional Website session, `active | deleted` lifecycle, `open | pending | resolved` workflow status, `ai | human | paused` handling mode, last-message time and retention. Contact and assignee relationships arrive with their owning M1 tasks.
+- `conversations`: BIGINT ID, UUIDv7 public ID, workspace, agent/revision, channel connection,
+  optional Website session, lifecycle, workflow/handling state, optional same-workspace assignee,
+  optimistic state version, last-message time and retention.
+- `conversation_read_states`: per-conversation/member last-read sequence used to derive inbound
+  unread counts without a shared global flag.
+- `conversation_notes`: immutable internal notes with a same-workspace member author.
+- `conversation_tags` / `conversation_tag_links`: normalized workspace tag vocabulary and scoped
+  conversation assignments.
+- `conversation_audit_events`: safe structured assignment/mode/status and human-reply events;
+  message bodies and provider payloads are not duplicated into audit details.
 - `conversation_messages`: workspace/conversation, actor (`visitor | assistant | human | tool | system`), normalized text/evidence, `inbound | outbound` direction, processing state and timestamps. Provider delivery state is owned by `outbound_deliveries` rather than duplicated here.
 - `message_evidence`: validated product/source references associated with a message.
 - `agent_tool_calls`: redacted tool identity, result reference, status, latency and usage facts.
-- `conversation_assignments`, `conversation_notes`, `conversation_tags`: workspace-safe operating workflow records.
 - Website `widget_sessions` bind an opaque token hash to workspace, agent, revision, origin, conversation and expiry.
 
 Provider retries map to the same normalized message/delivery record. AI/human handling mode is explicit; it is not inferred from the latest message text.

@@ -6,8 +6,10 @@ import { ConversationsPage } from "./conversations-page";
 const mocks = vi.hoisted(() => ({
   getConversation: vi.fn(),
   getMe: vi.fn(),
+  listInboxMembers: vi.fn(),
   listAgents: vi.fn(),
   listConversations: vi.fn(),
+  markConversationRead: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,8 +30,10 @@ vi.mock("@/lib/api", async (importOriginal) => {
       ...original.api,
       getConversation: mocks.getConversation,
       getMe: mocks.getMe,
+      listInboxMembers: mocks.listInboxMembers,
       listAgents: mocks.listAgents,
       listConversations: mocks.listConversations,
+      markConversationRead: mocks.markConversationRead,
     },
   };
 });
@@ -52,6 +56,13 @@ const conversation = {
   last_message_at: "2026-10-05T08:01:00Z",
   message_count: 2,
   last_visitor_preview: "Tôi cần tìm áo khoác",
+  workflow_status: "open" as const,
+  handling_mode: "ai" as const,
+  state_version: 1,
+  assigned_member_id: null,
+  assigned_member_email: null,
+  unread_count: 1,
+  tags: [],
 };
 
 describe("ConversationsPage", () => {
@@ -65,11 +76,14 @@ describe("ConversationsPage", () => {
       items: [{ public_id: conversation.agent_public_id, name: conversation.agent_name }],
     });
     mocks.listConversations.mockResolvedValue({ items: [conversation], next_cursor: null });
+    mocks.listInboxMembers.mockResolvedValue({ items: [{ id: 1, user_id: "user", email: "admin@example.com", role: "admin" }] });
+    mocks.markConversationRead.mockResolvedValue(undefined);
     mocks.getConversation.mockResolvedValue({
       conversation,
       retention_until: "2026-11-04T08:00:00Z",
       messages: [
         {
+          id: 1,
           role: "user",
           text: "Tôi cần tìm áo khoác",
           status: "completed",
@@ -84,8 +98,10 @@ describe("ConversationsPage", () => {
           },
           products: [],
           sources: [],
+          delivery: null,
         },
         {
+          id: 2,
           role: "assistant",
           text: "Mình đã tìm thấy một số lựa chọn phù hợp.",
           status: "completed",
@@ -94,19 +110,24 @@ describe("ConversationsPage", () => {
           attachment: null,
           products: [],
           sources: [],
+          delivery: null,
         },
       ],
+      notes: [],
     });
   });
 
-  it("shows a read-only transcript with safe image metadata", async () => {
+  it("shows the unified inbox and marks the selected thread read", async () => {
     render(<ConversationsPage />);
 
     expect(await screen.findByText("Mình đã tìm thấy một số lựa chọn phù hợp.")).toBeInTheDocument();
-    expect(screen.getByText("image/jpeg · 800×600 · 200 KiB")).toBeInTheDocument();
-    expect(screen.getByText("Chỉ đọc")).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tiếp quản" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nội dung trả lời" })).toBeDisabled();
     await waitFor(() => expect(mocks.getConversation).toHaveBeenCalledWith(
+      workspace.id,
+      conversation.public_id,
+    ));
+    await waitFor(() => expect(mocks.markConversationRead).toHaveBeenCalledWith(
       workspace.id,
       conversation.public_id,
     ));

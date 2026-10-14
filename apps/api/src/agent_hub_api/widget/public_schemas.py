@@ -115,6 +115,7 @@ class PublicGroundedResponse(BaseModel):
 
 
 class WidgetTranscriptMessage(BaseModel):
+    sequence_no: int
     role: Literal["user", "assistant"]
     text: str
     status: Literal["pending", "completed", "failed", "cancelled"]
@@ -126,3 +127,4 @@ class WidgetTranscriptMessage(BaseModel):
 
 class WidgetTranscriptResponse(BaseModel):
     items: list[WidgetTranscriptMessage]
+    waiting_human: bool = False

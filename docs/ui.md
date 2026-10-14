@@ -10,7 +10,11 @@ The current interface language is Vietnamese. Format numbers, currency and time 
 
 Primary areas are Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channels, Analytics and Settings. Existing routes remain compatible until their approved task migrates them. Workspace slugs and public IDs are navigation identifiers, not authorization.
 
-The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, unread, status, notes, tags and delivery state as M1 lands.
+The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The implemented unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, per-operator unread, status, notes, tags and delivery state.
+
+The inbox uses a thread/filter list, transcript/composer and operational metadata panel. On narrow
+screens the selected detail replaces the list and exposes a back action. Human reply remains
+disabled until takeover succeeds; resume is explicit and does not process historical backlog.
 
 The workbench channel switch includes adjacent Website, Facebook and Zalo views. Facebook renders real
 Page cards with agent binding, health, last verification and latest queue/delivery state, plus

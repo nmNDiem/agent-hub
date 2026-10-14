@@ -2,7 +2,7 @@ import type {
   AttachmentUpload,
   LeadCapturePayload,
   LeadCaptureResponse,
-  TranscriptItem,
+  TranscriptResponse,
   WidgetConfig,
   WidgetConversation,
   WidgetSession,
@@ -61,13 +61,12 @@ export async function getTranscript(
   apiBase: string,
   token: string,
   conversationId: string,
-): Promise<TranscriptItem[]> {
+): Promise<TranscriptResponse> {
   const response = await checked(await fetch(
     `${apiBase}/api/v1/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
     { mode: "cors", credentials: "omit", headers: bearer(token) },
   ));
-  const payload = await response.json() as { items: TranscriptItem[] };
-  return payload.items;
+  return response.json() as Promise<TranscriptResponse>;
 }
 
 export async function uploadImage(

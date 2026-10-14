@@ -19,16 +19,23 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 - Persisted outbound delivery state with lease fencing and bounded retry.
 - Facebook response jobs with independent lease fencing, one job per inbound message and explicit
   completed/retryable/terminal/suppressed outcomes.
+- M1.4 adds one Website/Facebook/Zalo inbox with channel, agent, assignee, workflow, tag and period
+  filters; per-member unread state; assignment; internal notes and normalized tags; and visible
+  provider delivery state.
+- Owner/admin can operate every workspace thread. Members can see unassigned and self-assigned
+  threads, claim an unassigned thread and operate only a self-assigned thread.
+- Takeover moves a thread to `human` and suppresses AI output at claim and completion fences.
+  Resume affects future inbound messages only.
+- Human replies persist idempotently before delivery. Facebook/Zalo reuse the durable queue and
+  response-window enforcement; Website replies remain scoped to the originating visitor session.
+  The Website transcript exposes only a handoff-waiting flag so the widget can restore scoped
+  polling while its panel is open after reload, and stop it when the panel closes or AI handling
+  resumes.
 
 ## Complete domain capability
 
-- Unified multi-channel inbox.
-- Explicit `ai`, `human` or `paused` handling mode.
-- Human reply composer and provider delivery status.
-- Unread/read state, assignment, open/pending/resolved status, notes and tags.
-- Safe retry and failure visibility without duplicate outbound messages.
-- Handoff from AI to a person and controlled resume of automation.
-- Filters by channel, agent, assignee, status, tag and period.
+The M1.4 operational inbox capabilities above are implemented. Contact identity/timeline behavior
+remains in M1.5 and analytics derived from these persisted facts remains in M1.6.
 
 ## Invariants
 

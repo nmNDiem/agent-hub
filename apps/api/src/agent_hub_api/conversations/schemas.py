@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from agent_hub_api.telemetry.schemas import UsageSummaryResponse
 from agent_hub_api.widget.public_schemas import PublicAvailabilitySummary, PublicPriceSummary
@@ -17,6 +17,13 @@ class ConversationSummary(BaseModel):
     last_message_at: datetime
     message_count: int
     last_visitor_preview: str | None
+    workflow_status: Literal["open", "pending", "resolved"]
+    handling_mode: Literal["ai", "human", "paused"]
+    state_version: int
+    assigned_member_id: int | None
+    assigned_member_email: str | None = None
+    unread_count: int = 0
+    tags: list["ConversationTagResponse"] = Field(default_factory=list)
 
 
 class ConversationListResponse(BaseModel):
@@ -48,7 +55,8 @@ class ConversationSourceEvidence(BaseModel):
 
 
 class ConversationMessageResponse(BaseModel):
-    role: Literal["user", "assistant"]
+    id: int
+    role: Literal["user", "assistant", "human"]
     text: str
     status: Literal["pending", "completed", "failed", "cancelled"]
     created_at: datetime
@@ -56,12 +64,96 @@ class ConversationMessageResponse(BaseModel):
     attachment: ConversationAttachment | None
     products: list[ConversationProductEvidence]
     sources: list[ConversationSourceEvidence]
+    delivery: "ConversationDeliveryResponse | None" = None
+
+
+class ConversationDeliveryResponse(BaseModel):
+    state: Literal[
+        "queued", "sending", "accepted", "delivered", "failed_retryable", "failed_terminal"
+    ]
+    attempt_count: int
+    max_attempts: int
+    next_attempt_at: datetime
+    safe_error_code: str | None
+
+
+class ConversationTagResponse(BaseModel):
+    id: int
+    name: str
+
+
+class ConversationNoteResponse(BaseModel):
+    id: int
+    author_member_id: int
+    author_email: str
+    body: str
+    created_at: datetime
+
+
+class InboxMemberResponse(BaseModel):
+    id: int
+    user_id: UUID
+    email: str
+    role: Literal["owner", "admin", "member"]
+
+
+class InboxMemberListResponse(BaseModel):
+    items: list[InboxMemberResponse]
 
 
 class ConversationDetailResponse(BaseModel):
     conversation: ConversationSummary
     messages: list[ConversationMessageResponse]
     retention_until: datetime
+    notes: list[ConversationNoteResponse] = Field(default_factory=list)
+
+
+class ConversationStateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    state_version: int = Field(ge=1)
+    workflow_status: Literal["open", "pending", "resolved"] | None = None
+    handling_mode: Literal["ai", "human", "paused"] | None = None
+    assigned_member_id: int | None = None
+    clear_assignment: bool = False
+
+
+class ConversationNoteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    body: str = Field(min_length=1, max_length=2_000)
+
+    @field_validator("body")
+    @classmethod
+    def clean_body(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Note cannot be blank")
+        return cleaned
+
+
+class ConversationTagRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=48)
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("Tag cannot be blank")
+        return cleaned
+
+
+class HumanReplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=4_000)
+
+    @field_validator("text")
+    @classmethod
+    def clean_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Reply cannot be blank")
+        return cleaned
 
 
 class DashboardActivityPoint(BaseModel):

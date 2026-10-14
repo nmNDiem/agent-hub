@@ -144,7 +144,9 @@ describe("AgentHub website widget", () => {
       config: sessionResponse().config,
     }));
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      waiting_human: false,
       items: [{
+        sequence_no: 1,
         role: "user",
         text: "Tin nhắn đã lưu",
         status: "completed",
@@ -164,6 +166,41 @@ describe("AgentHub website widget", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/messages");
     expect(target.shadowRoot!.innerHTML).not.toContain(token);
     expect(target.outerHTML).not.toContain(token);
+  });
+
+  it("restores handoff synchronization and stops after AI resumes", async () => {
+    sessionStorage.setItem(`agenthub:widget:${apiBase}:${agentId}`, JSON.stringify({
+      token,
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      conversationId: conversationResponse().public_id,
+      config: sessionResponse().config,
+    }));
+    const humanReply = {
+      sequence_no: 2,
+      role: "assistant",
+      text: "Nhân viên đã phản hồi.",
+      status: "completed",
+      response_id: null,
+      product_cards: [],
+      sources: [],
+      created_at: new Date().toISOString(),
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ items: [], waiting_human: true }))
+      .mockResolvedValueOnce(jsonResponse({ items: [humanReply], waiting_human: false }));
+    vi.stubGlobal("fetch", fetchMock);
+    const target = document.createElement("div");
+    document.body.append(target);
+
+    mountWidget({ agentId, apiBase, target });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(
+      target.shadowRoot!.querySelector(".ah-transcript")!.getAttribute("aria-busy"),
+    ).toBe("false"));
+    target.shadowRoot!.querySelector<HTMLButtonElement>(".ah-launcher")!.click();
+
+    await vi.waitFor(() => expect(target.shadowRoot!.textContent).toContain(humanReply.text));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("uploads a validated image handle and sends it without exposing file bytes", async () => {

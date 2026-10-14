@@ -356,20 +356,35 @@ export type Lead = {
 
 export type ConversationSummary = {
   public_id: string;
-  channel: "web";
+  channel: "web" | "facebook" | "zalo";
   agent_public_id: string;
   agent_name: string;
   started_at: string;
   last_message_at: string;
   message_count: number;
   last_visitor_preview: string | null;
+  workflow_status: "open" | "pending" | "resolved";
+  handling_mode: "ai" | "human" | "paused";
+  state_version: number;
+  assigned_member_id: number | null;
+  assigned_member_email: string | null;
+  unread_count: number;
+  tags: Array<{ id: number; name: string }>;
+};
+
+export type InboxMember = {
+  id: number;
+  user_id: string;
+  email: string;
+  role: "owner" | "admin" | "member";
 };
 
 export type ConversationDetail = {
   conversation: ConversationSummary;
   retention_until: string;
   messages: Array<{
-    role: "user" | "assistant";
+    id: number;
+    role: "user" | "assistant" | "human";
     text: string;
     status: "pending" | "completed" | "failed" | "cancelled";
     created_at: string;
@@ -395,7 +410,15 @@ export type ConversationDetail = {
       options: Record<string, string[]>;
     }>;
     sources: Array<{ source_id: string; title: string; locator: string }>;
+    delivery: {
+      state: "queued" | "sending" | "accepted" | "delivered" | "failed_retryable" | "failed_terminal";
+      attempt_count: number;
+      max_attempts: number;
+      next_attempt_at: string;
+      safe_error_code: string | null;
+    } | null;
   }>;
+  notes: Array<{ id: number; author_member_id: number; author_email: string; body: string; created_at: string }>;
 };
 
 export type UsageSummary = {
@@ -889,13 +912,17 @@ export const api = {
   },
   listConversations: (
     workspaceId: string,
-    filters: { cursor?: string; limit?: number; days?: 7 | 30; agentPublicId?: string } = {},
+    filters: { cursor?: string; limit?: number; days?: 7 | 30; agentPublicId?: string; channel?: "web" | "facebook" | "zalo"; workflowStatus?: "open" | "pending" | "resolved"; assignedMemberId?: number; tagId?: number } = {},
   ) => {
     const params = new URLSearchParams();
     if (filters.cursor) params.set("cursor", filters.cursor);
     if (filters.limit) params.set("limit", String(filters.limit));
     if (filters.days) params.set("days", String(filters.days));
     if (filters.agentPublicId) params.set("agent_public_id", filters.agentPublicId);
+    if (filters.channel) params.set("channel", filters.channel);
+    if (filters.workflowStatus) params.set("workflow_status", filters.workflowStatus);
+    if (filters.assignedMemberId) params.set("assigned_member_id", String(filters.assignedMemberId));
+    if (filters.tagId) params.set("tag_id", String(filters.tagId));
     const suffix = params.size ? `?${params}` : "";
     return request<{ items: ConversationSummary[]; next_cursor: string | null }>(
       `/api/v1/workspaces/${workspaceId}/conversations${suffix}`,
@@ -905,6 +932,18 @@ export const api = {
     request<ConversationDetail>(
       `/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}`,
     ),
+  listInboxMembers: (workspaceId: string) =>
+    request<{ items: InboxMember[] }>(`/api/v1/workspaces/${workspaceId}/inbox/members`),
+  markConversationRead: (workspaceId: string, conversationPublicId: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/read`, { method: "POST" }),
+  updateConversationState: (workspaceId: string, conversationPublicId: string, payload: { state_version: number; workflow_status?: "open" | "pending" | "resolved"; handling_mode?: "ai" | "human" | "paused"; assigned_member_id?: number; clear_assignment?: boolean }) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/state`, { method: "PATCH", body: JSON.stringify(payload) }),
+  addConversationNote: (workspaceId: string, conversationPublicId: string, body: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  addConversationTag: (workspaceId: string, conversationPublicId: string, name: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/tags`, { method: "POST", body: JSON.stringify({ name }) }),
+  replyToConversation: (workspaceId: string, conversationPublicId: string, text: string, idempotencyKey: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/replies`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ text }) }),
   getDashboard: (workspaceId: string, days: 7 | 30) =>
     request<Dashboard>(`/api/v1/workspaces/${workspaceId}/dashboard?days=${days}`),
   getUsage: (workspaceId: string) =>

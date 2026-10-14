@@ -85,6 +85,7 @@ class PreparedTurn:
     history: tuple[AgentConversationTurn, ...]
     attachment: PreparedAttachment | None = None
     replay: PublicGroundedResponse | None = None
+    waiting_human: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -413,6 +414,7 @@ class WidgetVisitorService:
             response = self._stored_response(row)
             items.append(
                 WidgetTranscriptMessage(
+                    sequence_no=row.sequence_no,
                     role="user" if row.actor == "visitor" else "assistant",
                     text=row.text,
                     status=cast(
@@ -425,7 +427,10 @@ class WidgetVisitorService:
                     created_at=row.created_at,
                 )
             )
-        return WidgetTranscriptResponse(items=items)
+        return WidgetTranscriptResponse(
+            items=items,
+            waiting_human=conversation.handling_mode != "ai",
+        )
 
     async def prepare_turn(
         self,
@@ -457,6 +462,17 @@ class WidgetVisitorService:
                         status.HTTP_409_CONFLICT,
                         "IDEMPOTENCY_CONFLICT",
                         "Khóa gửi tin đã được dùng cho nội dung khác.",
+                    )
+                if conversation.handling_mode != "ai":
+                    return PreparedTurn(
+                        context=context,
+                        conversation_id=conversation.id,
+                        conversation_public_id=conversation.public_id,
+                        assistant_message_id=0,
+                        response_id=new_uuid_v7(),
+                        question=question,
+                        history=(),
+                        waiting_human=True,
                     )
                 assistant = await self._assistant_after(existing)
                 if assistant.status != "completed":
@@ -557,15 +573,42 @@ class WidgetVisitorService:
                     object_key=upload.object_key,
                     content_type=upload.content_type,
                 )
-            await TelemetryService(self.session, self.settings).reserve_generation_turn(
-                context.workspace_id, context.agent_id
-            )
             last_sequence = await self.session.scalar(
                 select(func.max(ConversationMessage.sequence_no)).where(
                     ConversationMessage.conversation_id == conversation.id
                 )
             )
             visitor_sequence = int(last_sequence or 0) + 1
+            if conversation.handling_mode != "ai":
+                self.session.add(
+                    ConversationMessage(
+                        workspace_id=context.workspace_id,
+                        conversation_id=conversation.id,
+                        sequence_no=visitor_sequence,
+                        actor="visitor",
+                        direction="inbound",
+                        text=question,
+                        status="completed",
+                        request_key=request_key,
+                        request_hash=request_digest,
+                        completed_at=now,
+                    )
+                )
+                conversation.last_message_at = now
+                return PreparedTurn(
+                    context=context,
+                    conversation_id=conversation.id,
+                    conversation_public_id=conversation.public_id,
+                    assistant_message_id=0,
+                    response_id=new_uuid_v7(),
+                    question=question,
+                    history=history,
+                    attachment=attachment,
+                    waiting_human=True,
+                )
+            await TelemetryService(self.session, self.settings).reserve_generation_turn(
+                context.workspace_id, context.agent_id
+            )
             response_id = new_uuid_v7()
             self.session.add(
                 ConversationMessage(
@@ -647,10 +690,15 @@ class WidgetVisitorService:
         response: PublicGroundedResponse,
         generation_usage: AgentRuntimeUsage | None = None,
         vision_result: VisionResult | None = None,
-    ) -> None:
+    ) -> bool:
         async with self.session.begin():
             context = await self.resolve_context(token=token, origin=origin)
             if context.session_id != turn.context.session_id:
+                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy lượt chat.")
+            conversation = await self.session.get(
+                Conversation, turn.conversation_id, with_for_update=True
+            )
+            if conversation is None or conversation.workspace_id != context.workspace_id:
                 raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy lượt chat.")
             assistant = await self.session.get(ConversationMessage, turn.assistant_message_id)
             if assistant is None or assistant.status != "pending":
@@ -659,6 +707,27 @@ class WidgetVisitorService:
                     "TURN_STATE_CHANGED",
                     "Lượt chat đã thay đổi trạng thái.",
                 )
+            if conversation.handling_mode != "ai":
+                assistant.status = "cancelled"
+                assistant.safe_error_code = "HUMAN_TAKEOVER"
+                assistant.completed_at = datetime.now(UTC)
+                assistant.generation_deadline = None
+                if generation_usage is not None:
+                    TelemetryService(self.session, self.settings).record_generation(
+                        workspace_id=context.workspace_id,
+                        agent_id=context.agent_id,
+                        conversation_id=turn.conversation_id,
+                        surface="widget",
+                        usage=generation_usage,
+                    )
+                if vision_result is not None:
+                    TelemetryService(self.session, self.settings).record_vision(
+                        workspace_id=context.workspace_id,
+                        agent_id=context.agent_id,
+                        conversation_id=turn.conversation_id,
+                        result=vision_result,
+                    )
+                return False
             assistant.text = response.text
             assistant.response_json = response.model_dump(mode="json")
             assistant.status = "completed"
@@ -683,6 +752,7 @@ class WidgetVisitorService:
                     conversation_id=turn.conversation_id,
                     result=vision_result,
                 )
+        return True
 
     async def cancel_turn(self, turn: PreparedTurn, *, code: str) -> None:
         async with self.session.begin():

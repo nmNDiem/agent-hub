@@ -28,6 +28,7 @@ class WorkspaceMember(Base):
     __tablename__ = "workspace_members"
     __table_args__ = (
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_members_workspace_user"),
+        UniqueConstraint("workspace_id", "id", name="uq_workspace_members_workspace_id"),
         CheckConstraint("role IN ('owner', 'admin', 'member')", name="ck_workspace_members_role"),
         Index("ix_workspace_members_user_workspace", "user_id", "workspace_id"),
     )

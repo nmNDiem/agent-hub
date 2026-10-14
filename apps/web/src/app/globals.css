@@ -806,6 +806,7 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .conversation-list > header > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .conversation-list > header span { color: var(--muted-foreground); font-size: 10px; }
 .conversation-filters { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; }
+.conversation-filters.inbox-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .conversation-filters label { display: grid; gap: 4px; color: var(--muted-foreground); font-size: 10px; font-weight: 700; }
 .conversation-filters select { min-width: 0; min-height: 35px; padding: 0 28px 0 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); }
 .conversation-list nav { flex: 1; }
@@ -830,7 +831,9 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .conversation-detail > header span { margin-top: 3px; color: var(--muted-foreground); font-size: 10px; }
 .conversation-back { display: none; align-items: center; gap: 5px; color: var(--primary); font-size: 11px; font-weight: 750; text-decoration: none; }
 .readonly-badge { margin: 0 !important; padding: 5px 8px; border-radius: 999px; color: var(--primary) !important; background: var(--accent); font-weight: 750; }
-.conversation-detail-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 205px; }
+.conversation-detail-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 250px; }
+.conversation-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.conversation-main .conversation-transcript { flex: 1; }
 .conversation-transcript { min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 18px; overflow-y: auto; background: color-mix(in srgb, var(--background) 62%, white); }
 .conversation-transcript > article { max-width: 86%; align-self: flex-start; }
 .conversation-transcript > article.visitor { align-self: flex-end; }
@@ -854,6 +857,23 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .conversation-metadata dl div { min-width: 0; }
 .conversation-metadata dt { color: var(--muted-foreground); font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .conversation-metadata dd { margin: 3px 0 0; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-metadata label { display: grid; gap: 4px; margin-bottom: 12px; color: var(--muted-foreground); font-size: 10px; font-weight: 700; }
+.conversation-metadata select, .conversation-metadata input, .conversation-metadata textarea { width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; }
+.conversation-metadata textarea { min-height: 72px; resize: vertical; }
+.conversation-metadata h2:not(:first-child) { margin-top: 18px; }
+.inbox-composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--card); }
+.inbox-composer textarea { min-height: 46px; flex: 1; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 9px; font: inherit; }
+.inbox-composer button { align-self: flex-end; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag-list span { padding: 4px 7px; border-radius: 999px; color: var(--primary); background: var(--accent); font-size: 9px; font-weight: 700; }
+.metadata-form { display: grid; gap: 6px; margin-top: 8px; }
+.metadata-form button { min-height: 30px; border: 0; border-radius: 7px; color: var(--primary-foreground); background: var(--primary); font-size: 10px; font-weight: 750; }
+.note-list { display: grid; gap: 8px; max-height: 180px; overflow-y: auto; }
+.note-list article { padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
+.note-list strong, .note-list time { font-size: 9px; }
+.note-list p { margin: 5px 0; font-size: 10px; white-space: pre-wrap; }
+.note-list time, .delivery-state { color: var(--muted-foreground); }
+.delivery-state { display: block; margin-top: 6px; font-size: 9px; }
 
 @media (max-width: 1100px) {
   .overview-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }

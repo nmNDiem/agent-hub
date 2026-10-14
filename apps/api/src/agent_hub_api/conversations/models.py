@@ -49,6 +49,11 @@ class Conversation(Base):
             ["channel_connections.workspace_id", "channel_connections.id"],
             name="fk_conversations_workspace_connection",
         ),
+        ForeignKeyConstraint(
+            ["workspace_id", "assigned_member_id"],
+            ["workspace_members.workspace_id", "workspace_members.id"],
+            name="fk_conversations_workspace_assignee",
+        ),
         UniqueConstraint("workspace_id", "id", name="uq_conversations_workspace_id"),
         UniqueConstraint("session_id", name="uq_conversations_session"),
         CheckConstraint(
@@ -79,6 +84,14 @@ class Conversation(Base):
             "channel_connection_id",
             "id",
         ),
+        Index(
+            "ix_conversations_workspace_inbox",
+            "workspace_id",
+            "workflow_status",
+            "assigned_member_id",
+            "last_message_at",
+            "id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -91,6 +104,8 @@ class Conversation(Base):
     lifecycle_state: Mapped[str] = mapped_column(String(16), default="active")
     workflow_status: Mapped[str] = mapped_column(String(16), default="open")
     handling_mode: Mapped[str] = mapped_column(String(16), default="ai")
+    assigned_member_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    state_version: Mapped[int] = mapped_column(Integer(), default=1)
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -147,3 +162,122 @@ class ConversationMessage(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ConversationReadState(Base):
+    __tablename__ = "conversation_read_states"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_conversation_reads_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "member_id"],
+            ["workspace_members.workspace_id", "workspace_members.id"],
+            name="fk_conversation_reads_workspace_member",
+        ),
+        UniqueConstraint("conversation_id", "member_id", name="uq_conversation_reads_member"),
+        Index("ix_conversation_reads_workspace_member", "workspace_id", "member_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    member_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    last_read_sequence: Mapped[int] = mapped_column(Integer(), default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConversationNote(Base):
+    __tablename__ = "conversation_notes"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_conversation_notes_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "author_member_id"],
+            ["workspace_members.workspace_id", "workspace_members.id"],
+            name="fk_conversation_notes_workspace_author",
+        ),
+        Index(
+            "ix_conversation_notes_workspace_conversation", "workspace_id", "conversation_id", "id"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    author_member_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    body: Mapped[str] = mapped_column(Text())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConversationTag(Base):
+    __tablename__ = "conversation_tags"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "normalized_name", name="uq_conversation_tags_name"),
+        UniqueConstraint("workspace_id", "id", name="uq_conversation_tags_workspace_id"),
+        Index("ix_conversation_tags_workspace_name", "workspace_id", "normalized_name"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(48))
+    normalized_name: Mapped[str] = mapped_column(String(48))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConversationTagLink(Base):
+    __tablename__ = "conversation_tag_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_conversation_tag_links_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "tag_id"],
+            ["conversation_tags.workspace_id", "conversation_tags.id"],
+            name="fk_conversation_tag_links_workspace_tag",
+        ),
+        UniqueConstraint("conversation_id", "tag_id", name="uq_conversation_tag_links_pair"),
+        Index(
+            "ix_conversation_tag_links_workspace_tag", "workspace_id", "tag_id", "conversation_id"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    tag_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConversationAuditEvent(Base):
+    __tablename__ = "conversation_audit_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_conversation_audit_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "actor_member_id"],
+            ["workspace_members.workspace_id", "workspace_members.id"],
+            name="fk_conversation_audit_workspace_actor",
+        ),
+        Index(
+            "ix_conversation_audit_workspace_conversation", "workspace_id", "conversation_id", "id"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    actor_member_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    event_type: Mapped[str] = mapped_column(String(32))
+    details_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

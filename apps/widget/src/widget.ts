@@ -78,7 +78,7 @@ function stockLabel(card: PublicProductCard): { text: string; available: boolean
 
 function transcriptMessage(item: TranscriptItem): WidgetMessage {
   return {
-    id: item.response_id ?? crypto.randomUUID(),
+    id: item.response_id ?? `conversation-message-${item.sequence_no}`,
     role: item.role,
     text: item.text,
     state: item.status === "completed" ? "complete" : "cancelled",
@@ -112,6 +112,8 @@ export class AgentHubWidget {
   private open = false;
   private imageUrls = new Map<string, string>();
   private objectUrls = new Set<string>();
+  private handoffTimer?: number;
+  private waitingForHuman = false;
   private readonly handleResize = () => {
     this.protectHost(this.host.dataset.position === "left" ? "left" : "right");
   };
@@ -260,6 +262,7 @@ export class AgentHubWidget {
 
   destroy(): void {
     this.activeController?.abort();
+    this.stopHandoffSync();
     window.removeEventListener("resize", this.handleResize);
     for (const url of this.objectUrls) URL.revokeObjectURL(url);
     this.objectUrls.clear();
@@ -311,7 +314,9 @@ export class AgentHubWidget {
             stored.token,
             stored.conversationId,
           );
-          this.messages = this.withGreeting(transcript.map(transcriptMessage));
+          this.messages = this.withGreeting(transcript.items.map(transcriptMessage));
+          this.waitingForHuman = transcript.waiting_human;
+          if (this.waitingForHuman && this.open) this.startHandoffSync();
         } catch (error) {
           if (!(error instanceof WidgetApiError) || error.status !== 401) throw error;
           this.clearStoredSession();
@@ -417,8 +422,10 @@ export class AgentHubWidget {
     );
     if (value) {
       if (!this.initialization) this.initialization = this.initialize();
+      if (this.waitingForHuman) this.startHandoffSync();
       queueMicrotask(() => this.textarea.focus());
     } else {
+      this.stopHandoffSync();
       this.launcher.focus();
     }
   }
@@ -873,11 +880,45 @@ export class AgentHubWidget {
   ): void {
     const assistant = this.messages.find((message) => message.id === assistantId);
     if (!assistant) return;
+    if (event.type === "handoff.waiting") {
+      assistant.text = "Tin nhắn đã được gửi tới nhân viên hỗ trợ.";
+      assistant.state = "complete";
+      this.waitingForHuman = true;
+      this.startHandoffSync();
+    }
     if (event.type === "message.delta") assistant.text += event.data.text;
     if (event.type === "product.cards") assistant.products = event.data.items;
     if (event.type === "source.refs") assistant.sources = event.data.items;
     if (event.type === "message.completed") assistant.state = "complete";
     if (event.type !== "heartbeat" && event.type !== "message.start") this.renderMessages();
+  }
+
+  private startHandoffSync(): void {
+    if (this.handoffTimer !== undefined) return;
+    const refresh = async () => {
+      if (!this.session) return;
+      try {
+        const transcript = await getTranscript(
+          this.apiBase,
+          this.session.token,
+          this.session.conversationId,
+        );
+        this.messages = this.withGreeting(transcript.items.map(transcriptMessage));
+        this.renderMessages();
+        this.waitingForHuman = transcript.waiting_human;
+        if (!this.waitingForHuman) this.stopHandoffSync();
+      } catch {
+        // A later poll can recover; session authorization remains server-side.
+      }
+    };
+    this.handoffTimer = window.setInterval(() => void refresh(), 5_000);
+    void refresh();
+  }
+
+  private stopHandoffSync(): void {
+    if (this.handoffTimer === undefined) return;
+    window.clearInterval(this.handoffTimer);
+    this.handoffTimer = undefined;
   }
 
   private async resetConversation(): Promise<void> {
@@ -886,6 +927,8 @@ export class AgentHubWidget {
     this.activeController?.abort();
     this.showError();
     try {
+      this.stopHandoffSync();
+      this.waitingForHuman = false;
       await deleteConversation(
         this.apiBase,
         this.session.token,

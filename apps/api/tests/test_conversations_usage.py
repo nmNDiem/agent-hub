@@ -290,10 +290,41 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
             == 200
         )
         asyncio.run(set_owner_b_role("member"))
-        assert (
-            owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations").status_code
-            == 403
+        member_list = owner_b.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations"
         )
+        assert member_list.status_code == 200
+        assert conversation_a1 in {item["public_id"] for item in member_list.json()["items"]}
+        member_options = owner_b.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/inbox/members"
+        ).json()["items"]
+        member_id = next(
+            item["id"] for item in member_options if item["email"] == "owner-b@example.com"
+        )
+        member_detail_url = (
+            f"/api/v1/workspaces/{shop_a['workspace_id']}"
+            f"/conversations/{conversation_a1}"
+        )
+        member_detail = owner_b.get(member_detail_url).json()
+        claim = owner_b.patch(
+            f"{member_detail_url}/state",
+            json={
+                "state_version": member_detail["conversation"]["state_version"],
+                "assigned_member_id": member_id,
+            },
+            headers=csrf_headers(owner_b),
+        )
+        assert claim.status_code == 204, claim.text
+        claimed = owner_b.get(member_detail_url).json()
+        clear_own_assignment = owner_b.patch(
+            f"{member_detail_url}/state",
+            json={
+                "state_version": claimed["conversation"]["state_version"],
+                "clear_assignment": True,
+            },
+            headers=csrf_headers(owner_b),
+        )
+        assert clear_own_assignment.status_code == 403
         assert (
             owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/dashboard").status_code == 403
         )
@@ -312,6 +343,132 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
             ).status_code
             == 404
         )
+
+
+def test_website_human_takeover_reply_and_tenant_guards(app_factory: AppFactory) -> None:
+    runtime = FakeRuntime()
+    app = app_factory(runtime)
+    with TestClient(app) as owner_a, TestClient(app) as owner_b:
+        shop_a = publish_agent(owner_a, "inbox-a@example.com", "inbox-a")
+        shop_b = publish_agent(owner_b, "inbox-b@example.com", "inbox-b")
+        token, conversation_id = visitor(owner_a, shop_a["agent_id"])
+        assert send(owner_a, token, conversation_id, "before-handoff").status_code == 200
+        assert runtime.calls == 1
+
+        members = owner_a.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/inbox/members")
+        assert members.status_code == 200
+        owner_member_id = members.json()["items"][0]["id"]
+        detail = owner_a.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_id}"
+        ).json()
+        state_url = (
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_id}/state"
+        )
+        missing_csrf = owner_a.patch(
+            state_url,
+            json={
+                "state_version": detail["conversation"]["state_version"],
+                "handling_mode": "human",
+            },
+        )
+        assert missing_csrf.status_code == 403
+        takeover = owner_a.patch(
+            state_url,
+            json={
+                "state_version": detail["conversation"]["state_version"],
+                "handling_mode": "human",
+                "assigned_member_id": owner_member_id,
+            },
+            headers=csrf_headers(owner_a),
+        )
+        assert takeover.status_code == 204, takeover.text
+        stale = owner_a.patch(
+            state_url,
+            json={
+                "state_version": detail["conversation"]["state_version"],
+                "workflow_status": "pending",
+            },
+            headers=csrf_headers(owner_a),
+        )
+        assert stale.status_code == 409
+        assert stale.json()["error"]["code"] == "STALE_CONVERSATION"
+
+        conversation_url = (
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_id}"
+        )
+        assert owner_a.post(
+            f"{conversation_url}/notes",
+            json={"body": "Cần kiểm tra lại kích thước."},
+            headers=csrf_headers(owner_a),
+        ).status_code == 204
+        assert owner_a.post(
+            f"{conversation_url}/tags",
+            json={"name": "Ưu tiên"},
+            headers=csrf_headers(owner_a),
+        ).status_code == 204
+        enriched = owner_a.get(conversation_url).json()
+        assert enriched["notes"][0]["body"] == "Cần kiểm tra lại kích thước."
+        tag_id = enriched["conversation"]["tags"][0]["id"]
+        filtered = owner_a.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations",
+            params={"tag_id": tag_id},
+        )
+        assert [item["public_id"] for item in filtered.json()["items"]] == [conversation_id]
+
+        waiting = send(owner_a, token, conversation_id, "after-handoff")
+        assert waiting.status_code == 200
+        assert "event: handoff.waiting" in waiting.text
+        assert runtime.calls == 1
+
+        reply_url = (
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_id}/replies"
+        )
+        reply_headers = {**csrf_headers(owner_a), "idempotency-key": "human-reply-0001"}
+        assert (
+            owner_a.post(
+                reply_url, json={"text": "Nhân viên đã tiếp nhận."}, headers=reply_headers
+            ).status_code
+            == 204
+        )
+        assert (
+            owner_a.post(
+                reply_url, json={"text": "Nhân viên đã tiếp nhận."}, headers=reply_headers
+            ).status_code
+            == 204
+        )
+        transcript = owner_a.get(
+            f"/api/v1/widget/conversations/{conversation_id}/messages",
+            headers={"origin": ORIGIN, "authorization": f"Bearer {token}"},
+        )
+        assert transcript.status_code == 200
+        assert transcript.json()["waiting_human"] is True
+        assert [item["text"] for item in transcript.json()["items"]].count(
+            "Nhân viên đã tiếp nhận."
+        ) == 1
+
+        cross_workspace = owner_b.patch(
+            state_url,
+            json={"state_version": 1, "handling_mode": "human"},
+            headers=csrf_headers(owner_b),
+        )
+        assert cross_workspace.status_code == 404
+        for suffix, payload, extra_headers in (
+            ("read", None, {}),
+            ("notes", {"body": "Không thuộc workspace"}, {}),
+            ("tags", {"name": "Sai workspace"}, {}),
+            (
+                "replies",
+                {"text": "Không được gửi"},
+                {"idempotency-key": "cross-workspace-reply"},
+            ),
+        ):
+            denied = owner_b.post(
+                f"{conversation_url}/{suffix}",
+                json=payload,
+                headers={**csrf_headers(owner_b), **extra_headers},
+            )
+            assert denied.status_code == 404
+        assert shop_b["workspace_id"] != shop_a["workspace_id"]
 
 
 def test_playground_and_widget_share_the_monthly_generation_quota(

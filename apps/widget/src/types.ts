@@ -69,6 +69,7 @@ export type PublicProductCard = {
 export type PublicSource = { source_id: string; title: string; locator: string };
 
 export type TranscriptItem = {
+  sequence_no: number;
   role: "user" | "assistant";
   text: string;
   status: "pending" | "completed" | "failed" | "cancelled";
@@ -78,8 +79,14 @@ export type TranscriptItem = {
   created_at: string;
 };
 
+export type TranscriptResponse = {
+  items: TranscriptItem[];
+  waiting_human: boolean;
+};
+
 export type WidgetStreamEvent =
   | { type: "heartbeat"; data: Record<string, never> }
+  | { type: "handoff.waiting"; data: Record<string, never> }
   | { type: "message.start"; data: { message_id: string } }
   | { type: "message.delta"; data: { text: string } }
   | { type: "product.cards"; data: { items: PublicProductCard[] } }

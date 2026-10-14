@@ -31,7 +31,7 @@ const navigation: Array<{
   roles?: Workspace["role"][];
 }> = [
   { label: "Tổng quan", icon: CircleGauge, segment: "overview", enabled: true },
-  { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: true, roles: ["owner", "admin"] },
+  { label: "Hội thoại", icon: MessageSquareText, segment: "conversations", enabled: true },
   { label: "Khách tiềm năng", icon: Users, segment: "leads", enabled: true, roles: ["owner", "admin"] },
   { label: "Chatbot", icon: Bot, segment: "chatbots", enabled: true },
   { label: "Catalog", icon: Boxes, segment: "catalog", enabled: true },

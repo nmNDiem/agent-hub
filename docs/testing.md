@@ -63,6 +63,12 @@ secret rotation, automatic refresh, invalid Zalo signatures, inbound deduplicati
 cross-workspace access. Provider gateways and Vault are faked; automated tests never authorize or
 send through a live Zalo OA.
 
+The M1.4 gate continues through `20261014_0018` and rehearses creation/removal of inbox read,
+note, tag and audit tables plus the tenant-safe assignee reference. API/widget tests cover CSRF,
+role-scoped visibility, cross-workspace denial, optimistic updates, model suppression after
+takeover, idempotent Website human replies and scoped transcript synchronization. Existing fake
+Facebook/Zalo delivery tests cover the shared queue; no provider is called live.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

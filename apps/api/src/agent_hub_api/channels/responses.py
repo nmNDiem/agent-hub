@@ -282,6 +282,33 @@ class ChannelResponseService:
         completed_at = datetime.now(UTC)
         async with self.session.begin():
             job = await self._locked_claim(claim)
+            conversation = await self.session.get(
+                Conversation, claim.conversation_id, with_for_update=True
+            )
+            if conversation is None:
+                raise ChannelResponseError("RESPONSE_CONTEXT_MISSING", retryable=False)
+            if conversation.handling_mode != "ai":
+                job.state = "suppressed"
+                job.safe_error_code = "HUMAN_TAKEOVER"
+                job.lease_token = None
+                job.lease_expires_at = None
+                job.updated_at = completed_at
+                TelemetryService(self.session, self.settings).record_generation(
+                    workspace_id=claim.workspace_id,
+                    agent_id=claim.agent_id,
+                    conversation_id=claim.conversation_id,
+                    surface=cast(UsageSurface, claim.provider),
+                    usage=usage,
+                )
+                for result in vision_results:
+                    TelemetryService(self.session, self.settings).record_vision(
+                        workspace_id=claim.workspace_id,
+                        agent_id=claim.agent_id,
+                        conversation_id=claim.conversation_id,
+                        result=result,
+                        surface=cast(UsageSurface, claim.provider),
+                    )
+                return
             thread = (
                 await self.session.scalars(
                     select(ChannelThreadMapping)
@@ -352,9 +379,7 @@ class ChannelResponseService:
                     ),
                 )
             )
-            conversation = await self.session.get(Conversation, claim.conversation_id)
-            if conversation is not None:
-                conversation.last_message_at = completed_at
+            conversation.last_message_at = completed_at
             job.outbound_message_id = assistant.id
             job.state = "completed"
             job.lease_token = None

@@ -251,6 +251,9 @@ async def _event_stream(
     token: str,
     origin: str,
 ) -> AsyncIterator[str]:
+    if turn.waiting_human:
+        yield _event("handoff.waiting", {})
+        return
     if turn.replay is not None:
         async for event in _emit_response(turn, turn.replay):
             yield event
@@ -311,7 +314,7 @@ async def _event_stream(
             ),
             vision_result,
         )
-        await service.complete_turn(
+        completed = await service.complete_turn(
             turn,
             token=token,
             origin=origin,
@@ -319,6 +322,9 @@ async def _event_stream(
             generation_usage=runtime_response.usage,
             vision_result=vision_result,
         )
+        if not completed:
+            yield _event("handoff.waiting", {})
+            return
         for chunk in _text_chunks(response.text):
             yield _event("message.delta", {"text": chunk})
             await asyncio.sleep(0)
@@ -345,7 +351,9 @@ async def _event_stream(
         )
         response = _fallback_response(exc.public_message)
         await session.rollback()
-        await service.complete_turn(turn, token=token, origin=origin, response=response)
+        if not await service.complete_turn(turn, token=token, origin=origin, response=response):
+            yield _event("handoff.waiting", {})
+            return
         for chunk in _text_chunks(response.text):
             yield _event("message.delta", {"text": chunk})
         yield _event(
@@ -364,7 +372,9 @@ async def _event_stream(
             "Bạn có thể mô tả sản phẩm để mình tìm giúp nhé."
         )
         await session.rollback()
-        await service.complete_turn(turn, token=token, origin=origin, response=response)
+        if not await service.complete_turn(turn, token=token, origin=origin, response=response):
+            yield _event("handoff.waiting", {})
+            return
         for chunk in _text_chunks(response.text):
             yield _event("message.delta", {"text": chunk})
         yield _event(
@@ -389,7 +399,12 @@ async def _event_stream(
         )
         try:
             await session.rollback()
-            await service.complete_turn(turn, token=token, origin=origin, response=response)
+            completed = await service.complete_turn(
+                turn, token=token, origin=origin, response=response
+            )
+            if not completed:
+                yield _event("handoff.waiting", {})
+                return
         except Exception:
             logger.exception(
                 "Widget fallback persistence failed conversation_id=%s",

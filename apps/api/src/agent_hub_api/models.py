@@ -37,7 +37,15 @@ from agent_hub_api.channels.models import (
     ChannelWebhookEvent,
     OutboundDelivery,
 )
-from agent_hub_api.conversations.models import Conversation, ConversationMessage
+from agent_hub_api.conversations.models import (
+    Conversation,
+    ConversationAuditEvent,
+    ConversationMessage,
+    ConversationNote,
+    ConversationReadState,
+    ConversationTag,
+    ConversationTagLink,
+)
 from agent_hub_api.core.database import Base
 from agent_hub_api.identity.models import AuthSession, EmailToken, User
 from agent_hub_api.knowledge.models import (
@@ -119,7 +127,12 @@ __all__ = [
     "Workspace",
     "WorkspaceMember",
     "Conversation",
+    "ConversationAuditEvent",
     "ConversationMessage",
+    "ConversationNote",
+    "ConversationReadState",
+    "ConversationTag",
+    "ConversationTagLink",
     "VisitorImageUpload",
     "WidgetCatalogImageGrant",
     "WidgetRateWindow",

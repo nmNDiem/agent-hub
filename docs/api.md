@@ -23,7 +23,7 @@ FastAPI publishes the executable OpenAPI contract. This document owns stable cro
 | Agents | CRUD config, catalog/knowledge assignments, publish, pause, Web configuration and Playground stream |
 | Catalog | products/variants/size guides/images, locations, collections, import jobs/issues/commit and structured search |
 | Knowledge | bases, documents, ingestion jobs, retry/archive and assignments |
-| Conversations | owner/admin stable-cursor list and redacted detail |
+| Conversations | role-scoped inbox list/detail, members, read state, workflow, notes, tags and human replies |
 | Leads | owner/admin list/status/export and public consented Website creation |
 | Dashboard/usage | bounded aggregates, observed usage and workspace monthly quota |
 | Widget | published config/session, conversation/messages, SSE replay, image upload/delete, product-image grant and lead creation |
@@ -136,7 +136,11 @@ bounded policy, while ambiguous delivery results are terminal.
 
 ### Inbox and contacts
 
-M1 authenticated APIs provide stable-cursor conversation lists/details, send/retry, assignment, handling mode, status, notes/tags and contact timeline operations. Each write uses CSRF, role/capability checks, current-state conflict protection and workspace-safe IDs. API specifics belong in the active task before implementation.
+M1.4 authenticated APIs provide stable-cursor conversation lists/details, current workspace
+members, per-member read state, assignment, handling mode, workflow status, notes/tags and
+idempotent human replies. Each write uses CSRF, role checks, optimistic state conflict protection
+and workspace-safe IDs. Delivery responses expose safe queue/error metadata; ambiguous outcomes
+are not replayed automatically. Contact timeline operations arrive in M1.5.
 
 ## Contract evolution
 
