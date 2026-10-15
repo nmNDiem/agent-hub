@@ -319,6 +319,7 @@ async def _event_stream(
             token=token,
             origin=origin,
             response=response,
+            product_ids=tuple(card.product_id for card in runtime_response.product_cards),
             generation_usage=runtime_response.usage,
             vision_result=vision_result,
         )
@@ -700,16 +701,12 @@ async def delete_widget_conversation(
     )
     for pending in pending_cleanup:
         if storage is None:
-            await service.finish_image_cleanup(
-                pending, error_code="storage_unconfigured"
-            )
+            await service.finish_image_cleanup(pending, error_code="storage_unconfigured")
             continue
         try:
             await storage.delete(object_key=pending.object_key)
         except VisitorImageStorageError:
-            await service.finish_image_cleanup(
-                pending, error_code="storage_delete_failed"
-            )
+            await service.finish_image_cleanup(pending, error_code="storage_delete_failed")
             logger.warning(
                 "widget_image_cleanup_deferred image_id=%s request_id=%s",
                 pending.image_id,

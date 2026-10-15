@@ -21,7 +21,7 @@ Detailed F0-F5 implementation history remains available through Git history and 
 
 ## M1 — Omnichannel Operations
 
-Status: **Current**
+Status: **Complete**
 
 Goal: operate Website, Facebook Messenger and Zalo conversations through one secure conversation, contact and human-service workflow.
 
@@ -55,6 +55,8 @@ Status: **Complete**
 
 ### M1.4 Unified inbox and human handoff
 
+Status: **Complete**
+
 - Website/Facebook/Zalo threads in one inbox.
 - Explicit AI/human ownership and takeover/resume behavior.
 - Reply composer, unread state, assignment, status, notes and tags.
@@ -70,6 +72,8 @@ Status: **Complete**
 - Retention and export rules for contact data.
 
 ### M1.6 Operational analytics
+
+Status: **Complete**
 
 - Conversation and response activity by channel and agent.
 - AI/human resolution and handoff measures.

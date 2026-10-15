@@ -146,6 +146,8 @@ class ConversationMessage(Base):
             sqlite_where=text("actor = 'assistant' AND status = 'pending'"),
         ),
         Index("ix_messages_workspace_conversation", "workspace_id", "conversation_id", "id"),
+        Index("ix_messages_workspace_created", "workspace_id", "created_at", "id"),
+        Index("ix_messages_workspace_completed", "workspace_id", "completed_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -279,6 +281,7 @@ class ConversationAuditEvent(Base):
         Index(
             "ix_conversation_audit_workspace_conversation", "workspace_id", "conversation_id", "id"
         ),
+        Index("ix_conversation_audit_workspace_created", "workspace_id", "created_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)

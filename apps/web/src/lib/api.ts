@@ -505,6 +505,41 @@ export type Dashboard = {
   usage: UsageSummary;
 };
 
+export type AnalyticsDeliveryOutcomes = {
+  accepted: number;
+  delivered: number;
+  failed_retryable: number;
+  failed_terminal: number;
+};
+
+export type AnalyticsBreakdown = {
+  key: string;
+  label: string;
+  conversations: number;
+  inbound_messages: number;
+  completed_replies: number;
+  delivery: AnalyticsDeliveryOutcomes | null;
+};
+
+export type OperationalAnalytics = {
+  days: 7 | 30;
+  timezone: string;
+  period_started_at: string;
+  period_ends_at: string;
+  channel: "web" | "facebook" | "zalo" | null;
+  agent_public_id: string | null;
+  summary: { conversations: number; inbound_messages: number; completed_replies: number; failed_replies: number };
+  first_response: { average_seconds: number | null; sample_count: number };
+  human_response: { average_seconds: number | null; sample_count: number };
+  resolution: { ai_only_resolved: number; human_handled_resolved: number; unresolved: number; handoffs: number };
+  lead_conversion: { converted_conversations: number; eligible_conversations: number; rate: number | null };
+  activity: Array<{ date: string; conversations: number; inbound_messages: number; completed_replies: number }>;
+  by_channel: AnalyticsBreakdown[];
+  by_agent: AnalyticsBreakdown[];
+  product_interest: Array<{ product_id: number; product_name: string; impressions: number; conversations: number }>;
+  agent_options: Array<{ public_id: string; name: string }>;
+};
+
 export type GroundedProductCard = {
   product_id: number;
   sku: string | null;
@@ -1034,6 +1069,15 @@ export const api = {
     request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/replies`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ text }) }),
   getDashboard: (workspaceId: string, days: 7 | 30) =>
     request<Dashboard>(`/api/v1/workspaces/${workspaceId}/dashboard?days=${days}`),
+  getAnalytics: (
+    workspaceId: string,
+    filters: { days: 7 | 30; channel?: "web" | "facebook" | "zalo"; agentPublicId?: string },
+  ) => {
+    const params = new URLSearchParams({ days: String(filters.days) });
+    if (filters.channel) params.set("channel", filters.channel);
+    if (filters.agentPublicId) params.set("agent_public_id", filters.agentPublicId);
+    return request<OperationalAnalytics>(`/api/v1/workspaces/${workspaceId}/analytics?${params}`);
+  },
   getUsage: (workspaceId: string) =>
     request<UsageSummary>(`/api/v1/workspaces/${workspaceId}/usage`),
   publishWidget: (workspaceId: string, publicAgentId: string) =>

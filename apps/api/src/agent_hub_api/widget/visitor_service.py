@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.agents.runtime import AgentConversationTurn, AgentRuntimeUsage
+from agent_hub_api.analytics.events import record_product_impressions
 from agent_hub_api.channels.models import ChannelAgentBinding, ChannelConnection
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
@@ -688,6 +689,7 @@ class WidgetVisitorService:
         token: str,
         origin: str,
         response: PublicGroundedResponse,
+        product_ids: tuple[int, ...] = (),
         generation_usage: AgentRuntimeUsage | None = None,
         vision_result: VisionResult | None = None,
     ) -> bool:
@@ -736,6 +738,16 @@ class WidgetVisitorService:
             assistant.total_tokens = response.usage.get("total_tokens", 0)
             assistant.completed_at = datetime.now(UTC)
             assistant.generation_deadline = None
+            record_product_impressions(
+                self.session,
+                workspace_id=context.workspace_id,
+                agent_id=context.agent_id,
+                conversation_id=turn.conversation_id,
+                message_id=assistant.id,
+                channel="web",
+                product_ids=product_ids,
+                occurred_at=assistant.completed_at,
+            )
             telemetry = TelemetryService(self.session, self.settings)
             if generation_usage is not None:
                 telemetry.record_generation(

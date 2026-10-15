@@ -26,6 +26,7 @@ FastAPI publishes the executable OpenAPI contract. This document owns stable cro
 | Conversations | role-scoped inbox list/detail, members, read state, workflow, notes, tags and human replies |
 | Leads | owner/admin list/status/export and public consented Website creation |
 | Dashboard/usage | bounded aggregates, observed usage and workspace monthly quota |
+| Analytics | owner/admin 7/30-day operational metrics with channel and agent filters |
 | Widget | published config/session, conversation/messages, SSE replay, image upload/delete, product-image grant and lead creation |
 
 Exact current paths remain defined by generated OpenAPI and existing clients. A documentation refactor must not rename routes.
@@ -148,6 +149,16 @@ merge reversal and bounded CSV export. Every lookup resolves the authenticated w
 membership; members are limited to unassigned/self-assigned contacts and may claim an unassigned
 contact, while export, duplicate suggestions and merge operations require owner/admin. Mutations
 require CSRF and state-changing contact/merge operations use optimistic versions or row locks.
+
+### Operational analytics
+
+`GET /api/v1/workspaces/{workspace_id}/analytics` is owner/admin-only and accepts `days=7|30`, an
+optional `channel=web|facebook|zalo` and an optional workspace-scoped `agent_public_id`. It returns
+the explicit UTC period plus workspace timezone, activity series, channel/agent breakdowns,
+measured response samples, AI/human resolution, consented lead conversion, delivery outcomes and
+top product-card impressions. Unavailable timings, conversion denominators and Website provider
+delivery states remain `null`; the response contains no conversation text, contact PII or raw
+provider details.
 
 ## Contract evolution
 

@@ -25,6 +25,7 @@ from agent_hub_api.agents.runtime import (
 from agent_hub_api.core.config import Settings
 from agent_hub_api.identity.models import User
 from agent_hub_api.identity.security import CSRF_COOKIE
+from agent_hub_api.leads.schemas import CONTACT_CONSENT_VERSION
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base
 from agent_hub_api.telemetry.service import month_bounds
@@ -36,8 +37,9 @@ ABUSE_KEY = "widget-test-abuse-key-with-at-least-32-bytes"
 
 
 class FakeRuntime:
-    def __init__(self) -> None:
+    def __init__(self, product_cards: list[dict[str, object]] | None = None) -> None:
         self.calls = 0
+        self.product_cards = product_cards or []
 
     async def run(
         self,
@@ -65,7 +67,7 @@ class FakeRuntime:
         return GroundedAgentResponse.model_validate(
             {
                 "text": "Phản hồi đã được kiểm chứng.",
-                "product_cards": [],
+                "product_cards": self.product_cards,
                 "sources": [],
                 "usage": {
                     "model_calls": 2,
@@ -196,6 +198,145 @@ def test_month_bounds_follow_the_workspace_timezone() -> None:
     assert ends_at == datetime(2026, 10, 31, 17, tzinfo=UTC)
 
 
+def test_product_impressions_are_persisted_once_for_idempotent_replay(
+    app_factory: AppFactory,
+) -> None:
+    runtime = FakeRuntime()
+    app = app_factory(runtime)
+    with TestClient(app) as owner:
+        shop = publish_agent(owner, "owner-product@example.com", "shop-product")
+        product = owner.post(
+            f"/api/v1/workspaces/{shop['workspace_id']}/products",
+            json={
+                "product_sku": "ANALYTICS-1",
+                "name": "Áo khoác analytics",
+                "currency": "VND",
+                "price": "450000",
+            },
+            headers=csrf_headers(owner),
+        )
+        assert product.status_code == 201, product.text
+        product_id = int(product.json()["id"])
+        runtime.product_cards = [
+            {
+                "product_id": product_id,
+                "sku": "ANALYTICS-1",
+                "name": "Áo khoác analytics",
+                "product_url": None,
+                "currency": "VND",
+                "price": {"kind": "exact", "minimum": "450000.00", "maximum": "450000.00"},
+                "availability": {
+                    "total_locations": 0,
+                    "in_stock_locations": 0,
+                    "out_of_stock_locations": 0,
+                    "unknown_locations": 0,
+                },
+                "options": {},
+                "attributes": {},
+                "variants": [],
+                "images": [],
+            }
+        ]
+        token, conversation_id = visitor(owner, shop["agent_id"])
+        first = send(owner, token, conversation_id, "product-impression")
+        replay = send(owner, token, conversation_id, "product-impression")
+        assert first.status_code == 200, first.text
+        assert replay.status_code == 200, replay.text
+        assert runtime.calls == 1
+
+        analytics = owner.get(f"/api/v1/workspaces/{shop['workspace_id']}/analytics")
+        assert analytics.status_code == 200, analytics.text
+        assert analytics.json()["product_interest"] == [
+            {
+                "product_id": product_id,
+                "product_name": "Áo khoác analytics",
+                "impressions": 1,
+                "conversations": 1,
+            }
+        ]
+
+
+def test_analytics_resolution_handoff_and_consented_conversion(
+    app_factory: AppFactory,
+) -> None:
+    runtime = FakeRuntime()
+    app = app_factory(runtime)
+    with TestClient(app) as owner:
+        shop = publish_agent(owner, "owner-outcome@example.com", "shop-outcome")
+        first_token, first_conversation = visitor(owner, shop["agent_id"])
+        second_token, second_conversation = visitor(owner, shop["agent_id"])
+        assert send(owner, first_token, first_conversation, "outcome-ai").status_code == 200
+        assert send(owner, second_token, second_conversation, "outcome-human").status_code == 200
+
+        first_detail_url = (
+            f"/api/v1/workspaces/{shop['workspace_id']}/conversations/{first_conversation}"
+        )
+        first_detail = owner.get(first_detail_url).json()
+        resolved_by_ai = owner.patch(
+            f"{first_detail_url}/state",
+            json={
+                "state_version": first_detail["conversation"]["state_version"],
+                "workflow_status": "resolved",
+            },
+            headers=csrf_headers(owner),
+        )
+        assert resolved_by_ai.status_code == 204, resolved_by_ai.text
+        lead = owner.post(
+            f"/api/v1/widget/conversations/{first_conversation}/leads",
+            json={
+                "name": "Analytics Lead",
+                "email": "analytics-lead@example.com",
+                "phone": None,
+                "consent_given": True,
+                "consent_text_version": CONTACT_CONSENT_VERSION,
+            },
+            headers={
+                "origin": ORIGIN,
+                "authorization": f"Bearer {first_token}",
+                "idempotency-key": "analytics-lead",
+            },
+        )
+        assert lead.status_code == 201, lead.text
+
+        second_detail_url = (
+            f"/api/v1/workspaces/{shop['workspace_id']}/conversations/{second_conversation}"
+        )
+        second_detail = owner.get(second_detail_url).json()
+        takeover = owner.patch(
+            f"{second_detail_url}/state",
+            json={
+                "state_version": second_detail["conversation"]["state_version"],
+                "workflow_status": "resolved",
+                "handling_mode": "human",
+            },
+            headers=csrf_headers(owner),
+        )
+        assert takeover.status_code == 204, takeover.text
+        reply_headers = csrf_headers(owner) | {"idempotency-key": "analytics-human-reply"}
+        human_reply = owner.post(
+            f"{second_detail_url}/replies",
+            json={"text": "Mình đã tiếp nhận."},
+            headers=reply_headers,
+        )
+        assert human_reply.status_code == 204, human_reply.text
+
+        analytics = owner.get(f"/api/v1/workspaces/{shop['workspace_id']}/analytics")
+        assert analytics.status_code == 200, analytics.text
+        report = analytics.json()
+        assert report["resolution"] == {
+            "ai_only_resolved": 1,
+            "human_handled_resolved": 1,
+            "unresolved": 0,
+            "handoffs": 1,
+        }
+        assert report["human_response"]["sample_count"] == 1
+        assert report["lead_conversion"] == {
+            "converted_conversations": 1,
+            "eligible_conversations": 2,
+            "rate": 0.5,
+        }
+
+
 def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
     app_factory: AppFactory,
 ) -> None:
@@ -245,6 +386,45 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
         assert dashboard.json()["assistant_messages"] == 2
         assert dashboard.json()["active_agents"] == 1
         assert sum(item["conversations"] for item in dashboard.json()["activity"]) == 2
+        analytics = owner_a.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/analytics?days=7")
+        assert analytics.status_code == 200, analytics.text
+        report = analytics.json()
+        assert report["timezone"] == "Asia/Ho_Chi_Minh"
+        assert report["summary"] == {
+            "conversations": 2,
+            "inbound_messages": 2,
+            "completed_replies": 2,
+            "failed_replies": 0,
+        }
+        assert report["first_response"]["sample_count"] == 2
+        assert report["first_response"]["average_seconds"] is not None
+        assert report["human_response"] == {"average_seconds": None, "sample_count": 0}
+        assert report["resolution"] == {
+            "ai_only_resolved": 0,
+            "human_handled_resolved": 0,
+            "unresolved": 2,
+            "handoffs": 0,
+        }
+        assert report["lead_conversion"] == {
+            "converted_conversations": 0,
+            "eligible_conversations": 2,
+            "rate": 0.0,
+        }
+        assert report["by_channel"][0]["key"] == "web"
+        assert report["by_channel"][0]["delivery"] is None
+        assert sum(item["inbound_messages"] for item in report["activity"]) == 2
+
+        filtered = owner_a.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/analytics",
+            params={"channel": "facebook", "agent_public_id": shop_a["agent_id"]},
+        )
+        assert filtered.status_code == 200
+        assert filtered.json()["summary"]["conversations"] == 0
+        wrong_agent = owner_a.get(
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/analytics",
+            params={"agent_public_id": shop_b["agent_id"]},
+        )
+        assert wrong_agent.status_code == 404
 
         token_a3, conversation_a3 = visitor(owner_a, shop_a["agent_id"])
         denied = send(owner_a, token_a3, conversation_a3, "turn-over-quota")
@@ -257,6 +437,9 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
         )
         assert (
             owner_a.get(f"/api/v1/workspaces/{shop_b['workspace_id']}/dashboard").status_code == 404
+        )
+        assert (
+            owner_a.get(f"/api/v1/workspaces/{shop_b['workspace_id']}/analytics").status_code == 404
         )
 
         session_factory = cast(async_sessionmaker[AsyncSession], app.state.session_factory)
@@ -290,9 +473,7 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
             == 200
         )
         asyncio.run(set_owner_b_role("member"))
-        member_list = owner_b.get(
-            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations"
-        )
+        member_list = owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations")
         assert member_list.status_code == 200
         assert conversation_a1 in {item["public_id"] for item in member_list.json()["items"]}
         member_options = owner_b.get(
@@ -302,8 +483,7 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
             item["id"] for item in member_options if item["email"] == "owner-b@example.com"
         )
         member_detail_url = (
-            f"/api/v1/workspaces/{shop_a['workspace_id']}"
-            f"/conversations/{conversation_a1}"
+            f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_a1}"
         )
         member_detail = owner_b.get(member_detail_url).json()
         claim = owner_b.patch(
@@ -327,6 +507,9 @@ def test_conversation_dashboard_usage_and_quota_are_scoped_and_real(
         assert clear_own_assignment.status_code == 403
         assert (
             owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/dashboard").status_code == 403
+        )
+        assert (
+            owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/analytics").status_code == 403
         )
         assert owner_b.get(f"/api/v1/workspaces/{shop_a['workspace_id']}/usage").status_code == 403
 
@@ -396,16 +579,22 @@ def test_website_human_takeover_reply_and_tenant_guards(app_factory: AppFactory)
         conversation_url = (
             f"/api/v1/workspaces/{shop_a['workspace_id']}/conversations/{conversation_id}"
         )
-        assert owner_a.post(
-            f"{conversation_url}/notes",
-            json={"body": "Cần kiểm tra lại kích thước."},
-            headers=csrf_headers(owner_a),
-        ).status_code == 204
-        assert owner_a.post(
-            f"{conversation_url}/tags",
-            json={"name": "Ưu tiên"},
-            headers=csrf_headers(owner_a),
-        ).status_code == 204
+        assert (
+            owner_a.post(
+                f"{conversation_url}/notes",
+                json={"body": "Cần kiểm tra lại kích thước."},
+                headers=csrf_headers(owner_a),
+            ).status_code
+            == 204
+        )
+        assert (
+            owner_a.post(
+                f"{conversation_url}/tags",
+                json={"name": "Ưu tiên"},
+                headers=csrf_headers(owner_a),
+            ).status_code
+            == 204
+        )
         enriched = owner_a.get(conversation_url).json()
         assert enriched["notes"][0]["body"] == "Cần kiểm tra lại kích thước."
         tag_id = enriched["conversation"]["tags"][0]["id"]

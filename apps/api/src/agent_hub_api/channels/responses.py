@@ -19,6 +19,7 @@ from agent_hub_api.agents.runtime import (
     AgentRuntimeUsage,
     GroundedAgentResponse,
 )
+from agent_hub_api.analytics.events import product_ids_from_response, record_product_impressions
 from agent_hub_api.channels.contracts import (
     ChannelCapabilities,
     ChannelProvider,
@@ -378,6 +379,16 @@ class ChannelResponseService:
                         next_attempt_at=completed_at,
                     ),
                 )
+            )
+            record_product_impressions(
+                self.session,
+                workspace_id=claim.workspace_id,
+                agent_id=claim.agent_id,
+                conversation_id=claim.conversation_id,
+                message_id=assistant.id,
+                channel=claim.provider,
+                product_ids=product_ids_from_response(response_json),
+                occurred_at=completed_at,
             )
             conversation.last_message_at = completed_at
             job.outbound_message_id = assistant.id

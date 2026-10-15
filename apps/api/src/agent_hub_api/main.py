@@ -14,6 +14,7 @@ from agent_hub_api.agents.playground import AgentRuntimeFactory
 from agent_hub_api.agents.playground import router as playground_router
 from agent_hub_api.agents.router import router as agents_router
 from agent_hub_api.agents.runtime import AgentRuntimeBudget, AgentRuntimeService
+from agent_hub_api.analytics.router import router as analytics_router
 from agent_hub_api.catalog.router import router as catalog_router
 from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
@@ -318,6 +319,7 @@ def create_app(
     application.include_router(conversations_router)
     application.include_router(contacts_router)
     application.include_router(telemetry_router)
+    application.include_router(analytics_router)
     application.include_router(catalog_router)
     application.include_router(catalog_scope_router)
     application.include_router(knowledge_router)

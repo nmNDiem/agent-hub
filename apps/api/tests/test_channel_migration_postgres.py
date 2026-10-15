@@ -540,3 +540,52 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
         asyncio.run(seed_and_verify())
     finally:
         _reset_schema(database_url, create=False)
+
+
+def test_operational_analytics_migration_upgrades_and_downgrades() -> None:
+    database_url = _database_url()
+    _reset_schema(database_url, create=True)
+    try:
+        _migrate("20261014_0019")
+        _migrate("20261015_0020")
+
+        async def verify() -> None:
+            engine = create_async_engine(
+                database_url,
+                connect_args={"server_settings": {"search_path": TEST_SCHEMA}},
+            )
+            try:
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('analytics_events')"))
+                        == "analytics_events"
+                    )
+                    assert (
+                        await connection.scalar(
+                            text("SELECT to_regclass('ix_analytics_events_workspace_time')")
+                        )
+                        == "ix_analytics_events_workspace_time"
+                    )
+            finally:
+                await engine.dispose()
+
+        asyncio.run(verify())
+        _migrate("20261014_0019", downgrade=True)
+
+        async def verify_downgrade() -> None:
+            engine = create_async_engine(
+                database_url,
+                connect_args={"server_settings": {"search_path": TEST_SCHEMA}},
+            )
+            try:
+                async with engine.connect() as connection:
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('analytics_events')"))
+                        is None
+                    )
+            finally:
+                await engine.dispose()
+
+        asyncio.run(verify_downgrade())
+    finally:
+        _reset_schema(database_url, create=False)

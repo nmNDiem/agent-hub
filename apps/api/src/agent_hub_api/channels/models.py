@@ -269,6 +269,7 @@ class OutboundDelivery(Base):
             "provider_message_id",
         ),
         Index("ix_deliveries_workspace_connection", "workspace_id", "connection_id", "id"),
+        Index("ix_deliveries_workspace_created", "workspace_id", "created_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)

@@ -75,6 +75,12 @@ submissions distinct, verify exact-match suggestions, negative cross-workspace a
 member claim scope, logical merge and reversal, formula-safe export and contact PII expiry. Channel
 tests verify a retried social thread reuses its connection-scoped contact identity.
 
+The M1.6 gate continues through `20261015_0020`, verifies analytics event/reporting indexes and
+downgrade removal. API tests cover workspace-timezone periods, channel/agent filters, response
+sample availability, AI/human resolution, handoff, consented conversion, product-impression
+idempotency, role denial and cross-workspace isolation. Frontend tests cover populated, empty,
+error and forbidden states plus filter reloads and accessible table alternatives.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

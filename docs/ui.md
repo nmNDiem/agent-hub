@@ -12,6 +12,11 @@ Primary areas are Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channel
 
 The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The implemented unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, per-operator unread, status, notes, tags and delivery state.
 
+Analytics is a separate owner/admin workspace screen rather than an overloaded Overview. It uses
+7/30-day and channel/agent filters, persisted KPI cards, a daily activity chart with an accessible
+table, channel/agent tables, AI/human outcomes, lead conversion and product-card impressions.
+Unavailable samples use explicit text and Website provider delivery remains not applicable.
+
 The inbox uses a thread/filter list, transcript/composer and operational metadata panel. On narrow
 screens the selected detail replaces the list and exposes a back action. Human reply remains
 disabled until takeover succeeds; resume is explicit and does not process historical backlog.

@@ -29,7 +29,7 @@ The product is not merely a website chatbot. The complete system combines AI aut
 
 These are parts of one product. The roadmap controls delivery order; it does not turn later capabilities into optional add-ons.
 
-## Completed foundation
+## Completed foundation and omnichannel operations
 
 F0-F5 provide a working local fashion-shop vertical:
 
@@ -42,6 +42,9 @@ F0-F5 provide a working local fashion-shop vertical:
 - basic dashboard usage, shared generation quota, retention and redacted operations.
 
 This foundation proves the core data and AI boundaries. It is not the final depth of the operational product.
+
+M1 adds shared Website/Facebook/Zalo channel operations, durable delivery, a unified human inbox,
+consent-aware contact timelines and workspace-scoped operational analytics from persisted facts.
 
 ## Product outcomes
 

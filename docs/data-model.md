@@ -125,7 +125,9 @@ vocabulary to the shared `workspace_tags` table.
 
 - `workspace_usage_months`: workspace-local month and transactional generated-turn reservations.
 - `usage_events`: workspace/agent/conversation/channel, generation or vision kind, provider/model, observed calls/tokens/tools and status; no prompt/chat/image content.
-- `analytics_events`: allowlisted product/channel/workflow events with minimal tenant-scoped dimensions and no unnecessary PII.
+- `analytics_events`: idempotent product-card impressions with tenant-safe agent, conversation,
+  message, product and channel scope. Rows contain no message content, contact PII or provider
+  payload; the current allowlist contains only `product_impression`.
 - `audit_logs`: actor, action, resource type/ID, redacted metadata and time.
 
 Analytics aggregates derive from these facts or bounded source queries; they do not persist invented cost or duplicate raw content.

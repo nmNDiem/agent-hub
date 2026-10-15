@@ -1,6 +1,8 @@
 # AgentHub documentation
 
-AgentHub is a multi-tenant, omnichannel AI-agent platform. F0-F5 are complete. The current delivery is M1 Omnichannel Operations: shared channel infrastructure, Facebook Messenger, Zalo, unified inbox, contacts and operational analytics.
+AgentHub is a multi-tenant, omnichannel AI-agent platform. F0-F5 and M1 Omnichannel Operations
+are complete, including shared channels, Facebook Messenger, Zalo, unified inbox, contacts and
+persisted operational analytics. M2 remains the next roadmap delivery.
 
 ## Canonical documents
 
