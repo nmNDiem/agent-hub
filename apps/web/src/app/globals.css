@@ -861,6 +861,39 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 .conversation-metadata select, .conversation-metadata input, .conversation-metadata textarea { width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; }
 .conversation-metadata textarea { min-height: 72px; resize: vertical; }
 .conversation-metadata h2:not(:first-child) { margin-top: 18px; }
+.contacts-heading { align-items: flex-end; }
+.contact-search { display: grid; grid-template-columns: minmax(0, 1fr) 38px; gap: 6px; }
+.contact-search input { min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); }
+.contact-search button { display: grid; place-items: center; border: 0; border-radius: 8px; color: white; background: var(--primary); }
+.contact-main { overflow-y: auto; background: color-mix(in srgb, var(--background) 62%, white); }
+.contact-profile-section { padding: 18px; }
+.contact-profile-section + .contact-profile-section { border-top: 1px solid var(--border); }
+.contact-profile-section h2 { margin: 0 0 13px; font-size: 14px; }
+.identity-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.identity-list article { min-width: 0; display: grid; gap: 4px; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.identity-list strong { color: var(--primary); font-size: 10px; }
+.identity-list span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.identity-list small { color: var(--muted-foreground); font-size: 9px; }
+.contact-timeline ol { margin: 0; padding: 0; list-style: none; }
+.contact-timeline li { position: relative; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 9px; padding: 0 0 18px; }
+.contact-timeline li:not(:last-child)::before { position: absolute; top: 14px; bottom: 0; left: 5px; width: 1px; content: ""; background: var(--border); }
+.timeline-dot { z-index: 1; width: 11px; height: 11px; margin-top: 3px; border: 2px solid var(--card); border-radius: 50%; background: var(--muted-foreground); box-shadow: 0 0 0 1px var(--border); }
+.timeline-dot.conversation { background: var(--primary); }
+.timeline-dot.lead { background: #d69400; }
+.timeline-dot.merge { background: #7c4dff; }
+.contact-timeline li > div { min-width: 0; display: grid; justify-items: start; gap: 4px; }
+.contact-timeline li strong { font-size: 12px; }
+.contact-timeline li small, .contact-timeline li > time { color: var(--muted-foreground); font-size: 9px; }
+.contact-timeline li a { display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-size: 10px; font-weight: 700; text-decoration: none; }
+.contact-timeline select { min-height: 30px; padding: 0 26px 0 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); font-size: 10px; }
+.contact-merge-notice { display: flex; align-items: center; gap: 7px; padding: 11px 18px; color: #5732b7; background: #f0ebff; font-size: 11px; }
+.contact-merge-notice a { color: inherit; font-weight: 800; }
+.merge-form button, .merge-history button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.merge-history { display: grid; gap: 8px; }
+.merge-history article { display: grid; gap: 5px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; }
+.merge-history span { font-size: 10px; }
+.merge-history time { color: var(--muted-foreground); font-size: 9px; }
+.merge-history button { min-height: 32px; border: 1px solid var(--border); border-radius: 7px; color: var(--foreground); background: var(--card); }
 .inbox-composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--card); }
 .inbox-composer textarea { min-height: 46px; flex: 1; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 9px; font: inherit; }
 .inbox-composer button { align-self: flex-end; }
@@ -883,6 +916,9 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.02em; }
 }
 
 @media (max-width: 767px) {
+  .contacts-heading { align-items: stretch; }
+  .contacts-heading .secondary-button { width: 100%; margin-top: 12px; }
+  .identity-list { grid-template-columns: 1fr; }
   .overview-heading { align-items: stretch; }
   .period-switch { margin-top: 14px; }
   .period-switch button { flex: 1; }

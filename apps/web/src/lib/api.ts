@@ -356,6 +356,7 @@ export type Lead = {
 
 export type ConversationSummary = {
   public_id: string;
+  contact_public_id: string | null;
   channel: "web" | "facebook" | "zalo";
   agent_public_id: string;
   agent_name: string;
@@ -370,6 +371,56 @@ export type ConversationSummary = {
   assigned_member_email: string | null;
   unread_count: number;
   tags: Array<{ id: number; name: string }>;
+};
+
+export type ContactSummary = {
+  public_id: string;
+  display_name: string | null;
+  lifecycle_state: "active" | "expired" | "merged";
+  state_version: number;
+  assigned_member_id: number | null;
+  assigned_member_email: string | null;
+  channels: Array<"website" | "facebook" | "zalo">;
+  tags: Array<{ id: number; name: string }>;
+  retention_until: string;
+  updated_at: string;
+};
+
+export type ContactDetail = {
+  contact: ContactSummary;
+  canonical_public_id: string | null;
+  identities: Array<{
+    id: number;
+    provider: "website" | "facebook" | "zalo";
+    identity_type: "email" | "phone" | "channel";
+    value: string | null;
+    verification_state: "consented" | "provider_asserted";
+    consent_at: string | null;
+    consent_text_version: string | null;
+    retention_until: string;
+  }>;
+  notes: Array<{ id: number; author_member_id: number; author_email: string; body: string; created_at: string }>;
+  timeline: Array<{
+    key: string;
+    kind: "conversation" | "lead" | "note" | "state" | "merge";
+    occurred_at: string;
+    title: string;
+    detail: string | null;
+    conversation_public_id: string | null;
+    lead_id: number | null;
+  }>;
+  duplicate_candidates: Array<{
+    public_id: string;
+    display_name: string | null;
+    matching_identity_types: Array<"email" | "phone">;
+  }>;
+  active_merges: Array<{
+    id: number;
+    source_public_id: string;
+    target_public_id: string;
+    reason: string;
+    created_at: string;
+  }>;
 };
 
 export type InboxMember = {
@@ -908,6 +959,43 @@ export const api = {
     const response = await authenticatedFetch(
       `/api/v1/workspaces/${workspaceId}/leads/export.csv${suffix}`,
     );
+    return response.blob();
+  },
+  listContacts: (
+    workspaceId: string,
+    filters: { cursor?: string; limit?: number; query?: string; assignedMemberId?: number; tagId?: number } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.cursor) params.set("cursor", filters.cursor);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    if (filters.query) params.set("query", filters.query);
+    if (filters.assignedMemberId) params.set("assigned_member_id", String(filters.assignedMemberId));
+    if (filters.tagId) params.set("tag_id", String(filters.tagId));
+    const suffix = params.size ? `?${params}` : "";
+    return request<{ items: ContactSummary[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/contacts${suffix}`,
+    );
+  },
+  getContact: (workspaceId: string, contactPublicId: string) =>
+    request<ContactDetail>(`/api/v1/workspaces/${workspaceId}/contacts/${contactPublicId}`),
+  updateContact: (
+    workspaceId: string,
+    contactPublicId: string,
+    payload: { state_version: number; display_name?: string | null; update_display_name?: boolean; assigned_member_id?: number; clear_assignment?: boolean },
+  ) => request<void>(`/api/v1/workspaces/${workspaceId}/contacts/${contactPublicId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
+  addContactNote: (workspaceId: string, contactPublicId: string, body: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/contacts/${contactPublicId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  addContactTag: (workspaceId: string, contactPublicId: string, name: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/contacts/${contactPublicId}/tags`, { method: "POST", body: JSON.stringify({ name }) }),
+  mergeContacts: (workspaceId: string, targetPublicId: string, payload: { source_public_id: string; source_state_version: number; target_state_version: number; reason: string }) =>
+    request<{ merge_id: number }>(`/api/v1/workspaces/${workspaceId}/contacts/${targetPublicId}/merges`, { method: "POST", body: JSON.stringify(payload) }),
+  reverseContactMerge: (workspaceId: string, targetPublicId: string, mergeId: number) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/contacts/${targetPublicId}/merges/${mergeId}/reverse`, { method: "POST" }),
+  exportContacts: async (workspaceId: string) => {
+    const response = await authenticatedFetch(`/api/v1/workspaces/${workspaceId}/contacts/export.csv`);
     return response.blob();
   },
   listConversations: (

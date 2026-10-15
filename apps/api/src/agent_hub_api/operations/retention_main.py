@@ -29,12 +29,13 @@ async def main() -> None:
         ).run_once()
         logger.info(
             "retention_sweep_completed sessions_revoked=%s conversations_revoked=%s "
-            "leads_deleted=%s grants_deleted=%s rate_windows_deleted=%s "
+            "leads_deleted=%s contacts_expired=%s grants_deleted=%s rate_windows_deleted=%s "
             "images_deleted=%s image_cleanup_failed=%s conversations_deleted=%s "
             "sessions_deleted=%s",
             result.sessions_revoked,
             result.conversations_revoked,
             result.leads_deleted,
+            result.contacts_expired,
             result.grants_deleted,
             result.rate_windows_deleted,
             result.images_deleted,

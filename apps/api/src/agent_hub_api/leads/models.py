@@ -33,10 +33,13 @@ class Lead(Base):
             ["agents.workspace_id", "agents.id"],
             name="fk_leads_workspace_agent",
         ),
-        UniqueConstraint("conversation_id", name="uq_leads_conversation"),
-        UniqueConstraint(
-            "session_id", "idempotency_key", name="uq_leads_session_idempotency"
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["contacts.workspace_id", "contacts.id"],
+            name="fk_leads_workspace_contact",
         ),
+        UniqueConstraint("conversation_id", name="uq_leads_conversation"),
+        UniqueConstraint("session_id", "idempotency_key", name="uq_leads_session_idempotency"),
         CheckConstraint(
             "normalized_email IS NOT NULL OR phone IS NOT NULL",
             name="ck_leads_contact_present",
@@ -54,6 +57,7 @@ class Lead(Base):
             "id",
         ),
         Index("ix_leads_retention", "retention_until", "id"),
+        Index("ix_leads_workspace_contact", "workspace_id", "contact_id", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -61,6 +65,7 @@ class Lead(Base):
     conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     session_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    contact_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     normalized_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)

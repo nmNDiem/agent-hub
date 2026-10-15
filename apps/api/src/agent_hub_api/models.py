@@ -37,6 +37,14 @@ from agent_hub_api.channels.models import (
     ChannelWebhookEvent,
     OutboundDelivery,
 )
+from agent_hub_api.contacts.models import (
+    Contact,
+    ContactAuditEvent,
+    ContactIdentity,
+    ContactMergeEvent,
+    ContactNote,
+    ContactTagLink,
+)
 from agent_hub_api.conversations.models import (
     Conversation,
     ConversationAuditEvent,
@@ -133,6 +141,12 @@ __all__ = [
     "ConversationReadState",
     "ConversationTag",
     "ConversationTagLink",
+    "Contact",
+    "ContactAuditEvent",
+    "ContactIdentity",
+    "ContactMergeEvent",
+    "ContactNote",
+    "ContactTagLink",
     "VisitorImageUpload",
     "WidgetCatalogImageGrant",
     "WidgetRateWindow",

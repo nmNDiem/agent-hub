@@ -113,10 +113,13 @@ explicit retention deadline; they do not inherit the local Website 24-hour defau
 - `contacts`: workspace-owned profile with consent-aware display data, lifecycle and retention classification.
 - `contact_identities`: contact plus namespaced identity type/provider/value hash or external ID, verification/consent evidence and uniqueness policy.
 - `leads`: immutable originating workspace/conversation/session/agent/contact scope, optional validated email/phone/name, consent version/time, idempotency evidence, status and retention.
-- `contact_notes`, `contact_tags`, `contact_assignments`: permissioned operational metadata.
-- `contact_merge_events`: auditable reversible identity-link decisions; never merge by display name alone.
+- `contact_notes`, `contact_tag_links` and `contacts.assigned_member_id`: permissioned operational metadata using the shared `workspace_tags` vocabulary.
+- `contact_audit_events`, `contact_merge_events`: content-minimized audit history and auditable reversible identity-link decisions; never merge by display name alone.
+- `conversations.contact_id`: the contact attached to a normalized thread. Every lead also has a required contact link.
 
-The current Website lead tables are the implemented starting point. M1 migrations must evolve them without creating a competing customer table or losing consent provenance.
+The contact migration backfills Website leads without changing their public IDs or consent
+provenance, creates distinct contacts for existing social threads and renames the inbox-only tag
+vocabulary to the shared `workspace_tags` table.
 
 ## Usage and analytics
 
@@ -129,4 +132,8 @@ Analytics aggregates derive from these facts or bounded source queries; they do 
 
 ## Retention relationships
 
-The local sweeper revokes expired Website sessions/conversations, removes transcript/lead PII, expires image grants/rate windows, retries private-image deletion and purges dependency-free tombstones. Usage facts remain content-free and may outlive a nullable conversation link. M1 must define retention for social provider IDs, messages, media and contacts before implementing their migrations.
+The local sweeper revokes expired Website sessions/conversations, removes transcript/lead PII,
+expires contact PII and identities at their inherited source deadline, expires image grants/rate
+windows, retries private-image deletion and purges dependency-free tombstones. Merge reasons are
+redacted when a related contact expires. Content-free usage and audit facts may outlive nullable
+conversation/contact data.

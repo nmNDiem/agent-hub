@@ -69,6 +69,12 @@ role-scoped visibility, cross-workspace denial, optimistic updates, model suppre
 takeover, idempotent Website human replies and scoped transcript synchronization. Existing fake
 Facebook/Zalo delivery tests cover the shared queue; no provider is called live.
 
+The M1.5 gate continues through `20261014_0019`, verifies Website lead and social-thread contact
+backfills, the shared tag-table rename and downgrade restoration. API tests keep same-email lead
+submissions distinct, verify exact-match suggestions, negative cross-workspace access, CSRF,
+member claim scope, logical merge and reversal, formula-safe export and contact PII expiry. Channel
+tests verify a retried social thread reuses its connection-scoped contact identity.
+
 ## Execution rules
 
 - Inspect repository scripts before running commands; do not invent them.

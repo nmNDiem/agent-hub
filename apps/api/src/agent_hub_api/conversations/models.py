@@ -54,6 +54,11 @@ class Conversation(Base):
             ["workspace_members.workspace_id", "workspace_members.id"],
             name="fk_conversations_workspace_assignee",
         ),
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["contacts.workspace_id", "contacts.id"],
+            name="fk_conversations_workspace_contact",
+        ),
         UniqueConstraint("workspace_id", "id", name="uq_conversations_workspace_id"),
         UniqueConstraint("session_id", name="uq_conversations_session"),
         CheckConstraint(
@@ -92,6 +97,7 @@ class Conversation(Base):
             "last_message_at",
             "id",
         ),
+        Index("ix_conversations_workspace_contact", "workspace_id", "contact_id", "id"),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -105,6 +111,7 @@ class Conversation(Base):
     workflow_status: Mapped[str] = mapped_column(String(16), default="open")
     handling_mode: Mapped[str] = mapped_column(String(16), default="ai")
     assigned_member_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    contact_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
     state_version: Mapped[int] = mapped_column(Integer(), default=1)
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -216,7 +223,7 @@ class ConversationNote(Base):
 
 
 class ConversationTag(Base):
-    __tablename__ = "conversation_tags"
+    __tablename__ = "workspace_tags"
     __table_args__ = (
         UniqueConstraint("workspace_id", "normalized_name", name="uq_conversation_tags_name"),
         UniqueConstraint("workspace_id", "id", name="uq_conversation_tags_workspace_id"),
@@ -240,7 +247,7 @@ class ConversationTagLink(Base):
         ),
         ForeignKeyConstraint(
             ["workspace_id", "tag_id"],
-            ["conversation_tags.workspace_id", "conversation_tags.id"],
+            ["workspace_tags.workspace_id", "workspace_tags.id"],
             name="fk_conversation_tag_links_workspace_tag",
         ),
         UniqueConstraint("conversation_id", "tag_id", name="uq_conversation_tag_links_pair"),

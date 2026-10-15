@@ -140,7 +140,14 @@ M1.4 authenticated APIs provide stable-cursor conversation lists/details, curren
 members, per-member read state, assignment, handling mode, workflow status, notes/tags and
 idempotent human replies. Each write uses CSRF, role checks, optimistic state conflict protection
 and workspace-safe IDs. Delivery responses expose safe queue/error metadata; ambiguous outcomes
-are not replayed automatically. Contact timeline operations arrive in M1.5.
+are not replayed automatically.
+
+Authenticated contact APIs under `/api/v1/workspaces/{workspace_id}/contacts` provide a
+stable-cursor list, detail timeline, state/assignment updates, notes, shared tags, logical merges,
+merge reversal and bounded CSV export. Every lookup resolves the authenticated workspace
+membership; members are limited to unassigned/self-assigned contacts and may claim an unassigned
+contact, while export, duplicate suggestions and merge operations require owner/admin. Mutations
+require CSRF and state-changing contact/merge operations use optimistic versions or row locks.
 
 ## Contract evolution
 

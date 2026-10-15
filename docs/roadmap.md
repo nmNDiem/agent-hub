@@ -62,6 +62,8 @@ Status: **Complete**
 
 ### M1.5 Customer and lead timeline
 
+Status: **Complete**
+
 - Consent-aware contact profiles and channel identities.
 - Conversation/lead timeline, notes, tags and assignee.
 - Safe identity linking/merging with audit and reversal rules.

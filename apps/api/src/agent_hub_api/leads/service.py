@@ -13,9 +13,11 @@ from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agent_hub_api.contacts.models import Contact, ContactIdentity
 from agent_hub_api.conversations.models import Conversation
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
+from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.identity.models import User
 from agent_hub_api.leads.models import Lead
 from agent_hub_api.leads.repository import LeadRepository, LeadRow
@@ -169,28 +171,64 @@ class LeadService:
                     "Yêu cầu liên hệ đã được ghi nhận cho cuộc trò chuyện này.",
                 )
             now = datetime.now(UTC)
+            retention_until = now + timedelta(days=self.settings.lead_retention_days)
+            contact = Contact(
+                public_id=new_uuid_v7(),
+                workspace_id=context.workspace_id,
+                display_name=payload.name,
+                retention_until=retention_until,
+            )
+            self.session.add(contact)
+            await self.session.flush()
+            conversation.contact_id = contact.id
+            normalized_email = str(payload.email).casefold() if payload.email is not None else None
+            if normalized_email is not None:
+                self.session.add(
+                    ContactIdentity(
+                        workspace_id=context.workspace_id,
+                        contact_id=contact.id,
+                        provider="website",
+                        identity_type="email",
+                        normalized_value=normalized_email,
+                        verification_state="consented",
+                        consent_at=now,
+                        consent_text_version=payload.consent_text_version,
+                        retention_until=retention_until,
+                    )
+                )
+            if payload.phone is not None:
+                self.session.add(
+                    ContactIdentity(
+                        workspace_id=context.workspace_id,
+                        contact_id=contact.id,
+                        provider="website",
+                        identity_type="phone",
+                        normalized_value=payload.phone,
+                        verification_state="consented",
+                        consent_at=now,
+                        consent_text_version=payload.consent_text_version,
+                        retention_until=retention_until,
+                    )
+                )
             lead = Lead(
                 workspace_id=context.workspace_id,
                 conversation_id=conversation.id,
                 session_id=context.session_id,
                 agent_id=context.agent_id,
+                contact_id=contact.id,
                 name=payload.name,
-                normalized_email=(
-                    str(payload.email).casefold() if payload.email is not None else None
-                ),
+                normalized_email=normalized_email,
                 phone=payload.phone,
                 consent_at=now,
                 consent_text_version=payload.consent_text_version,
                 idempotency_key=idempotency_key,
                 request_hash=digest,
                 followup_status="new",
-                retention_until=now + timedelta(days=self.settings.lead_retention_days),
+                retention_until=retention_until,
             )
             self.session.add(lead)
             await self.session.flush()
-        return LeadCaptureResponse(
-            followup_status="new", retention_until=lead.retention_until
-        )
+        return LeadCaptureResponse(followup_status="new", retention_until=lead.retention_until)
 
     async def _authorize_admin(self, user: User, workspace_id: UUID) -> None:
         _, role = await WorkspaceService(self.session).get_for_user(user.id, workspace_id)
@@ -241,6 +279,9 @@ class LeadService:
                 raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy lead.")
             lead.followup_status = followup_status
             lead.updated_at = datetime.now(UTC)
+            contact = await self.session.get(Contact, lead.contact_id, with_for_update=True)
+            if contact is not None and contact.workspace_id == workspace_id:
+                contact.updated_at = lead.updated_at
         row = await self.repository.detail(workspace_id, lead.id)
         if row is None:
             raise RuntimeError("Updated lead could not be reloaded")

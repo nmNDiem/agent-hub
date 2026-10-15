@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from agent_hub_api.contacts.models import Contact, ContactIdentity
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.leads.models import Lead
@@ -74,7 +75,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
     expired_workspace_id = uuid4()
     live_workspace_id = uuid4()
 
-    async def seed() -> tuple[int, int, int, int, int, int, int]:
+    async def seed() -> tuple[int, int, int, int, int, int, int, int]:
         async with factory() as session, session.begin():
             session.add_all(
                 [
@@ -89,6 +90,27 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                         display_name="Live shop",
                     ),
                 ]
+            )
+            expired_contact = Contact(
+                public_id=uuid4(),
+                workspace_id=expired_workspace_id,
+                display_name="Private visitor",
+                retention_until=expired,
+            )
+            session.add(expired_contact)
+            await session.flush()
+            session.add(
+                ContactIdentity(
+                    workspace_id=expired_workspace_id,
+                    contact_id=expired_contact.id,
+                    provider="website",
+                    identity_type="email",
+                    normalized_value="private@example.com",
+                    verification_state="consented",
+                    consent_at=expired - timedelta(days=30),
+                    consent_text_version="test-v1",
+                    retention_until=expired,
+                )
             )
             expired_session = WidgetSession(
                 workspace_id=expired_workspace_id,
@@ -116,6 +138,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 agent_id=1,
                 revision_id=1,
                 channel_connection_id=1,
+                contact_id=expired_contact.id,
                 session_id=expired_session.id,
                 lifecycle_state="active",
                 retention_until=expired,
@@ -157,6 +180,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 conversation_id=expired_conversation.id,
                 session_id=expired_session.id,
                 agent_id=1,
+                contact_id=expired_contact.id,
                 name="Private visitor",
                 normalized_email="private@example.com",
                 phone=None,
@@ -245,6 +269,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 image.id,
                 live_image.id,
                 usage.id,
+                expired_contact.id,
             )
 
     ids = asyncio.run(seed())
@@ -258,6 +283,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
     assert first.sessions_revoked == 1
     assert first.conversations_revoked == 1
     assert first.leads_deleted == 1
+    assert first.contacts_expired == 1
     assert first.grants_deleted == 1
     assert first.rate_windows_deleted == 1
     assert first.images_deleted == 0
@@ -289,12 +315,19 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
             assert live_image.analysis_json == {"safe": "still live"}
             assert not list(
                 await session.scalars(
-                    select(ConversationMessage).where(
-                        ConversationMessage.conversation_id == ids[2]
-                    )
+                    select(ConversationMessage).where(ConversationMessage.conversation_id == ids[2])
                 )
             )
             assert await session.scalar(select(Lead.id)) is None
+            expired_contact = await session.get(Contact, ids[7])
+            assert expired_contact is not None
+            assert expired_contact.lifecycle_state == "expired"
+            assert expired_contact.display_name is None
+            assert not list(
+                await session.scalars(
+                    select(ContactIdentity).where(ContactIdentity.contact_id == ids[7])
+                )
+            )
 
     asyncio.run(assert_retryable_state())
 
@@ -331,9 +364,7 @@ def test_sweeper_respects_batch_size(
 
     async def seed() -> None:
         async with factory() as session, session.begin():
-            session.add(
-                Workspace(id=workspace_id, slug="batch-shop", display_name="Batch shop")
-            )
+            session.add(Workspace(id=workspace_id, slug="batch-shop", display_name="Batch shop"))
             session.add_all(
                 [
                     WidgetRateWindow(

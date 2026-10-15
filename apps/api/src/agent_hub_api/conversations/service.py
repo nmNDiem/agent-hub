@@ -105,11 +105,22 @@ def _period_bounds(timezone_name: str, days: int) -> tuple[datetime, datetime, l
 def _summary(
     row: ConversationRow, tags: list[ConversationTag] | None = None
 ) -> ConversationSummary:
-    conversation, agent_public_id, agent_name, message_count, preview, provider, email, unread = row
+    (
+        conversation,
+        agent_public_id,
+        agent_name,
+        message_count,
+        preview,
+        provider,
+        email,
+        unread,
+        contact_public_id,
+    ) = row
     if conversation.last_message_at is None:
         raise RuntimeError("Listed conversation must have activity")
     return ConversationSummary(
         public_id=conversation.public_id,
+        contact_public_id=contact_public_id,
         channel=cast(Literal["web", "facebook", "zalo"], provider),
         agent_public_id=agent_public_id,
         agent_name=agent_name,

@@ -34,8 +34,10 @@ Conversations are normalized customer threads across Website, Facebook and Zalo.
 
 ## Complete domain capability
 
-The M1.4 operational inbox capabilities above are implemented. Contact identity/timeline behavior
-remains in M1.5 and analytics derived from these persisted facts remains in M1.6.
+The M1.4 operational inbox capabilities above are implemented. Every Website lead and verified
+social thread now links to a workspace-scoped contact, and authenticated inbox summaries expose
+the safe contact public ID for contact-timeline navigation. Analytics derived from these persisted
+facts remains in M1.6.
 
 ## Invariants
 

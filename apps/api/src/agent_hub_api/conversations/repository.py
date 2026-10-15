@@ -7,6 +7,7 @@ from sqlalchemy.sql import Select
 
 from agent_hub_api.agents.models import Agent
 from agent_hub_api.channels.models import ChannelConnection
+from agent_hub_api.contacts.models import Contact
 from agent_hub_api.conversations.models import (
     Conversation,
     ConversationMessage,
@@ -19,7 +20,7 @@ from agent_hub_api.identity.models import User
 from agent_hub_api.widget.models import VisitorImageUpload
 from agent_hub_api.workspaces.models import WorkspaceMember
 
-ConversationRow = tuple[Conversation, UUID, str, int, str | None, str, str | None, int]
+ConversationRow = tuple[Conversation, UUID, str, int, str | None, str, str | None, int, UUID | None]
 
 
 class ConversationRepository:
@@ -73,6 +74,15 @@ class ConversationRepository:
             .correlate(Conversation)
             .scalar_subquery()
         )
+        contact_public_id = (
+            select(Contact.public_id)
+            .where(
+                Contact.workspace_id == Conversation.workspace_id,
+                Contact.id == Conversation.contact_id,
+            )
+            .correlate(Conversation)
+            .scalar_subquery()
+        )
         return (
             select(
                 Conversation,
@@ -83,6 +93,7 @@ class ConversationRepository:
                 ChannelConnection.provider,
                 assigned_email,
                 unread_count,
+                contact_public_id,
             )
             .join(
                 Agent,

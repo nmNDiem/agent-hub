@@ -6,18 +6,24 @@ Contacts represent consented customer identity and relationship history across c
 
 ## Current capability
 
-- Optional Website callback form with versioned explicit consent.
-- Validated email or phone, server-derived workspace/session/conversation scope and idempotent creation.
-- Owner/admin lead list, `new | contacted | closed` state and formula-safe CSV export.
-- Anonymous Website visitors remain usable without providing identity.
-
-## Complete domain capability
-
-- Workspace-scoped contact profile and interaction timeline.
-- Multiple namespaced channel identities linked to a contact.
-- Leads, notes, tags, assignee and follow-up state.
-- Safe contact search, duplicate review and reversible merge/link operations.
-- Consent purpose/version evidence, export and erasure workflow.
+- Website callback consent creates a distinct contact with normalized email/phone identity,
+  consent version/time and server-derived lead/conversation ownership. Anonymous visitors remain
+  usable without providing identity.
+- First verified Facebook or Zalo inbound activity creates a distinct provider-asserted identity
+  namespaced by workspace connection; display names and unverified provider data never join contacts.
+- The workspace contact list supports stable cursor pagination, display-name/email/phone search,
+  shared tags and assignment filters. Owner/admin can operate all contacts; members can see
+  unassigned or self-assigned contacts and claim an unassigned contact.
+- Contact detail aggregates identities, conversations, leads, notes, state history and merge
+  history. A lead keeps its independent `new | contacted | closed` follow-up state.
+- Exact normalized email/phone matches are suggestions only. Owner/admin must supply a reason to
+  perform a version-checked logical merge; source data remains in place and the merge is auditable
+  and reversible. Merge chains and cycles are rejected.
+- Owner/admin can download a bounded, formula-safe CSV that excludes channel external IDs, raw
+  provider data and internal audit details.
+- Contact and identity deadlines inherit their source conversation/lead retention. Expiry removes
+  identities, notes, tags, assignment, display name and merge reasons while retaining content-free
+  audit facts.
 
 ## Invariants
 

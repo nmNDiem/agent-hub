@@ -77,6 +77,9 @@ paid message classes are not supported.
 - Adapters translate provider payloads; they do not implement independent agent reasoning.
 - The conversation service owns normalized messages and workflow state.
 - Contacts own consented identity relationships; channel external IDs stay namespaced by provider and connection.
+- First verified social inbound activity transactionally creates a distinct contact and
+  provider-asserted channel identity. The connection-scoped identity uniqueness rule deduplicates
+  provider retries without linking identities across connections or workspaces.
 - The agent response remains channel-neutral text plus structured evidence. Each adapter renders the supported subset safely.
 - Feature parity is not assumed. Unsupported cards/attachments use an explicit fallback.
 - Shared webhook services accept only adapter-verified envelopes. Raw bodies and signature

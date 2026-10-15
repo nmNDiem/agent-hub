@@ -16,6 +16,12 @@ The inbox uses a thread/filter list, transcript/composer and operational metadat
 screens the selected detail replaces the list and exposes a back action. Human reply remains
 disabled until takeover succeeds; resume is explicit and does not process historical backlog.
 
+Contacts uses the same responsive list-to-detail pattern. The list supports scoped search,
+assignment and tag filters; detail shows consent-aware identities, the combined conversation/lead/
+note/merge timeline, assignment, shared tags and notes. Owner/admin additionally see exact-identity
+duplicate suggestions, reasoned merge/reversal actions and CSV export. Inbox threads link to their
+contact by public ID.
+
 The workbench channel switch includes adjacent Website, Facebook and Zalo views. Facebook renders real
 Page cards with agent binding, health, last verification and latest queue/delivery state, plus
 connect, reauthorize, recheck and revoke actions for owner/admin. Page tokens are write-only

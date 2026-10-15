@@ -25,6 +25,7 @@ from agent_hub_api.channels.models import (
     OutboundDelivery,
 )
 from agent_hub_api.channels.repository import ChannelRepository
+from agent_hub_api.contacts.models import Contact, ContactIdentity
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.identifiers import new_uuid_v7
 
@@ -146,12 +147,20 @@ class ChannelService:
             )
             now = datetime.now(UTC)
             if thread is None:
+                contact = Contact(
+                    public_id=new_uuid_v7(),
+                    workspace_id=connection.workspace_id,
+                    retention_until=retention_until,
+                )
+                self.session.add(contact)
+                await self.session.flush()
                 conversation = Conversation(
                     public_id=new_uuid_v7(),
                     workspace_id=connection.workspace_id,
                     agent_id=binding.agent_id,
                     revision_id=binding.active_revision_id,
                     channel_connection_id=connection.id,
+                    contact_id=contact.id,
                     retention_until=retention_until,
                 )
                 self.session.add(conversation)
@@ -165,6 +174,18 @@ class ChannelService:
                     last_inbound_at=event.message.occurred_at or now,
                 )
                 self.session.add(thread)
+                self.session.add(
+                    ContactIdentity(
+                        workspace_id=connection.workspace_id,
+                        contact_id=contact.id,
+                        connection_id=connection.id,
+                        provider=connection.provider,
+                        identity_type="channel",
+                        normalized_value=event.message.external_thread_id,
+                        verification_state="provider_asserted",
+                        retention_until=retention_until,
+                    )
+                )
                 await self.session.flush()
             else:
                 conversation = await self.repository.conversation_for_update(
@@ -172,6 +193,35 @@ class ChannelService:
                 )
                 if conversation is None:
                     raise ChannelStateError("THREAD_CONVERSATION_UNAVAILABLE")
+                if _aware(retention_until) > _aware(conversation.retention_until):
+                    conversation.retention_until = retention_until
+                if conversation.contact_id is not None:
+                    existing_contact = await self.session.get(
+                        Contact, conversation.contact_id, with_for_update=True
+                    )
+                    if (
+                        existing_contact is not None
+                        and existing_contact.workspace_id == connection.workspace_id
+                        and existing_contact.lifecycle_state == "active"
+                        and _aware(retention_until) > _aware(existing_contact.retention_until)
+                    ):
+                        existing_contact.retention_until = retention_until
+                        existing_contact.updated_at = now
+                    identity = (
+                        await self.session.scalars(
+                            select(ContactIdentity).where(
+                                ContactIdentity.workspace_id == connection.workspace_id,
+                                ContactIdentity.contact_id == conversation.contact_id,
+                                ContactIdentity.connection_id == connection.id,
+                                ContactIdentity.normalized_value
+                                == event.message.external_thread_id,
+                            )
+                        )
+                    ).one_or_none()
+                    if identity is not None and _aware(retention_until) > _aware(
+                        identity.retention_until
+                    ):
+                        identity.retention_until = retention_until
                 observed_at = event.message.occurred_at or now
                 if _aware(observed_at) > _aware(thread.last_seen_at):
                     thread.last_seen_at = observed_at

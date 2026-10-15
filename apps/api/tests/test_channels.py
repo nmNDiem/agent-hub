@@ -32,6 +32,7 @@ from agent_hub_api.channels.models import (
 )
 from agent_hub_api.channels.rendering import CapabilityAwareRenderer, ChannelRenderError
 from agent_hub_api.channels.service import ChannelService, ChannelStateError
+from agent_hub_api.contacts.models import Contact, ContactIdentity
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.models import Base
 from agent_hub_api.workspaces.models import Workspace
@@ -224,9 +225,7 @@ def test_verified_inbound_is_connection_scoped_deduplicated_and_mode_aware(
             assert conversation is not None
             conversation.handling_mode = "human"
 
-        next_event = inbound_event(
-            account="account-a", event_id="event-3", message_id="message-2"
-        )
+        next_event = inbound_event(account="account-a", event_id="event-3", message_id="message-2")
         async with factory() as session:
             human = await ChannelService(session).ingest_verified(
                 next_event, retention_until=retention
@@ -254,6 +253,15 @@ def test_verified_inbound_is_connection_scoped_deduplicated_and_mode_aware(
             assert await session.scalar(select(func.count(Conversation.id))) == 2
             assert await session.scalar(select(func.count(ConversationMessage.id))) == 3
             assert await session.scalar(select(func.count(ChannelWebhookEvent.id))) == 4
+            assert await session.scalar(select(func.count(Contact.id))) == 2
+            assert await session.scalar(select(func.count(ContactIdentity.id))) == 2
+            first_conversation = await session.get(Conversation, first.conversation_id)
+            other_conversation = await session.get(Conversation, other.conversation_id)
+            assert first_conversation is not None
+            assert first_conversation.contact_id is not None
+            assert other_conversation is not None
+            assert other_conversation.contact_id is not None
+            assert other_conversation.contact_id != first_conversation.contact_id
             thread = (
                 await session.scalars(
                     select(ChannelThreadMapping).where(
@@ -490,9 +498,10 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
                 now=now + timedelta(seconds=3),
             )
         async with factory() as session:
-            assert await ChannelService(session).claim_delivery(
-                now=now + timedelta(minutes=10)
-            ) is None
+            assert (
+                await ChannelService(session).claim_delivery(now=now + timedelta(minutes=10))
+                is None
+            )
             stored = await session.get(OutboundDelivery, delivery.id)
             assert stored is not None
             assert stored.state == "failed_terminal"
@@ -537,9 +546,9 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
                 accepted_claim, external_message_id="provider-message-1"
             )
         async with factory() as session:
-            assert await ChannelService(session).claim_delivery(
-                now=now + timedelta(hours=1)
-            ) is None
+            assert (
+                await ChannelService(session).claim_delivery(now=now + timedelta(hours=1)) is None
+            )
             stored = await session.get(OutboundDelivery, accepted.id)
             assert stored is not None
             assert stored.state == "accepted"
@@ -576,9 +585,12 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
             )
         assert abandoned_claim is not None
         async with factory() as session:
-            assert await ChannelService(session).claim_delivery(
-                now=now + timedelta(hours=2, seconds=2)
-            ) is None
+            assert (
+                await ChannelService(session).claim_delivery(
+                    now=now + timedelta(hours=2, seconds=2)
+                )
+                is None
+            )
             stored = await session.get(OutboundDelivery, abandoned.id)
             assert stored is not None
             assert stored.state == "failed_terminal"
@@ -611,9 +623,9 @@ def test_outbound_delivery_enforces_scope_lease_and_bounded_retry(
             assert stored_connection is not None
             stored_connection.lifecycle_state = "revoked"
         async with factory() as session:
-            assert await ChannelService(session).claim_delivery(
-                now=now + timedelta(hours=3)
-            ) is None
+            assert (
+                await ChannelService(session).claim_delivery(now=now + timedelta(hours=3)) is None
+            )
             stored = await session.get(OutboundDelivery, revoked_delivery.id)
             assert stored is not None
             assert stored.state == "failed_terminal"

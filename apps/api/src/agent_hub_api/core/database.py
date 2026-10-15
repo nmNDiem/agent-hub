@@ -13,7 +13,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from agent_hub_api.core.config import Settings
 
-APPLICATION_DATABASE_REVISION = "20261014_0017"
+APPLICATION_DATABASE_REVISION = "20261014_0019"
 
 
 def utc_now() -> datetime:

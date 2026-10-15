@@ -397,6 +397,70 @@ def test_shared_channel_migration_rehearses_website_backfill_and_downgrade() -> 
                         == "conversation_read_states"
                     )
 
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            """
+                            INSERT INTO leads
+                                (workspace_id, conversation_id, session_id, agent_id, name,
+                                 normalized_email, consent_at, consent_text_version,
+                                 idempotency_key, request_hash, followup_status, retention_until)
+                            VALUES
+                                (:workspace_id, :conversation_id, :session_id, :agent_id,
+                                 'Migration contact', 'migration-contact@example.test', :now,
+                                 'vi-VN:contact-v1:30d', 'migration-contact', :request_hash,
+                                 'new', :retention_until)
+                            """
+                        ),
+                        {
+                            "workspace_id": workspace_id,
+                            "conversation_id": conversation_id,
+                            "session_id": session_id,
+                            "agent_id": agent_id,
+                            "now": now,
+                            "request_hash": "d" * 64,
+                            "retention_until": now + timedelta(days=30),
+                        },
+                    )
+
+                await asyncio.to_thread(_migrate, "20261014_0019")
+
+                async with engine.connect() as connection:
+                    contact = (
+                        await connection.execute(
+                            text(
+                                """
+                                SELECT c.public_id, c.display_name, l.contact_id,
+                                       ci.identity_type, ci.verification_state
+                                FROM contacts c
+                                JOIN leads l
+                                  ON l.workspace_id = c.workspace_id AND l.contact_id = c.id
+                                JOIN contact_identities ci
+                                  ON ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                                WHERE l.conversation_id = :conversation_id
+                                """
+                            ),
+                            {"conversation_id": conversation_id},
+                        )
+                    ).one()
+                    assert contact.public_id == conversation_public_id
+                    assert contact.contact_id is not None
+                    assert contact.identity_type in {"email", "phone"}
+                    assert contact.verification_state == "consented"
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('workspace_tags')"))
+                        == "workspace_tags"
+                    )
+
+                await asyncio.to_thread(_migrate, "20261014_0018", downgrade=True)
+
+                async with engine.connect() as connection:
+                    assert await connection.scalar(text("SELECT to_regclass('contacts')")) is None
+                    assert (
+                        await connection.scalar(text("SELECT to_regclass('conversation_tags')"))
+                        == "conversation_tags"
+                    )
+
                 await asyncio.to_thread(_migrate, "20261014_0017", downgrade=True)
 
                 async with engine.connect() as connection:
