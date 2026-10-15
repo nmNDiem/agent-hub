@@ -227,3 +227,63 @@ def test_agent_api_persists_scope_and_enforces_workspace_and_role(
         listed = owner_a.get(f"/api/v1/workspaces/{workspace_a['id']}/agents")
         assert listed.status_code == 200
         assert [item["public_id"] for item in listed.json()["items"]] == [agent["public_id"]]
+
+
+def test_agent_archive_enforces_workspace_role_and_hides_active_resource(
+    app_factory: AppFactory,
+) -> None:
+    app, session_factory = app_factory()
+    with TestClient(app) as owner_a, TestClient(app) as owner_b:
+        _, workspace_a = register_and_create_workspace(
+            owner_a, "archive-a@example.com", "archive-a"
+        )
+        user_b, workspace_b = register_and_create_workspace(
+            owner_b, "archive-b@example.com", "archive-b"
+        )
+        created = owner_a.post(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents",
+            json={"name": "Archive me"},
+            headers=csrf_headers(owner_a),
+        )
+        assert created.status_code == 201, created.text
+        agent = created.json()
+
+        missing_csrf = owner_a.delete(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}"
+        )
+        assert missing_csrf.status_code == 403
+
+        cross_workspace = owner_b.delete(
+            f"/api/v1/workspaces/{workspace_b['id']}/agents/{agent['public_id']}",
+            headers=csrf_headers(owner_b),
+        )
+        assert cross_workspace.status_code == 404
+
+        async def add_member() -> None:
+            async with session_factory() as session, session.begin():
+                session.add(
+                    WorkspaceMember(
+                        workspace_id=UUID(workspace_a["id"]),
+                        user_id=UUID(user_b["user"]["id"]),
+                        role="member",
+                    )
+                )
+
+        asyncio.run(add_member())
+        forbidden_member = owner_b.delete(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}",
+            headers=csrf_headers(owner_b),
+        )
+        assert forbidden_member.status_code == 403
+
+        archived = owner_a.delete(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}",
+            headers=csrf_headers(owner_a),
+        )
+        assert archived.status_code == 204
+        assert owner_a.get(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}"
+        ).status_code == 404
+        listed = owner_a.get(f"/api/v1/workspaces/{workspace_a['id']}/agents")
+        assert listed.status_code == 200
+        assert listed.json()["items"] == []

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   replaceAgentCatalogScope: vi.fn(),
   replaceAgentKnowledgeBases: vi.fn(),
   createAgent: vi.fn(),
+  deleteAgent: vi.fn(),
   streamPlaygroundMessage: vi.fn(),
   getWidgetConfig: vi.fn(),
   updateWidgetConfig: vi.fn(),
@@ -65,6 +66,12 @@ const createdAgent = {
   safe_instructions: "Tư vấn thân thiện và tự nhiên.",
 };
 
+const secondAgent = {
+  ...agent,
+  public_id: "01992f3c-4436-7000-8000-000000000012",
+  name: "Second assistant",
+};
+
 const widgetConfig = {
   public_agent_id: agent.public_id,
   display_name: "Trợ lý",
@@ -89,6 +96,7 @@ const widgetConfig = {
 
 describe("ChatbotsPage", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     mocks.getMe.mockResolvedValue({
       user: { id: "user", email: "owner@example.com", email_verified: true },
@@ -104,6 +112,7 @@ describe("ChatbotsPage", () => {
     mocks.getAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [] });
     mocks.updateAgent.mockResolvedValue({ ...agent, safe_instructions: "Thân thiện" });
     mocks.createAgent.mockResolvedValue(createdAgent);
+    mocks.deleteAgent.mockResolvedValue(undefined);
     mocks.replaceAgentCatalogScope.mockResolvedValue(agent);
     mocks.replaceAgentKnowledgeBases.mockResolvedValue({ public_agent_id: agent.public_id, knowledge_base_ids: [5] });
     mocks.getWidgetConfig.mockResolvedValue(widgetConfig);
@@ -158,6 +167,8 @@ describe("ChatbotsPage", () => {
     render(<ChatbotsPage />);
     await screen.findByRole("combobox", { name: "Đổi chatbot" });
 
+    expect(screen.getAllByRole("button", { name: "Tạo chatbot" })).toHaveLength(1);
+
     const pageHeading = screen.getByRole("heading", { name: "Chatbot" }).closest("section")!;
     fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo chatbot" }));
     const nameInput = screen.getByLabelText("Tên chatbot mới");
@@ -174,6 +185,46 @@ describe("ChatbotsPage", () => {
     expect(mocks.listAgents).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Đã tạo chatbot. Bạn có thể cấu hình và thử ngay bây giờ.")).toBeInTheDocument();
     expect(screen.queryByText("Không thể hoàn tất thao tác. Vui lòng thử lại.")).not.toBeInTheDocument();
+  });
+
+  it("archives the selected chatbot and selects the next available chatbot", async () => {
+    mocks.listAgents.mockResolvedValue({ items: [agent, secondAgent] });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ChatbotsPage />);
+    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+
+    fireEvent.click(screen.getByRole("button", { name: "Xóa chatbot" }));
+
+    await waitFor(() => expect(mocks.deleteAgent).toHaveBeenCalledWith(
+      workspace.id,
+      agent.public_id,
+    ));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining(agent.name));
+    await waitFor(() => expect(
+      screen.getByRole("combobox", { name: "Đổi chatbot" }),
+    ).toHaveValue(secondAgent.public_id));
+    expect(screen.getByText("Đã xóa chatbot.")).toBeInTheDocument();
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      `/app/${workspace.slug}/chatbots?agent=${secondAgent.public_id}`,
+      { scroll: false },
+    );
+  });
+
+  it("keeps the selected chatbot when deletion fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mocks.deleteAgent.mockRejectedValue(new ApiError(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Không thể xóa chatbot lúc này.",
+    ));
+    render(<ChatbotsPage />);
+    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+
+    fireEvent.click(screen.getByRole("button", { name: "Xóa chatbot" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không thể xóa chatbot lúc này.");
+    expect(screen.getByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
   });
 
   it("keeps the entered name and shows a support id when creation fails", async () => {

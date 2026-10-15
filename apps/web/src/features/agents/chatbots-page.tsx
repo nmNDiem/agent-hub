@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Plus,
   Save,
+  Trash2,
   X,
 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -71,7 +72,7 @@ export function ChatbotsPage() {
   const [draft, setDraft] = useState<AgentDraft>();
   const [draftAgentId, setDraftAgentId] = useState<string>();
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<"create" | "save">();
+  const [busy, setBusy] = useState<"create" | "save" | "delete">();
   const [pageFeedback, setPageFeedback] = useState<UiFeedback>();
   const [dirty, setDirty] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -263,6 +264,43 @@ export function ChatbotsPage() {
     }
   }
 
+  async function deleteAgent() {
+    if (!workspace || !selectedAgent) return;
+    if (!window.confirm(
+      `Xóa chatbot "${selectedAgent.name}"? Chatbot sẽ ngừng hoạt động trên các kênh đang kết nối.`,
+    )) return;
+
+    setBusy("delete");
+    setPageFeedback(undefined);
+    try {
+      await api.deleteAgent(workspace.id, selectedAgent.public_id);
+      const remainingAgents = agents.filter(
+        (item) => item.public_id !== selectedAgent.public_id,
+      );
+      const nextAgentId = remainingAgents[0]?.public_id;
+      setAgents(remainingAgents);
+      setSelectedId(nextAgentId);
+      setDraft(undefined);
+      setDraftAgentId(undefined);
+      setDirty(false);
+      setSavedNotice(false);
+      setActiveView("workbench");
+      const path = `/app/${encodeURIComponent(params.workspaceSlug)}/chatbots`;
+      router.replace(
+        nextAgentId ? `${path}?agent=${encodeURIComponent(nextAgentId)}` : path,
+        { scroll: false },
+      );
+      setPageFeedback(feedback("success", "Đã xóa chatbot."));
+    } catch (caught) {
+      setPageFeedback(toUiError(caught, {
+        operation: "agents.delete",
+        fallback: "Không thể xóa chatbot. Vui lòng thử lại.",
+      }));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
   function toggleId(field: "locationIds" | "collectionIds" | "knowledgeBaseIds", id: number) {
     if (!draft) return;
     const values = draft[field];
@@ -295,7 +333,7 @@ export function ChatbotsPage() {
               {dirty && <span className="status-pill pending">Có thay đổi chưa lưu</span>}
               <div className="chatbot-view-switch" aria-label="Khu vực chatbot" role="group"><button aria-pressed={activeView === "workbench"} onClick={() => setActiveView("workbench")} type="button"><Bot size={15} /> Cấu hình & thử</button><button aria-pressed={activeView === "web"} onClick={() => openChannel("web")} type="button"><Globe2 size={15} /> Kênh Web</button><button aria-pressed={activeView === "facebook"} onClick={() => openChannel("facebook")} type="button"><MessagesSquare size={15} /> Facebook</button><button aria-pressed={activeView === "zalo"} onClick={() => openChannel("zalo")} type="button"><MessageSquareText size={15} /> Zalo</button></div>
               <label className="chatbot-agent-select"><span className="sr-only">Đổi chatbot</span><select aria-label="Đổi chatbot" onChange={(event) => selectAgent(event.target.value)} value={selectedId}>{agents.map((agent) => <option key={agent.public_id} value={agent.public_id}>{agent.name}</option>)}</select></label>
-              {canWrite && <button aria-label="Tạo chatbot" className="icon-button" onClick={() => setShowCreate(true)} type="button"><Plus size={16} /></button>}
+              {canWrite && <button className="danger-button compact-button" disabled={Boolean(busy)} onClick={() => void deleteAgent()} type="button"><Trash2 size={16} /> Xóa chatbot</button>}
             </div>
           </section>
           {activeView === "workbench" && <><div className="chatbot-mobile-tabs" role="tablist">

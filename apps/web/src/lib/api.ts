@@ -940,6 +940,10 @@ export const api = {
     method: "PATCH",
     body: JSON.stringify(payload),
   }),
+  deleteAgent: (workspaceId: string, publicAgentId: string) =>
+    request<void>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`, {
+      method: "DELETE",
+    }),
   replaceAgentCatalogScope: (
     workspaceId: string,
     publicAgentId: string,

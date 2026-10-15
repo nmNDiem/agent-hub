@@ -176,6 +176,14 @@ class AgentService:
             agent.updated_at = datetime.now(UTC)
         return await self._response_for(agent)
 
+    async def archive(self, user: User, workspace_id: UUID, public_id: UUID) -> None:
+        async with self.session.begin():
+            await self._authorize(user, workspace_id, write=True)
+            agent = await self._agent(workspace_id, public_id)
+            archived_at = datetime.now(UTC)
+            agent.archived_at = archived_at
+            agent.updated_at = archived_at
+
     async def replace_catalog_scope(
         self,
         user: User,

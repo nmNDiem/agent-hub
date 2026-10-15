@@ -72,6 +72,20 @@ async def update_agent(
     return await service(session).update(user, workspace_id, public_agent_id, payload)
 
 
+@router.delete(
+    "/{public_agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+async def archive_agent(
+    workspace_id: UUID,
+    public_agent_id: UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    await service(session).archive(user, workspace_id, public_agent_id)
+
+
 @router.put(
     "/{public_agent_id}/catalog-scope",
     response_model=AgentResponse,

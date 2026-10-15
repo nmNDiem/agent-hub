@@ -11,6 +11,7 @@ An agent combines behavior, allowed knowledge/catalog scope, tools and channel b
 - Authenticated Playground over the same grounded runtime used by the Website channel.
 - Immutable published revision for the widget, publish/pause controls and Web branding/origin settings.
 - Bounded OpenAI orchestration with validated product/source evidence.
+- Owner/admin archival that removes a chatbot from active reads and stops new channel/runtime use while preserving history.
 
 ## Complete domain capability
 
@@ -24,7 +25,7 @@ An agent combines behavior, allowed knowledge/catalog scope, tools and channel b
 
 `draft -> ready -> published -> paused -> archived`
 
-Publishing creates an immutable snapshot. Later edits remain draft until republished. Pausing prevents new automated turns without deleting history. A channel connection may use only a compatible active published revision.
+Publishing creates an immutable snapshot. Later edits remain draft until republished. Pausing prevents new automated turns without deleting history. Archiving is a confirmed owner/admin soft delete: the agent disappears from active management and cannot serve new runtime requests, while historical records remain intact. A channel connection may use only a compatible active published revision.
 
 ## Invariants
 
