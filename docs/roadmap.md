@@ -63,12 +63,26 @@ These are introduced by the first real use case, not built speculatively:
 - Before the first effectful tool: typed action contract, server-side authorization, validation, idempotency, approval policy, and durable redacted execution evidence.
 - Before the first stock mutation: append-only stock movements and transactionally derived balances.
 - Before payments/refunds or other regulated actions: external-provider-first integration, webhook verification, reconciliation, and minimal sensitive-data retention.
+- Before electronic invoicing, digital signatures, marketplace/platform behavior, regulated accounting services, or material sensitive-data/AI changes: load the conditional constraints in [`compliance.md`](compliance.md) and obtain any required legal/product approval.
 
-## Optional Commerce expansion
+## Commerce operations track
 
-Status: **Unscheduled**
+Status: **Major planned product track; phase packets not yet written**
 
-Commerce is the first substantial domain capability and remains optional. Its likely dependency order is inventory ledger, transactional order model, external payment references, fulfillment/returns, then suppliers and purchasing. POS is considered only after the same order and inventory invariants can support it without a parallel source of truth.
+Commerce is optional for each workspace but is not an optional product priority. AgentHub is planned to grow this track toward retail and business operations comparable in scope to products such as KiotViet, while the Platform/Core, portfolio, and internal-assistant experiences continue to work without Commerce. Commerce is not a prerequisite for non-Commerce Agents.
+
+M2 remains the next platform-quality track. Commerce phases may follow or interleave with later platform work only when their stated foundations are ready and an explicit phase packet is approved. Nothing in this roadmap authorizes implementation by itself.
+
+| Phase | Planned outcome | Dependency gate |
+|---|---|---|
+| C1 Inventory integrity and operations | Append-only stock movement ledger, transactionally maintained balances, transfers, stocktakes, authorized adjustments, reason/source evidence, and auditable inventory history | Required before any order, purchasing, return, or POS flow mutates stock |
+| C2 Orders, customers, and fulfillment | Orders and immutable price snapshots, order items, lifecycle and fulfillment state, idempotent creation, returns foundation, Commerce Customer linked explicitly to generic Contact, purchase history, segmentation, and a loyalty foundation only when justified | Requires C1 transactional inventory semantics; effectful Agent actions additionally require authorization, audit, idempotency, failure, and approval foundations |
+| C3 Suppliers and purchasing | Supplier records, purchase orders, receipts, and operational supplier balances/records that post inventory changes through the shared ledger | Requires C1; receipt and balance semantics must be specified in the approved packet |
+| C4 POS and retail operations | Location-aware checkout, barcode workflows, cart, discounts, cashier/session concepts where required, and returns/exchanges | Requires C1 and C2; POS must use shared Orders, Customers, and Inventory rather than create parallel truth |
+| C5 Payments and invoicing integrations | Payment requests, provider integrations, minimal payment records, verified webhooks, reconciliation, refund orchestration, and electronic-invoice integration | Requires provider selection plus reconciliation design; regulated capabilities remain integration-first and follow [`compliance.md`](compliance.md) |
+| C6 Commerce analytics and AI operations | Revenue, margin, inventory health, sell-through, purchasing analytics, operational alerts, and authorized Agent/AI insights over authoritative Commerce data | Requires the owning transactional domains; analytics and model output never become transaction truth |
+
+The sequencing is dependency-driven rather than a promise that every phase ships contiguously. C3 may proceed after C1 independently of later sales UI, while C5 may be introduced alongside the first approved payment-requiring order or POS workflow. C6 grows only from implemented authoritative data. Each phase should remain coherent rather than split into dozens of infrastructure-only packets.
 
 See [`domains/commerce.md`](domains/commerce.md) and [`domains/inventory.md`](domains/inventory.md).
 

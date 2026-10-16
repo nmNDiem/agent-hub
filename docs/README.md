@@ -48,6 +48,7 @@ Domain packets are the primary routine working context. They distinguish **CURRE
 | World UI work | Route through [`ui/world/README.md`](ui/world/README.md); never preload the whole package |
 | Test strategy or permanent scenario coverage changes | Relevant section of [`testing.md`](testing.md) |
 | Deployment, provider setup, retention jobs or recovery | Relevant section of [`operations.md`](operations.md) |
+| Payments; regulated financial billing flows; e-invoicing; digital signatures; accounting-service functionality; marketplace/e-commerce-platform behavior; sensitive AI use cases; or material personal-data processing changes | Relevant section of [`compliance.md`](compliance.md) |
 | Selecting or sequencing a phase | [`roadmap.md`](roadmap.md) |
 | Facebook or Zalo protocol detail | Route through [`refs/channels/README.md`](refs/channels/README.md) after the provider trigger applies |
 
@@ -64,10 +65,13 @@ Domain packets are the primary routine working context. They distinguish **CURRE
 | Roadmap and phase sequencing | [`roadmap.md`](roadmap.md) |
 | API conventions | [`api.md`](api.md) |
 | Security invariants | [`security.md`](security.md) |
+| Compliance and regulated-capability boundaries | [`compliance.md`](compliance.md) |
 | Product-wide UX | [`ui.md`](ui.md) |
 | Provider deep references | [`refs/channels/README.md`](refs/channels/README.md) |
 
 Historical task detail belongs in Git history. Do not create a parallel `tasks/` layer or duplicate authoritative rules inside a phase packet.
+
+`compliance.md` is conditional authority, not default reading. Do not load it for ordinary Agent, Knowledge, UI, Catalog, or other work that does not meet its trigger.
 
 ## Status vocabulary
 

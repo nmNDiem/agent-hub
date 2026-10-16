@@ -35,13 +35,22 @@ Before the first operational stock mutation, add an append-only movement ledger 
 - reversal/correction rather than destructive editing;
 - audit, retention, reporting, and failure behavior.
 
+The operational evolution is deliberately gated:
+
+1. **CURRENT — availability model:** mutable current quantity supports bounded read/display workflows only.
+2. **PLANNED — stock ledger:** immutable movements explain every operational balance change and support audit/reconciliation.
+3. **PLANNED — transactional inventory:** transfers, stocktakes, adjustments, receipts, reservations, sale deductions, returns, and corrections post atomically through the ledger under defined concurrency and idempotency rules.
+4. **PLANNED — Orders/POS integration:** Orders, fulfillment, purchasing, returns, and POS invoke Inventory's transactional service; none may own a parallel quantity or mutate levels directly.
+
+The ledger is authoritative movement history. Inventory owns on-hand, reserved, and available semantics once introduced; Catalog continues to own variant/location identity and may expose an Inventory-derived availability projection. Orders, Purchasing, and POS own their business lifecycles and reference Inventory mutations by immutable source identifiers.
+
 ## NOT IMPLEMENTED
 
 The ledger and every operational movement listed above are absent. Do not describe current quantities as event-sourced, auditable stock history.
 
 ## Change trigger
 
-An order reservation, sale, return, receiving, transfer, adjustment, purchasing, or POS workflow is blocked on the approved ledger design and migration. The ledger should not be built earlier merely as generic infrastructure.
+An order reservation, sale, return, receiving, transfer, adjustment, purchasing, or POS workflow is blocked on the approved ledger design and migration. The ledger should not be built earlier merely as generic infrastructure. A separately approved phase packet is required for each coherent operational capability.
 
 ## Dependencies and conditional references
 
