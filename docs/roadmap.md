@@ -31,14 +31,14 @@ These capabilities remain Platform/Core. Future workflows reuse the same Convers
 
 ## 3 — General-purpose Agent core
 
-Status: **In progress; 3.2 is the next candidate**
+Status: **In progress; 3.2 is approved for implementation**
 
 Goal: make the Agent the primary product interaction and establish trustworthy Knowledge plus a safe path to real work without requiring Commerce.
 
 | Phase | User-visible outcome | Status and dependency |
 |---|---|---|
 | [3.1 General-purpose Agent baseline](phases/3.1-general-purpose-agent-baseline.md) | Domain-neutral defaults/runtime behavior and permanent Knowledge-only plus Commerce regression scenarios | **Complete** |
-| [3.2 Agent workspace experience](phases/3.2-agent-workspace-experience.md) | An Agent-centric workspace for creating, configuring, grounding, testing, publishing, observing and operating Agents through a contextual World and accessible focused screens | **Next candidate — not approved for implementation** |
+| [3.2 Agent workspace experience](phases/3.2-agent-workspace-experience.md) | An Agent-centric workspace for creating, configuring, grounding, testing, publishing, observing and operating Agents through a contextual World and accessible focused screens | **Approved for implementation** |
 | [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, immutable version visibility, ingestion recovery and retrieval diagnostics | **Complete** |
 | 3.4 Agent actions and real-work execution | The first concrete effectful workflow proves the minimum typed action, authorization, confirmation/approval, idempotency, execution-state, audit and failure boundary | **Planned; packet not written; requires a selected real workflow** |
 
