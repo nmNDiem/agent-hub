@@ -52,6 +52,13 @@ class RetrievedKnowledge:
     similarity_score: float
 
 
+@dataclass(frozen=True, slots=True)
+class KnowledgeSearchDiagnostics:
+    results: tuple[RetrievedKnowledge, ...]
+    raw_hit_count: int
+    discarded_hit_count: int
+
+
 class KnowledgeRetrievalUnavailable(RuntimeError):
     """Semantic retrieval cannot safely return scoped, authoritative results."""
 
@@ -146,9 +153,19 @@ class KnowledgeRetrievalService:
         *,
         limit: int = 5,
     ) -> list[RetrievedKnowledge]:
+        diagnostics = await self.search_with_diagnostics(scope, query, limit=limit)
+        return list(diagnostics.results)
+
+    async def search_with_diagnostics(
+        self,
+        scope: AuthorizedKnowledgeScope,
+        query: str,
+        *,
+        limit: int = 5,
+    ) -> KnowledgeSearchDiagnostics:
         normalized_query = query.strip()
         if not normalized_query or not scope.allowed_knowledge_base_ids or limit < 1:
-            return []
+            return KnowledgeSearchDiagnostics((), 0, 0)
         if limit > 20:
             raise ValueError("Knowledge retrieval limit cannot exceed 20")
 
@@ -209,8 +226,16 @@ class KnowledgeRetrievalService:
                 if item is not None:
                     ordered.append(item)
                     if len(ordered) == limit:
-                        return ordered
-        return ordered
+                        return KnowledgeSearchDiagnostics(
+                            tuple(ordered),
+                            len(all_hits),
+                            max(0, len(all_hits) - len(valid)),
+                        )
+        return KnowledgeSearchDiagnostics(
+            tuple(ordered),
+            len(all_hits),
+            max(0, len(all_hits) - len(valid)),
+        )
 
     async def _revalidate(
         self,

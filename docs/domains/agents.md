@@ -9,6 +9,7 @@ An Agent is a workspace-owned assistant configuration: identity, instructions, a
 - Draft agents with name, greeting, locale, safe instructions, knowledge assignments, and catalog location/collection scope.
 - Immutable published revisions, publish/pause/archive behavior, authenticated Playground, Website publication, and social-channel bindings.
 - A bounded OpenAI runtime with knowledge retrieval and capability-aware typed Catalog read tools.
+- Owner/admin Knowledge diagnostics may resolve an Agent's current Knowledge assignment server-side but do not call the chat model, create conversations, publish revisions or change bindings.
 - Server-validated source/product evidence and usage accounting.
 
 The runtime uses a generic base policy. It exposes Catalog tools and Catalog-specific instructions only when the Agent's server-authorized scope currently contains readable products; Knowledge-only Agents receive neither and cannot emit product cards.

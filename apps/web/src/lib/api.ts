@@ -212,7 +212,19 @@ export type IngestionJob = {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  recovery_state:
+    | "in_progress"
+    | "ready"
+    | "retryable_failure"
+    | "permanent_failure"
+    | "attempts_exhausted"
+    | "lease_expired"
+    | "projection_drift"
+    | "cancelled";
+  active_generation_changed: boolean;
 };
+
+export type KnowledgeFreshness = "unknown" | "current" | "due_soon" | "overdue";
 
 export type KnowledgeDocument = {
   id: number;
@@ -221,13 +233,68 @@ export type KnowledgeDocument = {
   kind: "profile" | "faq" | "policy" | "size_guidance" | "document";
   status: "active" | "deleted";
   source_kind: "manual" | "file";
+  latest_version_id: number;
   version_no: number;
   mime_type: string;
   byte_size: number;
   active_generation_id: number | null;
+  active_version_no: number | null;
+  reviewed_at: string | null;
+  review_due_at: string | null;
+  reviewed_by_user_id: string | null;
+  freshness_state: KnowledgeFreshness;
   ingestion_job: IngestionJob;
+  active_generation_changed: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type KnowledgeVersion = {
+  id: number;
+  version_no: number;
+  source_kind: "manual" | "file";
+  mime_type: string;
+  byte_size: number;
+  content_sha256: string;
+  created_by_user_id: string;
+  created_at: string;
+  reviewed_at: string | null;
+  review_due_at: string | null;
+  reviewed_by_user_id: string | null;
+  freshness_state: KnowledgeFreshness;
+  generation_id: number | null;
+  generation_status: "building" | "ready" | "failed" | "revoked" | null;
+  generation_failure_code: string | null;
+  is_active: boolean;
+  ingestion_job: IngestionJob | null;
+};
+
+export type KnowledgeDiagnostic = {
+  status: "completed" | "dependency_unavailable";
+  target_type: "knowledge_bases" | "agent";
+  resolved_knowledge_base_ids: number[];
+  active_sources: Array<{
+    knowledge_base_id: number;
+    document_id: number;
+    document_title: string;
+    version_id: number;
+    version_no: number;
+    generation_id: number;
+  }>;
+  hits: Array<{
+    rank: number;
+    knowledge_base_id: number;
+    document_id: number;
+    document_title: string;
+    chunk_id: number;
+    source_locator: string;
+    embedding_profile_id: number;
+    similarity_score: number;
+    snippet: string;
+  }>;
+  raw_hit_count: number;
+  discarded_hit_count: number;
+  reason_codes: string[];
 };
 
 export type Agent = {
@@ -919,10 +986,67 @@ export const api = {
     ),
   getIngestionJob: (workspaceId: string, jobId: number) =>
     request<IngestionJob>(`/api/v1/workspaces/${workspaceId}/ingestion-jobs/${jobId}`),
-  retryIngestionJob: (workspaceId: string, jobId: number) =>
+  replaceManualKnowledgeDocument: (
+    workspaceId: string,
+    baseId: number,
+    documentId: number,
+    content: string,
+    idempotencyKey: string,
+  ) => request<KnowledgeDocument>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}/versions/text`,
+    { method: "POST", body: JSON.stringify({ content }), headers: { "Idempotency-Key": idempotencyKey } },
+  ),
+  replaceFileKnowledgeDocument: (
+    workspaceId: string,
+    baseId: number,
+    documentId: number,
+    form: FormData,
+    idempotencyKey: string,
+  ) => request<KnowledgeDocument>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}/versions`,
+    { method: "POST", body: form, headers: { "Idempotency-Key": idempotencyKey } },
+  ),
+  listKnowledgeVersions: (workspaceId: string, baseId: number, documentId: number) =>
+    request<{ items: KnowledgeVersion[]; next_cursor: string | null }>(
+      `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}/versions?limit=50`,
+    ),
+  reviewKnowledgeVersion: (
+    workspaceId: string,
+    baseId: number,
+    documentId: number,
+    versionId: number,
+    reviewDueAt: string | null,
+  ) => request<KnowledgeVersion>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}/versions/${versionId}/review`,
+    { method: "PATCH", body: JSON.stringify({ review_due_at: reviewDueAt }) },
+  ),
+  rebuildKnowledgeVersion: (
+    workspaceId: string,
+    baseId: number,
+    documentId: number,
+    versionId: number,
+    reason: string,
+    idempotencyKey: string,
+  ) => request<IngestionJob>(
+    `/api/v1/workspaces/${workspaceId}/knowledge-bases/${baseId}/documents/${documentId}/versions/${versionId}/rebuild`,
+    { method: "POST", body: JSON.stringify({ reason }), headers: { "Idempotency-Key": idempotencyKey } },
+  ),
+  retryIngestionJob: (workspaceId: string, jobId: number, reason = "Operator requested retry") =>
     request<IngestionJob>(`/api/v1/workspaces/${workspaceId}/ingestion-jobs/${jobId}/retry`, {
       method: "POST",
+      body: JSON.stringify({ reason }),
+      headers: { "Idempotency-Key": crypto.randomUUID() },
     }),
+  runKnowledgeDiagnostic: (
+    workspaceId: string,
+    payload: { query: string; limit: number } & (
+      | { knowledge_base_ids: number[]; agent_public_id?: never }
+      | { agent_public_id: string; knowledge_base_ids?: never }
+    ),
+  ) => request<KnowledgeDiagnostic>(`/api/v1/workspaces/${workspaceId}/knowledge/diagnostics`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
   listAgents: (workspaceId: string) =>
     request<{ items: Agent[] }>(`/api/v1/workspaces/${workspaceId}/agents`),
   createAgent: (workspaceId: string, payload: Pick<Agent, "name" | "default_locale">) =>

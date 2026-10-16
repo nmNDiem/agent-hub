@@ -6,6 +6,8 @@ Load this authority for user-visible behavior, interaction or accessibility chan
 
 The dashboard is a Vietnamese, route-based SaaS control panel for Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channels, Analytics, and Settings. The agent workbench combines configuration, Playground, publishing, and channel assignment. Website, Facebook, and Zalo share the implemented inbox/contact operations.
 
+Knowledge management distinguishes advisory freshness from ingestion health and the latest candidate from the active searchable version. Progressive document details expose metadata history, review, replacement and eligible recovery. The owner/admin diagnostic panel renders bounded validated snippets and textual zero/degraded reason codes; it does not use color or similarity score as a universal quality grade.
+
 Agent workbench and Website preview copy is domain-neutral. It presents Knowledge or Catalog as alternative data sources and does not imply that a Knowledge-only Agent is a shopping assistant.
 
 Current navigation reflects the shipped Commerce-first product. It must remain compatible until a task delivers capability-aware navigation and equivalent access to existing behavior.

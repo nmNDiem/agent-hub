@@ -24,7 +24,7 @@ All route families below are **CURRENT** unless explicitly labeled otherwise. Ag
 | Workspaces | list/create/read/update workspace and current membership context |
 | Agents | CRUD configuration, Catalog/Knowledge assignments, publish, pause, Website configuration and Playground stream |
 | Catalog | products, variants, size guides, images, locations, collections, imports and structured search |
-| Knowledge | bases, documents, ingestion jobs, retry/archive and Agent assignments |
+| Knowledge | bases, immutable document replacement/history/review, ingestion retry/rebuild, ephemeral retrieval diagnostics, archive and Agent assignments |
 | Channels | Website/Facebook/Zalo connection management, health, authorization/revocation and provider webhooks |
 | Conversations | scoped Inbox list/detail, members, read state, workflow, notes, tags and human replies |
 | Contacts/leads | scoped contact timeline/merge/export and consented Website lead creation |
@@ -32,6 +32,8 @@ All route families below are **CURRENT** unless explicitly labeled otherwise. Ag
 | Widget | published config/session, messages, SSE, images, product-image grants and lead creation |
 
 A documentation refactor must not rename current routes. Provider-specific current paths and protocol constraints are routed through [`refs/channels/README.md`](refs/channels/README.md).
+
+Knowledge replacement routes create a new manual or private-file version and reject unchanged content. Version history is bounded and returns provenance/status metadata rather than source bodies or Storage locations. Review timestamps produce advisory freshness states with a seven-day due-soon window. Retry and rebuild accept a bounded reason and idempotency key and always report that the active generation did not change synchronously. `POST /api/v1/workspaces/{workspace_id}/knowledge/diagnostics` targets selected bases or an Agent assignment, returns only active PostgreSQL-validated sources/chunks, and distinguishes no scope, no ready generation, filtered stale points, no hit and unavailable dependencies.
 
 ## SSE contract
 

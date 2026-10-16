@@ -39,6 +39,7 @@ isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-
 - Logs contain request ID, method, route template, status and duration only—never raw URL/query, headers, bodies, messages, images, tokens, object keys or PII.
 - Local retention: Website session/transcript 24 hours, unattached image 30 minutes, attached image one hour and consented lead 30 days.
 - Run a bounded idempotent cleanup pass with `pnpm ops:retention`. It revokes database access before Storage deletion; failed deletion remains retryable.
+- Knowledge ingestion exposes retryable, terminal, exhausted, lease-expired and projection-drift recovery states. Dashboard retry/rebuild actions retain actor, bounded reason and idempotency evidence; normal logs and metrics use IDs/codes/counts and never include source, query or chunk text.
 
 PostgreSQL owns relational state, Supabase Storage owns uploaded objects and Qdrant is derived/rebuildable. Restore rehearsal uses synthetic data in an isolated non-production target.
 

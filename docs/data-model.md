@@ -38,7 +38,7 @@ Cross-domain relationships never transfer ownership: an Agent assignment referen
 
 ### Knowledge
 
-Knowledge bases, documents, immutable document versions, generations, chunks, embedding profiles, embedding mappings, and ingestion jobs form the authoritative PostgreSQL graph. The active-generation pointer selects the searchable version. Qdrant points are indexed copies identified from this graph and may be recreated.
+Knowledge bases, documents, immutable document versions, generations, chunks, embedding profiles, embedding mappings, and ingestion jobs form the authoritative PostgreSQL graph. Document versions also own optional review time, next-review time and reviewer attribution; the API derives freshness rather than persisting a quality claim. The active-generation pointer selects the searchable version, so a candidate replacement or rebuild cannot displace the last ready generation before atomic cutover. `knowledge_recovery_events` records bounded owner/admin retry or rebuild attribution, reason and idempotency without copying source content. Qdrant points are indexed copies identified from this graph and may be recreated.
 
 ### Catalog and current inventory view
 

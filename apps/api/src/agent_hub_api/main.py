@@ -34,6 +34,7 @@ from agent_hub_api.identity.dependencies import LoginRateLimiter
 from agent_hub_api.identity.email_delivery import EmailDelivery
 from agent_hub_api.identity.router import email_router
 from agent_hub_api.identity.router import router as auth_router
+from agent_hub_api.knowledge.retrieval import KnowledgeRetrievalService
 from agent_hub_api.knowledge.router import router as knowledge_router
 from agent_hub_api.knowledge.runtime import (
     create_openai_embedding_provider,
@@ -73,6 +74,10 @@ def create_app(
     email_delivery: EmailDelivery | None = None,
     catalog_storage: CatalogStorage | None = None,
     knowledge_storage: KnowledgeStorage | None = None,
+    knowledge_retrieval_factory: Callable[
+        [AsyncSession], KnowledgeRetrievalService
+    ]
+    | None = None,
     agent_runtime_factory: AgentRuntimeFactory | None = None,
     widget_image_storage: VisitorImageStorage | None = None,
     vision_gateway: VisionGateway | None = None,
@@ -166,6 +171,20 @@ def create_app(
             )
 
         agent_runtime_factory = configured_runtime_factory
+
+        def configured_knowledge_retrieval_factory(
+            session: AsyncSession,
+        ) -> KnowledgeRetrievalService:
+            assert owned_embedding_provider is not None
+            assert owned_vector_index is not None
+            return KnowledgeRetrievalService(
+                session,
+                embedding_provider=owned_embedding_provider,
+                vector_index=owned_vector_index,
+            )
+
+        if knowledge_retrieval_factory is None:
+            knowledge_retrieval_factory = configured_knowledge_retrieval_factory
     if (
         vision_gateway is None
         and runtime_settings.openai_api_key is not None
@@ -200,6 +219,7 @@ def create_app(
     application.state.email_delivery = email_delivery
     application.state.catalog_storage = catalog_storage
     application.state.knowledge_storage = knowledge_storage
+    application.state.knowledge_retrieval_factory = knowledge_retrieval_factory
     application.state.agent_runtime_factory = agent_runtime_factory
     application.state.widget_image_storage = widget_image_storage
     application.state.vision_gateway = vision_gateway

@@ -6,7 +6,10 @@ import { KnowledgePage } from "./knowledge-page";
 const mocks = vi.hoisted(() => ({
   getMe: vi.fn(),
   listKnowledgeBases: vi.fn(),
+  listAgents: vi.fn(),
   listKnowledgeDocuments: vi.fn(),
+  listKnowledgeVersions: vi.fn(),
+  runKnowledgeDiagnostic: vi.fn(),
   retryIngestionJob: vi.fn(),
   replace: vi.fn(),
 }));
@@ -25,7 +28,10 @@ vi.mock("@/lib/api", async (importOriginal) => {
       ...original.api,
       getMe: mocks.getMe,
       listKnowledgeBases: mocks.listKnowledgeBases,
+      listAgents: mocks.listAgents,
       listKnowledgeDocuments: mocks.listKnowledgeDocuments,
+      listKnowledgeVersions: mocks.listKnowledgeVersions,
+      runKnowledgeDiagnostic: mocks.runKnowledgeDiagnostic,
       retryIngestionJob: mocks.retryIngestionJob,
     },
   };
@@ -43,6 +49,7 @@ const workspace = {
 describe("KnowledgePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window, "prompt").mockReturnValue("Provider outage retry");
     mocks.getMe.mockResolvedValue({
       user: { id: "user", email: "owner@example.com", email_verified: true },
       workspaces: [workspace],
@@ -61,6 +68,7 @@ describe("KnowledgePage", () => {
       }],
       next_cursor: null,
     });
+    mocks.listAgents.mockResolvedValue({ items: [] });
     mocks.listKnowledgeDocuments.mockResolvedValue({
       items: [{
         id: 9,
@@ -69,10 +77,17 @@ describe("KnowledgePage", () => {
         kind: "policy",
         status: "active",
         source_kind: "manual",
+        latest_version_id: 10,
         version_no: 1,
         mime_type: "text/plain",
         byte_size: 120,
         active_generation_id: null,
+        active_version_no: null,
+        reviewed_at: null,
+        review_due_at: null,
+        reviewed_by_user_id: null,
+        freshness_state: "unknown",
+        active_generation_changed: false,
         ingestion_job: {
           id: 12,
           document_id: 9,
@@ -86,11 +101,44 @@ describe("KnowledgePage", () => {
           created_at: "2026-09-30T00:00:00Z",
           updated_at: "2026-09-30T00:00:00Z",
           completed_at: null,
+          recovery_state: "retryable_failure",
         },
         created_at: "2026-09-30T00:00:00Z",
         updated_at: "2026-09-30T00:00:00Z",
       }],
       next_cursor: null,
+    });
+    mocks.listKnowledgeVersions.mockResolvedValue({
+      items: [{
+        id: 10,
+        version_no: 1,
+        source_kind: "manual",
+        mime_type: "text/plain",
+        byte_size: 120,
+        content_sha256: "abc",
+        created_by_user_id: "user",
+        created_at: "2026-09-30T00:00:00Z",
+        reviewed_at: null,
+        review_due_at: null,
+        reviewed_by_user_id: null,
+        freshness_state: "unknown",
+        generation_id: null,
+        generation_status: null,
+        generation_failure_code: null,
+        is_active: false,
+        ingestion_job: null,
+      }],
+      next_cursor: null,
+    });
+    mocks.runKnowledgeDiagnostic.mockResolvedValue({
+      status: "completed",
+      target_type: "knowledge_bases",
+      resolved_knowledge_base_ids: [3],
+      active_sources: [],
+      hits: [],
+      raw_hit_count: 0,
+      discarded_hit_count: 0,
+      reason_codes: ["NO_ACTIVE_READY_GENERATION"],
     });
     mocks.retryIngestionJob.mockResolvedValue({ status: "queued" });
   });
@@ -103,6 +151,26 @@ describe("KnowledgePage", () => {
     expect(screen.getByText("Mã lỗi: PROVIDER_TEMPORARY")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Thử lại Đổi trả" }));
-    await waitFor(() => expect(mocks.retryIngestionJob).toHaveBeenCalledWith(workspace.id, 12));
+    await waitFor(() => expect(mocks.retryIngestionJob).toHaveBeenCalledWith(
+      workspace.id,
+      12,
+      "Provider outage retry",
+    ));
+  });
+
+  it("shows latest-versus-active state, immutable history, and diagnostic reasons", async () => {
+    render(<KnowledgePage />);
+
+    expect(await screen.findByText(/Phiên bản mới nhất 1/)).toHaveTextContent("đang tìm kiếm chưa có");
+    expect(screen.getByText(/Chưa xác nhận/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Chi tiết Đổi trả" }));
+    expect(await screen.findByText("Lịch sử bất biến")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.listKnowledgeVersions).toHaveBeenCalledWith(workspace.id, 3, 9));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Câu truy vấn" }), {
+      target: { value: "chính sách đổi trả" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Chạy chẩn đoán" }));
+    expect(await screen.findByText(/NO_ACTIVE_READY_GENERATION/)).toBeInTheDocument();
   });
 });

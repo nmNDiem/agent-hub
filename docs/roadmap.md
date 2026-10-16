@@ -39,7 +39,7 @@ Goal: prove that AgentHub can configure, ground, evaluate, publish, and operate 
 |---|---|---|
 | [3.1 General-purpose Agent baseline](phases/3.1-general-purpose-agent-baseline.md) | Domain-neutral Agent defaults/runtime behavior and permanent knowledge-only plus Commerce regression scenarios | Complete |
 | [3.2 Agent evaluation and rollout evidence](phases/3.2-agent-evaluation-and-rollout-evidence.md) | Evaluation cases, feedback, unresolved-question review, regression comparison and safe rollout evidence | Next candidate; packet awaits explicit implementation approval |
-| [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, version visibility, ingestion recovery and retrieval diagnostics | Planned; proposed packet awaits explicit approval |
+| [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, version visibility, ingestion recovery and retrieval diagnostics | Complete |
 | 3.4 Guided onboarding | Capability-aware setup and publish-readiness checks | Planned; packet not written |
 | 3.5 Capability-aware product navigation | Contextual domain presentation proven by real non-Commerce and Commerce flows | Planned; packet not written |
 | 3.6 World vertical prototype | Accessible spatial projection with approved dependencies and conventional-navigation parity | Planned; packet not written |

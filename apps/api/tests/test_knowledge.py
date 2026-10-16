@@ -17,7 +17,12 @@ from sqlalchemy.ext.asyncio import (
 
 from agent_hub_api.core.config import Settings
 from agent_hub_api.identity.security import CSRF_COOKIE
-from agent_hub_api.knowledge.models import IngestionJob, MediaAsset
+from agent_hub_api.knowledge.models import (
+    IngestionJob,
+    KnowledgeDocumentVersion,
+    KnowledgeRecoveryEvent,
+    MediaAsset,
+)
 from agent_hub_api.main import create_app
 from agent_hub_api.models import Base
 from agent_hub_api.workspaces.models import WorkspaceMember
@@ -206,6 +211,12 @@ def test_knowledge_api_is_idempotent_and_tenant_scoped(app_factory: AppFactory) 
             headers=csrf_headers(owner_a),
         )
         assert forged_link.status_code == 404
+        forged_diagnostic = owner_a.post(
+            f"/api/v1/workspaces/{workspace_a['id']}/knowledge/diagnostics",
+            json={"query": "secret", "knowledge_base_ids": [foreign_base["id"]]},
+            headers=csrf_headers(owner_a),
+        )
+        assert forged_diagnostic.status_code == 404
 
         async def add_member() -> None:
             async with session_factory() as session, session.begin():
@@ -275,3 +286,139 @@ def test_knowledge_upload_rejects_invalid_signature_and_size(app_factory: AppFac
         )
         assert invalid.status_code == 415
         assert storage.objects == {}
+
+
+def test_knowledge_version_freshness_recovery_and_diagnostics_are_bounded(
+    app_factory: AppFactory,
+) -> None:
+    app, session_factory, _ = app_factory()
+    with TestClient(app) as owner, TestClient(app) as member:
+        owner_user, workspace = register_and_create_workspace(
+            owner, "quality-owner@example.com", "quality-workspace"
+        )
+        member_user = member.post(
+            "/api/v1/auth/register",
+            json={"email": "quality-member@example.com", "password": PASSWORD},
+            headers={"origin": ORIGIN},
+        ).json()
+        knowledge_base = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/knowledge-bases",
+            json={"name": "Policies", "kind": "policy"},
+            headers=csrf_headers(owner),
+        ).json()
+        document = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/knowledge-bases/"
+            f"{knowledge_base['id']}/documents/text",
+            json={"title": "Returns", "kind": "policy", "content": "Seven days."},
+            headers={**csrf_headers(owner), "Idempotency-Key": "quality-create"},
+        ).json()
+
+        async def finish_initial_job_and_add_member() -> None:
+            async with session_factory() as session, session.begin():
+                job = await session.get(IngestionJob, document["ingestion_job"]["id"])
+                assert job is not None
+                job.status = "succeeded"
+                session.add(
+                    WorkspaceMember(
+                        workspace_id=UUID(workspace["id"]),
+                        user_id=UUID(member_user["user"]["id"]),
+                        role="member",
+                    )
+                )
+
+        asyncio.run(finish_initial_job_and_add_member())
+        versions_url = (
+            f"/api/v1/workspaces/{workspace['id']}/knowledge-bases/{knowledge_base['id']}"
+            f"/documents/{document['id']}/versions"
+        )
+        replacement = owner.post(
+            f"{versions_url}/text",
+            json={"content": "Fourteen days."},
+            headers={**csrf_headers(owner), "Idempotency-Key": "quality-replace"},
+        )
+        assert replacement.status_code == 201, replacement.text
+        assert replacement.json()["version_no"] == 2
+        assert replacement.json()["active_version_no"] is None
+        unchanged = owner.post(
+            f"{versions_url}/text",
+            json={"content": "Fourteen days."},
+            headers={**csrf_headers(owner), "Idempotency-Key": "quality-unchanged"},
+        )
+        assert unchanged.status_code == 409
+        assert unchanged.json()["error"]["code"] == "KNOWLEDGE_CONTENT_UNCHANGED"
+
+        history = owner.get(versions_url)
+        assert history.status_code == 200
+        assert [item["version_no"] for item in history.json()["items"]] == [2, 1]
+        latest = history.json()["items"][0]
+        reviewed = owner.patch(
+            f"{versions_url}/{latest['id']}/review",
+            json={"review_due_at": "2026-10-20T00:00:00Z"},
+            headers=csrf_headers(owner),
+        )
+        assert reviewed.status_code == 200, reviewed.text
+        assert reviewed.json()["reviewed_by_user_id"] == owner_user["user"]["id"]
+        assert reviewed.json()["freshness_state"] in {"due_soon", "overdue"}
+
+        member_diagnostic = member.post(
+            f"/api/v1/workspaces/{workspace['id']}/knowledge/diagnostics",
+            json={
+                "query": "return policy",
+                "knowledge_base_ids": [knowledge_base["id"]],
+            },
+            headers=csrf_headers(member),
+        )
+        assert member_diagnostic.status_code == 403
+        assert member.get(versions_url).status_code == 403
+        diagnostic = owner.post(
+            f"/api/v1/workspaces/{workspace['id']}/knowledge/diagnostics",
+            json={
+                "query": "return policy",
+                "knowledge_base_ids": [knowledge_base["id"]],
+            },
+            headers=csrf_headers(owner),
+        )
+        assert diagnostic.status_code == 200
+        assert diagnostic.json()["status"] == "dependency_unavailable"
+        assert "NO_ACTIVE_READY_GENERATION" in diagnostic.json()["reason_codes"]
+
+        async def fail_replacement() -> None:
+            async with session_factory() as session, session.begin():
+                job = await session.get(
+                    IngestionJob, replacement.json()["ingestion_job"]["id"]
+                )
+                assert job is not None
+                job.status = "failed"
+                job.retryable = False
+
+        asyncio.run(fail_replacement())
+        rebuilt = owner.post(
+            f"{versions_url}/{latest['id']}/rebuild",
+            json={"reason": "Projection verification"},
+            headers={**csrf_headers(owner), "Idempotency-Key": "quality-rebuild"},
+        )
+        assert rebuilt.status_code == 200, rebuilt.text
+        assert rebuilt.json()["status"] == "awaiting_profile"
+        replay = owner.post(
+            f"{versions_url}/{latest['id']}/rebuild",
+            json={"reason": "Projection verification"},
+            headers={**csrf_headers(owner), "Idempotency-Key": "quality-rebuild"},
+        )
+        assert replay.status_code == 200
+        assert replay.json()["id"] == rebuilt.json()["id"]
+
+        async def verify_audit() -> None:
+            async with session_factory() as session:
+                versions = list(
+                    await session.scalars(
+                        select(KnowledgeDocumentVersion).where(
+                            KnowledgeDocumentVersion.document_id == document["id"]
+                        )
+                    )
+                )
+                events = list(await session.scalars(select(KnowledgeRecoveryEvent)))
+                assert len(versions) == 2
+                assert len(events) == 1
+                assert events[0].reason == "Projection verification"
+
+        asyncio.run(verify_audit())

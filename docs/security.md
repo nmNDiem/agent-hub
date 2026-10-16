@@ -26,6 +26,7 @@ These rules apply to every phase and override convenience or UI assumptions. A p
 
 - Every tenant-owned table has `workspace_id` or a provably tenant-scoped parent relationship; repositories accept trusted tenant context.
 - Qdrant searches inject workspace and allowed-source filters server-side, then revalidate returned chunks against active PostgreSQL generations.
+- Knowledge diagnostics are owner/admin-only, derive base or Agent scope on the server, return snippets only from revalidated active chunks, and never persist query text or result content.
 - Private Storage access requires independent authorization before a short-lived signed URL or backend redirect is issued.
 - Channel external IDs are namespaced by provider and connection; an external ID alone is never globally trusted.
 
@@ -58,6 +59,7 @@ Before the first effectful tool, define its owning domain action, server-side pe
 
 - Validate MIME, signature, decoded format, byte/pixel/page limits and server-generated object paths. Parse hostile documents in an isolated bounded process.
 - Knowledge documents and visitor images stay private; public product media requires deliberate publication.
+- Knowledge version history exposes provenance hashes and processing state but not manual source bodies, private object keys or signed URLs. Replacement reuses current file/type/size/quota validation.
 - Local defaults are 24-hour visitor sessions/transcripts, 30-minute unattached images, one-hour attached images and 30-day consented leads. A change requires an explicit retention decision.
 - Expiry revokes authoritative database access before best-effort external cleanup; failed Storage deletion remains retryable.
 

@@ -11,6 +11,10 @@ Knowledge provides grounded workspace-specific context. PostgreSQL owns sources,
 - Durable ingestion jobs with leases, fencing, heartbeat, and classified retries.
 - Isolated PDF parsing, deterministic chunks, immutable embedding profiles, OpenAI embeddings, and tenant-filtered Qdrant retrieval.
 - Atomic active-generation cutover, rebuild, and stale-point revalidation.
+- Per-version review provenance with server-derived `unknown`, `current`, `due_soon`, and `overdue` freshness states. Freshness is advisory and never revokes retrieval.
+- Immutable manual/file replacement, bounded metadata history, latest-versus-active visibility, and duplicate-content rejection.
+- Owner/admin retry and rebuild recovery with idempotency, actor/reason evidence, active-work conflict checks, and preservation of the last ready generation.
+- Ephemeral owner/admin retrieval diagnostics for selected bases or an Agent's server-resolved assignment, using production embedding/filter/revalidation behavior without a chat completion.
 - Knowledge-only Agents can publish and execute without Commerce records; their runtime omits Catalog instructions, tools and product rendering.
 
 Main data: knowledge bases/documents/versions/generations/chunks, embedding profiles/mappings, media assets, ingestion jobs/attempts. Main surfaces: Knowledge management and agent assignment.
@@ -29,7 +33,7 @@ Create source/version → enqueue generation → parse and chunk into PostgreSQL
 
 ## APPROVED DIRECTION
 
-Controlled URL sources, source freshness, version comparison, retrieval diagnostics, safe additional formats, and quality signals for missing/conflicting knowledge.
+Controlled URL sources, richer safe version comparison, safe additional formats, and quality signals for missing/conflicting knowledge.
 
 ## NOT IMPLEMENTED
 

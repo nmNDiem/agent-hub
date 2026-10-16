@@ -31,6 +31,7 @@ Capability-aware UI tests assert that absent domains leave no broken route, requ
 - Catalog import cell states, staging/diff, atomic idempotent MERGE, SKU/identity conflicts and same-variant option search.
 - Unknown versus zero stock, effective price, product-only records and location/collection scope.
 - Knowledge file limits, ingestion fencing/idempotency, Qdrant tenant/source filtering and Postgres revalidation.
+- Knowledge immutable replacement, duplicate detection, freshness boundaries, latest-versus-active visibility, recovery attribution/conflicts and ephemeral diagnostic reason codes.
 - Grounded runtime budgets, prompt injection, safe fallback and validated product/source evidence.
 - Website session/conversation/image ownership, SSE replay/cancel, lead consent, quota and retention.
 

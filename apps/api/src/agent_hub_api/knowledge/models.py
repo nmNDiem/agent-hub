@@ -217,6 +217,12 @@ class KnowledgeDocumentVersion(Base):
             "document_id",
             "version_no",
         ),
+        Index(
+            "ix_document_versions_workspace_review_due",
+            "workspace_id",
+            "review_due_at",
+            "id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -230,6 +236,11 @@ class KnowledgeDocumentVersion(Base):
     mime_type: Mapped[str] = mapped_column(String(120))
     byte_size: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", name="fk_knowledge_document_versions_reviewer"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
@@ -493,3 +504,42 @@ class IngestionJobAttempt(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class KnowledgeRecoveryEvent(Base):
+    __tablename__ = "knowledge_recovery_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "job_id"],
+            ["ingestion_jobs.workspace_id", "ingestion_jobs.id"],
+            name="fk_knowledge_recovery_events_workspace_job",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "idempotency_key",
+            name="uq_knowledge_recovery_events_workspace_idempotency",
+        ),
+        CheckConstraint(
+            "action IN ('retry','rebuild')", name="ck_knowledge_recovery_events_action"
+        ),
+        CheckConstraint(
+            "length(trim(reason)) > 0", name="ck_knowledge_recovery_events_reason_nonempty"
+        ),
+        Index(
+            "ix_knowledge_recovery_events_workspace_job_created",
+            "workspace_id",
+            "job_id",
+            "created_at",
+            "id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    job_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    action: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str] = mapped_column(String(500))
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

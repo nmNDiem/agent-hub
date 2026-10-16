@@ -68,6 +68,7 @@ from agent_hub_api.knowledge.models import (
     KnowledgeDocumentActiveGeneration,
     KnowledgeDocumentVersion,
     KnowledgeGeneration,
+    KnowledgeRecoveryEvent,
     MediaAsset,
 )
 from agent_hub_api.leads.models import Lead
@@ -117,6 +118,7 @@ __all__ = [
     "KnowledgeDocumentActiveGeneration",
     "KnowledgeDocumentVersion",
     "KnowledgeGeneration",
+    "KnowledgeRecoveryEvent",
     "Location",
     "LocationVariant",
     "OutboundDelivery",

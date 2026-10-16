@@ -13,6 +13,8 @@ from agent_hub_api.knowledge.models import (
     KnowledgeDocument,
     KnowledgeDocumentActiveGeneration,
     KnowledgeDocumentVersion,
+    KnowledgeGeneration,
+    KnowledgeRecoveryEvent,
     MediaAsset,
 )
 
@@ -132,7 +134,7 @@ class KnowledgeRepository:
         list[KnowledgeDocument],
         dict[int, KnowledgeDocumentVersion],
         dict[int, IngestionJob],
-        dict[int, int],
+        dict[int, tuple[int, int]],
         bool,
     ]:
         query = select(KnowledgeDocument).where(
@@ -185,7 +187,17 @@ class KnowledgeRepository:
                 select(
                     KnowledgeDocumentActiveGeneration.document_id,
                     KnowledgeDocumentActiveGeneration.generation_id,
-                ).where(
+                    KnowledgeDocumentVersion.version_no,
+                )
+                .join(
+                    KnowledgeGeneration,
+                    KnowledgeGeneration.id == KnowledgeDocumentActiveGeneration.generation_id,
+                )
+                .join(
+                    KnowledgeDocumentVersion,
+                    KnowledgeDocumentVersion.id == KnowledgeGeneration.document_version_id,
+                )
+                .where(
                     KnowledgeDocumentActiveGeneration.workspace_id == workspace_id,
                     KnowledgeDocumentActiveGeneration.document_id.in_(document_ids),
                 )
@@ -201,7 +213,107 @@ class KnowledgeRepository:
             documents,
             latest_versions,
             latest_jobs,
-            {document_id: generation_id for document_id, generation_id in active_rows},
+            {
+                document_id: (generation_id, version_no)
+                for document_id, generation_id, version_no in active_rows
+            },
+            has_more,
+        )
+
+    async def list_versions(
+        self,
+        workspace_id: UUID,
+        document_id: int,
+        *,
+        limit: int,
+        cursor_id: int | None,
+    ) -> tuple[
+        list[KnowledgeDocumentVersion],
+        dict[int, KnowledgeGeneration],
+        dict[int, IngestionJob],
+        int | None,
+        int | None,
+        bool,
+    ]:
+        query = select(KnowledgeDocumentVersion).where(
+            KnowledgeDocumentVersion.workspace_id == workspace_id,
+            KnowledgeDocumentVersion.document_id == document_id,
+        )
+        if cursor_id is not None:
+            query = query.where(KnowledgeDocumentVersion.id < cursor_id)
+        versions = list(
+            (
+                await self.session.scalars(
+                    query.order_by(KnowledgeDocumentVersion.id.desc()).limit(limit + 1)
+                )
+            ).all()
+        )
+        has_more = len(versions) > limit
+        versions = versions[:limit]
+        if not versions:
+            active_generation_id = await self.active_generation_id(workspace_id, document_id)
+            active_version_id = (
+                await self.session.scalar(
+                    select(KnowledgeGeneration.document_version_id).where(
+                        KnowledgeGeneration.workspace_id == workspace_id,
+                        KnowledgeGeneration.id == active_generation_id,
+                    )
+                )
+                if active_generation_id is not None
+                else None
+            )
+            return [], {}, {}, active_generation_id, active_version_id, has_more
+        version_ids = [version.id for version in versions]
+        generations = list(
+            (
+                await self.session.scalars(
+                    select(KnowledgeGeneration)
+                    .where(
+                        KnowledgeGeneration.workspace_id == workspace_id,
+                        KnowledgeGeneration.document_version_id.in_(version_ids),
+                    )
+                    .order_by(
+                        KnowledgeGeneration.document_version_id,
+                        KnowledgeGeneration.generation_no.desc(),
+                    )
+                )
+            ).all()
+        )
+        jobs = list(
+            (
+                await self.session.scalars(
+                    select(IngestionJob)
+                    .where(
+                        IngestionJob.workspace_id == workspace_id,
+                        IngestionJob.document_version_id.in_(version_ids),
+                    )
+                    .order_by(IngestionJob.document_version_id, IngestionJob.id.desc())
+                )
+            ).all()
+        )
+        latest_generations: dict[int, KnowledgeGeneration] = {}
+        latest_jobs: dict[int, IngestionJob] = {}
+        for generation in generations:
+            latest_generations.setdefault(generation.document_version_id, generation)
+        for job in jobs:
+            latest_jobs.setdefault(job.document_version_id, job)
+        active_generation_id = await self.active_generation_id(workspace_id, document_id)
+        active_version_id = (
+            await self.session.scalar(
+                select(KnowledgeGeneration.document_version_id).where(
+                    KnowledgeGeneration.workspace_id == workspace_id,
+                    KnowledgeGeneration.id == active_generation_id,
+                )
+            )
+            if active_generation_id is not None
+            else None
+        )
+        return (
+            versions,
+            latest_generations,
+            latest_jobs,
+            active_generation_id,
+            cast(int | None, active_version_id),
             has_more,
         )
 
@@ -225,6 +337,33 @@ class KnowledgeRepository:
                 select(IngestionJob).where(
                     IngestionJob.workspace_id == workspace_id,
                     IngestionJob.idempotency_key == idempotency_key,
+                )
+            ),
+        )
+
+    async def recovery_by_idempotency(
+        self, workspace_id: UUID, idempotency_key: str
+    ) -> KnowledgeRecoveryEvent | None:
+        return cast(
+            KnowledgeRecoveryEvent | None,
+            await self.session.scalar(
+                select(KnowledgeRecoveryEvent).where(
+                    KnowledgeRecoveryEvent.workspace_id == workspace_id,
+                    KnowledgeRecoveryEvent.idempotency_key == idempotency_key,
+                )
+            ),
+        )
+
+    async def active_job(self, workspace_id: UUID, document_id: int) -> IngestionJob | None:
+        return cast(
+            IngestionJob | None,
+            await self.session.scalar(
+                select(IngestionJob).where(
+                    IngestionJob.workspace_id == workspace_id,
+                    IngestionJob.document_id == document_id,
+                    IngestionJob.status.in_(
+                        {"uploading", "awaiting_profile", "queued", "processing", "retry_scheduled"}
+                    ),
                 )
             ),
         )
@@ -264,7 +403,13 @@ class KnowledgeRepository:
 
     async def latest_document_bundle(
         self, workspace_id: UUID, document_id: int
-    ) -> tuple[KnowledgeDocument, KnowledgeDocumentVersion, IngestionJob, int | None] | None:
+    ) -> tuple[
+        KnowledgeDocument,
+        KnowledgeDocumentVersion,
+        IngestionJob,
+        int | None,
+        int | None,
+    ] | None:
         document = await self.get_document(workspace_id, document_id)
         if document is None:
             return None
@@ -288,7 +433,33 @@ class KnowledgeRepository:
         )
         if version is None or job is None:
             raise RuntimeError("Knowledge document is missing its version or ingestion job")
-        return document, version, job, await self.active_generation_id(workspace_id, document_id)
+        active_row = (
+            await self.session.execute(
+                select(
+                    KnowledgeDocumentActiveGeneration.generation_id,
+                    KnowledgeDocumentVersion.version_no,
+                )
+                .join(
+                    KnowledgeGeneration,
+                    KnowledgeGeneration.id == KnowledgeDocumentActiveGeneration.generation_id,
+                )
+                .join(
+                    KnowledgeDocumentVersion,
+                    KnowledgeDocumentVersion.id == KnowledgeGeneration.document_version_id,
+                )
+                .where(
+                    KnowledgeDocumentActiveGeneration.workspace_id == workspace_id,
+                    KnowledgeDocumentActiveGeneration.document_id == document_id,
+                )
+            )
+        ).one_or_none()
+        return (
+            document,
+            version,
+            job,
+            active_row.generation_id if active_row is not None else None,
+            active_row.version_no if active_row is not None else None,
+        )
 
     async def recent_job_count(self, workspace_id: UUID, since: datetime) -> int:
         return int(
