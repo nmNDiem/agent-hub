@@ -232,6 +232,13 @@ def test_runtime_builds_schema_neutral_cards_from_authoritative_tools() -> None:
             safe_instructions="Be concise.",
         ).run("Có áo linen dáng relaxed không?")
 
+        assert [tool.name for tool in gateway.requests[0].tools] == [
+            "search_products",
+            "get_product_detail",
+            "check_stock",
+            "submit_grounded_answer",
+        ]
+        assert "Catalog tools are available" in gateway.requests[0].system_prompt
         assert tools.search_payloads[0].limit == 8
         assert response.text == (
             "I found a matching option. Would you like help choosing a variant?"
@@ -742,6 +749,65 @@ def test_runtime_allows_natural_paraphrases_with_valid_knowledge_sources() -> No
 
         assert "7 ngày" in response.text
         assert response.sources[0].source_id == "source_1"
+
+    asyncio.run(exercise())
+
+
+def test_knowledge_only_runtime_excludes_catalog_prompt_tools_and_cards() -> None:
+    async def exercise() -> None:
+        source = RetrievedKnowledge(
+            content="Support is available from Monday through Friday.",
+            citation=KnowledgeCitation(
+                knowledge_base_id=2,
+                document_id=3,
+                document_title="Support policy",
+                chunk_id=4,
+                source_locator="section:hours",
+            ),
+            embedding_profile_id=5,
+            similarity_score=0.9,
+        )
+        gateway = FakeGateway(
+            [
+                model_call(
+                    "search_products",
+                    {"query": "support"},
+                    call_id="disallowed-catalog-search",
+                ),
+                model_call(
+                    "submit_grounded_answer",
+                    {
+                        "kind": "knowledge",
+                        "message": "Support is available Monday through Friday.",
+                        "source_ids": ["source_1"],
+                    },
+                    call_id="knowledge-only-final",
+                )
+            ]
+        )
+
+        response = await GroundedAgentRuntime(
+            gateway=gateway,
+            catalog_tools=None,
+            knowledge_searcher=FakeKnowledgeSearcher([source]),
+            budget=budget(),
+            locale="en",
+            safe_instructions="Be concise.",
+        ).run("When is support available?")
+
+        assert all(
+            [tool.name for tool in request.tools] == ["submit_grounded_answer"]
+            for request in gateway.requests
+        )
+        request = gateway.requests[0]
+        assert "sales assistant" not in request.system_prompt
+        assert "Catalog tools are available" not in request.system_prompt
+        assert "Catalog requires" not in request.tools[0].description
+        assert "product_ids" not in json.dumps(request.tools[0].parameters)
+        assert '"catalog"' not in json.dumps(request.tools[0].parameters)
+        assert "TOOL_NOT_ALLOWED" in str(gateway.requests[1].messages[-1])
+        assert response.product_cards == []
+        assert [item.source_id for item in response.sources] == ["source_1"]
 
     asyncio.run(exercise())
 

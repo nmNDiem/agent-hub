@@ -56,6 +56,19 @@ class CatalogReadService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def has_products(self, scope: AuthorizedCatalogScope) -> bool:
+        """Return whether the authorized scope contains any readable product."""
+
+        effective_scope = _EffectiveScope(
+            location_ids=scope.allowed_location_ids,
+            collection_ids=scope.allowed_collection_ids,
+        )
+        if self._scope_is_empty(effective_scope):
+            return False
+        stmt = self._join_catalog_rows(select(Product.id))
+        stmt = self._apply_scope(stmt, scope, effective_scope).limit(1)
+        return await self.session.scalar(stmt) is not None
+
     async def search_products(
         self, scope: AuthorizedCatalogScope, query: CatalogQuery
     ) -> tuple[CatalogProductReadModel, ...]:

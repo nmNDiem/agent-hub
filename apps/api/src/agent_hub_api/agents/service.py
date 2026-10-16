@@ -28,18 +28,16 @@ from agent_hub_api.workspaces.service import WorkspaceService
 
 _DEFAULT_AGENT_COPY: dict[str, tuple[str, str]] = {
     "vi": (
-        "Xin chào! Mình có thể giúp bạn tìm sản phẩm và giải đáp thông tin của shop. "
-        "Bạn đang quan tâm điều gì?",
-        "Trò chuyện thân thiện, tự nhiên và chủ động như một tư vấn viên bán hàng. "
-        "Trả lời rõ ràng, vừa đủ; ưu tiên nhu cầu của khách và đặt một câu hỏi tiếp theo "
-        "khi điều đó giúp tư vấn tốt hơn. Chỉ sử dụng thông tin được cung cấp và nói rõ "
+        "Xin chào! Mình có thể giúp bạn tìm hiểu thông tin. Bạn đang quan tâm điều gì?",
+        "Trò chuyện thân thiện, tự nhiên và chủ động. "
+        "Trả lời rõ ràng, vừa đủ; ưu tiên nhu cầu của người dùng và đặt một câu hỏi tiếp theo "
+        "khi điều đó giúp hỗ trợ tốt hơn. Chỉ sử dụng thông tin được cung cấp và nói rõ "
         "khi chưa thể xác minh.",
     ),
     "en": (
-        "Hello! I can help you find products and answer questions about the shop. "
-        "What are you looking for?",
-        "Be a friendly, natural, and proactive sales assistant. Give clear, concise answers, "
-        "focus on the customer's needs, and ask a helpful follow-up question when appropriate. "
+        "Hello! I can help you find and understand information. What would you like to know?",
+        "Be a friendly, natural, and proactive assistant. Give clear, concise answers, "
+        "focus on the user's needs, and ask a helpful follow-up question when appropriate. "
         "Use only the information provided and be transparent when something cannot be verified.",
     ),
 }

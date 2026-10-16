@@ -32,9 +32,9 @@ type ChatMessage = {
 };
 
 const suggestions = [
-  "Gợi ý sản phẩm đang còn hàng",
-  "Cửa hàng có chính sách đổi trả nào?",
-  "Sản phẩm nào có nhiều tùy chọn?",
+  "Tóm tắt thông tin quan trọng",
+  "Chính sách hỗ trợ là gì?",
+  "Có lựa chọn nào phù hợp với nhu cầu này?",
 ];
 
 function greetingMessage(agent: Agent): ChatMessage[] {
@@ -192,7 +192,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
       </div>
       {playgroundFeedback && <FeedbackBanner feedback={playgroundFeedback} />}
       <div className="chat-transcript" aria-busy={streaming} aria-live="polite" ref={transcript} role="log">
-        {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử chatbot" : "Chọn hoặc tạo chatbot"}</h2><p>{agent ? "Đặt câu hỏi về catalog hoặc tri thức đã gán." : "Bạn cần một chatbot trước khi bắt đầu thử nghiệm."}</p></div>}
+        {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử chatbot" : "Chọn hoặc tạo chatbot"}</h2><p>{agent ? "Đặt câu hỏi về tri thức đã gán hoặc catalog khả dụng." : "Bạn cần một chatbot trước khi bắt đầu thử nghiệm."}</p></div>}
         {messages.map((message) => <ChatBubble key={message.id} message={message} />)}
       </div>
       <div className="chat-prompt-zone">
@@ -209,7 +209,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) void sendMessage();
           }}
-          placeholder="Hỏi về sản phẩm hoặc chính sách…"
+          placeholder="Hỏi về nội dung bạn quan tâm…"
           rows={2}
           value={input}
         />

@@ -11,6 +11,7 @@ Knowledge provides grounded workspace-specific context. PostgreSQL owns sources,
 - Durable ingestion jobs with leases, fencing, heartbeat, and classified retries.
 - Isolated PDF parsing, deterministic chunks, immutable embedding profiles, OpenAI embeddings, and tenant-filtered Qdrant retrieval.
 - Atomic active-generation cutover, rebuild, and stale-point revalidation.
+- Knowledge-only Agents can publish and execute without Commerce records; their runtime omits Catalog instructions, tools and product rendering.
 
 Main data: knowledge bases/documents/versions/generations/chunks, embedding profiles/mappings, media assets, ingestion jobs/attempts. Main surfaces: Knowledge management and agent assignment.
 

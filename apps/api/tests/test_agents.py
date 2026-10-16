@@ -101,7 +101,8 @@ def test_agent_creation_supplies_editable_defaults_when_optional_copy_is_omitted
         payload = created.json()
         assert payload["default_locale"] == "vi"
         assert payload["greeting"].startswith("Xin chào!")
-        assert "tư vấn viên bán hàng" in payload["safe_instructions"]
+        assert "người dùng" in payload["safe_instructions"]
+        assert "bán hàng" not in payload["safe_instructions"]
 
 
 def test_agent_api_persists_scope_and_enforces_workspace_and_role(

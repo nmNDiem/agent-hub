@@ -137,6 +137,7 @@ describe("ChatbotsPage", () => {
     render(<ChatbotsPage />);
     expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
     expect(screen.getByRole("heading", { name: "Thử chatbot" })).toBeInTheDocument();
+    expect(screen.getByText(/Catalog dùng khi có dữ liệu phù hợp/)).toBeInTheDocument();
 
     fireEvent.change(await screen.findByLabelText(/Tính cách và phong cách trả lời/), {
       target: { value: "Thân thiện" },
@@ -257,6 +258,8 @@ describe("ChatbotsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Kênh Web/ }));
     expect(await screen.findByRole("heading", { name: "Widget trò chuyện" })).toBeInTheDocument();
+    expect(screen.getByText("Có nguồn dữ liệu: tri thức hoặc catalog")).toBeInTheDocument();
+    expect(screen.getAllByText("Trợ lý AI").length).toBeGreaterThan(1);
     fireEvent.change(screen.getByLabelText("Thêm website"), {
       target: { value: "https://SHOP.example.com/" },
     });

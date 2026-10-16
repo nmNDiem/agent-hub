@@ -200,8 +200,7 @@ export function WebChannelPanel({
 
   const readiness = [
     [config.readiness.has_allowed_origin, "Đã thêm website được phép"],
-    [config.readiness.has_catalog_scope, "Có phạm vi catalog hợp lệ"],
-    [config.readiness.has_knowledge, "Có nguồn tri thức (không bắt buộc nếu đã có catalog)"],
+    [config.readiness.has_catalog_scope || config.readiness.has_knowledge, "Có nguồn dữ liệu: tri thức hoặc catalog"],
   ] as const;
 
   return <section className="web-channel-panel">
@@ -251,8 +250,8 @@ export function WebChannelPanel({
             <div className="fake-site-bar"><i /><i /><i /><span /></div>
             <div className="fake-site-content"><span /><span /><span /></div>
             <div className={`widget-preview-window ${draft.launcher_position}`} style={{ "--widget-brand": draft.brand_color } as CSSProperties}>
-              <header><span className="preview-avatar"><MessageCircle size={16} /></span><div><strong>{draft.display_name || "Chatbot"}</strong><small>Trợ lý mua sắm</small></div></header>
-              <div className="preview-transcript"><p>{draft.greeting || "Xin chào! Mình có thể giúp bạn tìm sản phẩm phù hợp."}</p><div className="preview-suggestions"><span>Gợi ý sản phẩm</span><span>Tư vấn kích thước</span><span>Nhờ shop liên hệ</span></div></div>
+              <header><span className="preview-avatar"><MessageCircle size={16} /></span><div><strong>{draft.display_name || "Chatbot"}</strong><small>Trợ lý AI</small></div></header>
+              <div className="preview-transcript"><p>{draft.greeting || "Xin chào! Mình có thể giúp bạn tìm hiểu thông tin."}</p><div className="preview-suggestions"><span>Tìm hiểu thông tin</span><span>Chính sách hỗ trợ</span><span>Liên hệ trực tiếp</span></div></div>
               <div className="preview-composer"><span>Nhập tin nhắn…</span><i /></div>
             </div>
             <div className={`widget-preview-launcher ${draft.launcher_position}`} style={{ "--widget-brand": draft.brand_color } as CSSProperties}><MessageCircle size={21} /></div>

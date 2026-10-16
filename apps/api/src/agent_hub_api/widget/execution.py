@@ -6,6 +6,7 @@ from agent_hub_api.agents.models import AgentRevision
 from agent_hub_api.agents.runtime import AgentExecutionContext
 from agent_hub_api.catalog.models import CatalogCollection, Location
 from agent_hub_api.catalog.read_models import AuthorizedCatalogScope
+from agent_hub_api.catalog.read_service import CatalogReadService
 from agent_hub_api.knowledge.retrieval import resolve_knowledge_scope_ids
 
 
@@ -49,13 +50,15 @@ async def resolve_revision_execution_context(
             )
         )
     knowledge_ids = tuple(item for item in revision.knowledge_base_ids_json if item > 0)
+    catalog_scope = AuthorizedCatalogScope(
+        workspace_id=revision.workspace_id,
+        allowed_location_ids=location_ids,
+        allowed_collection_ids=collection_ids,
+    )
     return AgentExecutionContext(
         workspace_id=revision.workspace_id,
-        catalog_scope=AuthorizedCatalogScope(
-            workspace_id=revision.workspace_id,
-            allowed_location_ids=location_ids,
-            allowed_collection_ids=collection_ids,
-        ),
+        catalog_scope=catalog_scope,
+        catalog_available=await CatalogReadService(session).has_products(catalog_scope),
         knowledge_scope=await resolve_knowledge_scope_ids(
             session,
             workspace_id=revision.workspace_id,

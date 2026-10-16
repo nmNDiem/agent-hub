@@ -213,6 +213,27 @@ def test_product_centric_search_batches_rows_and_enforces_authorized_scope(
                 assert products[0].availability.total_locations == 2
                 assert len(products[0].variants) == 2
                 assert len(products[0].variants[0].availability) == 2
+                assert await CatalogReadService(session).has_products(scope) is True
+                assert (
+                    await CatalogReadService(session).has_products(
+                        AuthorizedCatalogScope(
+                            workspace_id=workspace_id,
+                            allowed_location_ids=frozenset({hanoi.id}),
+                            allowed_collection_ids=frozenset(),
+                        )
+                    )
+                    is False
+                )
+                assert (
+                    await CatalogReadService(session).has_products(
+                        AuthorizedCatalogScope(
+                            workspace_id=other_workspace_id,
+                            allowed_location_ids=None,
+                            allowed_collection_ids=None,
+                        )
+                    )
+                    is False
+                )
 
                 with pytest.raises(ApiError) as denied:
                     await CatalogReadService(session).search_products(

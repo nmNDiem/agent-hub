@@ -385,6 +385,7 @@ def test_public_widget_stream_is_scoped_redacted_and_idempotent(
         assert "internal-source" not in streamed.text
         assert f'"product_url":"{ORIGIN}/products/linen"' in streamed.text
         assert len(runtime.calls) == 1
+        assert runtime.calls[0][0].catalog_available is False
         assert runtime.calls[0][0].safe_instructions == "revision-one"
         assert runtime.calls[0][1] == "Còn áo linen màu xanh không?"
 
@@ -407,6 +408,35 @@ def test_public_widget_stream_is_scoped_redacted_and_idempotent(
             "assistant",
         ]
         assert "product_id" not in transcript.text
+
+
+def test_knowledge_only_widget_response_has_sources_without_product_cards(
+    app_factory: AppFactory,
+) -> None:
+    runtime = FakePublishedRuntime()
+    runtime.response.text = "Hỗ trợ làm việc từ thứ Hai đến thứ Sáu."
+    runtime.response.product_cards = []
+    app = app_factory(runtime)
+
+    with TestClient(app) as client:
+        published = publish_agent(client, "knowledge-only@example.com")
+        token, _ = visitor_session(client, published["public_agent_id"])
+        conversation = client.post(
+            "/api/v1/widget/conversations",
+            headers=visitor_headers(token),
+        )
+        assert conversation.status_code == 201, conversation.text
+
+        streamed = client.post(
+            f"/api/v1/widget/conversations/{conversation.json()['public_id']}/messages",
+            json={"message": "Khi nào có hỗ trợ?"},
+            headers=visitor_headers(token, **{"idempotency-key": "knowledge-only-request"}),
+        )
+
+        assert streamed.status_code == 200, streamed.text
+        assert "event: source.refs" in streamed.text
+        assert "event: product.cards" not in streamed.text
+        assert runtime.calls[0][0].catalog_available is False
 
 
 def test_public_widget_rejects_cross_origin_and_cross_session_access(

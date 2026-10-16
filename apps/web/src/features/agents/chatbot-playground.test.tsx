@@ -71,6 +71,8 @@ describe("ChatbotPlayground", () => {
     });
     render(<ChatbotPlayground agent={agent} workspaceId={workspaceId} />);
 
+    expect(screen.getByText("Tóm tắt thông tin quan trọng")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Hỏi về nội dung bạn quan tâm…")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Tin nhắn thử nghiệm"), { target: { value: "Gợi ý sản phẩm" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi" }));
 

@@ -8,8 +8,10 @@ An Agent is a workspace-owned assistant configuration: identity, instructions, a
 
 - Draft agents with name, greeting, locale, safe instructions, knowledge assignments, and catalog location/collection scope.
 - Immutable published revisions, publish/pause/archive behavior, authenticated Playground, Website publication, and social-channel bindings.
-- A bounded OpenAI runtime with knowledge retrieval and typed catalog read tools.
+- A bounded OpenAI runtime with knowledge retrieval and capability-aware typed Catalog read tools.
 - Server-validated source/product evidence and usage accounting.
+
+The runtime uses a generic base policy. It exposes Catalog tools and Catalog-specific instructions only when the Agent's server-authorized scope currently contains readable products; Knowledge-only Agents receive neither and cannot emit product cards.
 
 Main data: agents, revisions, knowledge assignments, catalog scope joins, and channel bindings. Main surfaces: agent workbench, Playground, and publish/channel configuration.
 
@@ -25,9 +27,9 @@ Edit draft → validate referenced workspace resources → publish immutable rev
 - Public DTOs never contain secrets; rendered evidence is revalidated server-side.
 - Historical conversations keep their revision association.
 
-## APPROVED DIRECTION
+## IMPLEMENTED DIRECTION
 
-Remove mandatory Commerce assumptions from defaults and runtime composition while preserving existing revisions. Add evaluation cases, feedback, regression comparison, controlled rollout, and capability-aware onboarding.
+New Agent defaults and runtime composition no longer assume Commerce. Existing revisions remain compatible, while each execution derives Catalog availability from its server-authorized scope. Evaluation cases, feedback, regression comparison, controlled rollout, and broader capability-aware onboarding remain future work.
 
 Before an effectful action exists, introduce a minimum typed action boundary: Agent → authorized action/tool → owning domain service → authoritative PostgreSQL state, with validation, idempotency, approval policy, and durable redacted execution evidence.
 

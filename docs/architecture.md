@@ -100,9 +100,9 @@ Storage paths, vector payloads, jobs, external mappings and tools carry tenant s
 
 ### Current
 
-The runtime resolves one Agent's Catalog scope and assigned Knowledge, retrieves permitted Knowledge, exposes fixed read-only Catalog tools, calls OpenAI through a provider adapter and validates final product/source evidence. Published Channel execution uses an immutable Agent revision.
+The runtime resolves one Agent's Catalog scope and assigned Knowledge, retrieves permitted Knowledge, calls OpenAI through a provider adapter and validates final product/source evidence. It exposes the fixed read-only Catalog tools and Catalog-specific policy only when the server-authorized scope contains readable products. Published Channel execution uses an immutable Agent revision and revalidates current resource availability.
 
-Current coupling is first-vertical specific: the base prompt and fixed tool set are sales/catalog oriented. Empty Catalog scope and Knowledge-only publication are supported, so Commerce records are not required, but the runtime is not yet a general tool-composition system.
+The base prompt and new Agent defaults are domain-neutral. Knowledge-only publication and execution require no Commerce records and cannot produce product cards. This capability-aware conditional remains deliberately concrete; the runtime is not a general tool-composition system.
 
 ### Approved direction
 
