@@ -1,30 +1,41 @@
-# Platform and billing
+# Platform billing and entitlements
 
-## Purpose
+## Function and ownership
 
-The platform domain manages commercial entitlements, usage limits and operator controls across workspaces. It is a committed later delivery after omnichannel operations and product intelligence.
+This domain will sell AgentHub itself: plans, workspace entitlements, quotas, subscriptions, and operator account controls. It is distinct from Commerce payments a workspace may collect from its customers.
 
-## Current foundation
+## CURRENT
 
 - Tenant-scoped factual usage events.
-- A transactional local generated-turn quota shared by Website and Playground.
-- Rate, upload, token, tool and provider-call safety limits.
-- No subscriptions, invoices or customer charging.
+- A transactional generated-turn quota shared by Website and Playground.
+- Rate, upload, token, tool, provider-call, and concurrency safety limits.
+- No subscription, invoice, card collection, or customer charging.
 
-## Complete domain capability
+Main data today: usage events and workspace usage months. Main surfaces today: usage/quota visibility; there is no billing console.
 
-- Plans and versioned entitlements.
-- Workspace subscription lifecycle and commercial quotas.
-- Immutable metering/credit ledger where financial correctness requires it.
-- Invoices, signed payment webhooks, replay-safe reconciliation and refunds/disputes policy.
-- Platform operator controls with audited, least-privilege support access.
-- Trial, active, restricted, suspended, export and deletion states.
+## Core flow
+
+Reserve a generated turn transactionally against the workspace-local month → perform bounded provider work → persist observed usage outcome. This is safety/quota enforcement, not commercial invoicing.
 
 ## Invariants
 
-- Provider usage and customer billing are separate facts.
-- Prices and entitlement rules are versioned; they are not assumed from current provider pricing.
-- Webhooks are signature-verified and idempotent.
-- Card data is not handled directly when a payment provider can host collection.
-- Model output cannot change plans, charge customers or grant entitlements.
-- Suspension stops new paid work according to policy while preserving lawful account/export access.
+- Provider consumption and customer billing are separate facts.
+- Entitlements are checked server-side, not inferred from UI visibility.
+- Prices and plan rules are versioned; current provider prices are never hardcoded as timeless truth.
+- Prefer hosted payment collection and retain no card data when a provider can own it.
+- Signed webhooks are verified and idempotent before state change.
+- Model output cannot change plans, charge customers, or grant entitlements.
+
+## APPROVED DIRECTION
+
+Plans, versioned entitlements, workspace subscription lifecycle, commercial quotas, invoices, replay-safe webhook reconciliation, refund/dispute policy, and narrowly authorized operator controls. Financial correctness may require an immutable metering/credit ledger.
+
+## NOT IMPLEMENTED
+
+All commercial billing behavior above is absent. There is no general platform audit table or support impersonation flow.
+
+## Change trigger
+
+Before charging the first workspace, select the external provider and document price versioning, entitlement transitions, webhook/reconciliation behavior, failure states, support access, export, suspension, and deletion.
+
+Related authority: [`../roadmap.md`](../roadmap.md), [`../security.md`](../security.md), [`commerce.md`](commerce.md).

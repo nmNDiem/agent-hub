@@ -2,6 +2,8 @@
 
 FastAPI publishes the executable OpenAPI contract. This document owns stable cross-cutting conventions and route families; do not duplicate full generated request/response schemas here.
 
+All route families below are **CURRENT** unless explicitly labeled otherwise. AgentHub has no generic capability-registration or effectful-agent-action API today.
+
 ## General conventions
 
 - API prefix: `/api/v1`; JSON/UTF-8; ISO-8601 UTC timestamps.
@@ -166,3 +168,9 @@ provider details.
 - Snapshot OpenAPI and regenerate typed frontend clients.
 - Test tenant denial, pagination stability, idempotency mismatch, duplicate webhook, provider outage, partial stream and cancelled request.
 - Do not add alias routes for superseded speculative names.
+
+## APPROVED DIRECTION: domain actions
+
+When the first effectful Agent action is approved, expose the owning domain's concrete action rather than a universal arbitrary-tool endpoint. Its contract must define server-derived actor/workspace scope, typed validation, authorization, approval if required, idempotency/request hashing, concurrency, durable redacted execution state, safe errors, and reconciliation of ambiguous external effects.
+
+This section is a design gate, not a current route family.

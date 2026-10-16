@@ -1,63 +1,46 @@
 # Decision register
 
-This file records owner-approved product and technology choices. Roadmap commitments live in [`roadmap.md`](roadmap.md); detailed behavior lives in domain and reference documents.
+This register contains durable product and architecture decisions. Current behavior belongs in domain/technical documents; sequencing belongs in [`roadmap.md`](roadmap.md).
 
-Status values are `Confirmed`, `Open` and `Superseded`.
+## Confirmed decisions
 
-## Confirmed product decisions
+| Area | Decision | Rationale | Consequence | Revisit trigger |
+|---|---|---|---|---|
+| Product | AgentHub is a general-purpose AI Agent platform; fashion Commerce is the first substantial domain capability. | Portfolio, Commerce and internal-assistant scenarios share the same platform concerns. | Core documentation and new core code must not assume a catalog. | Owner changes the product definition. |
+| Workspace | Workspace is a generic tenancy/isolation boundary, not a shop or permanent business type. | Capability needs change over time and workspaces may be non-commercial. | No required Commerce records or permanent type discriminator. Historical shop wording may remain where harmless. | A concrete requirement needs mutually exclusive tenant behavior that capabilities cannot express simply. |
+| Agent | Use one generic Agent aggregate; behavior derives from configuration, Knowledge, authorized Tools, policies, Channels and immutable revisions. | Avoids duplicated platform lifecycle and runtime logic. | Do not add `sales_agents`, `portfolio_agents` or similar foundational models by default. | A concrete domain proves a genuinely different aggregate lifecycle/invariant. |
+| Domain ownership | Each domain owns its authoritative data and mutations. | Agents and Channels must not become alternate systems of record. | Agent configuration/Qdrant never duplicate current catalog, inventory, order or payment truth. | Never; only ownership may be deliberately reassigned by an approved migration. |
+| Agent actions | Long-term execution is `Agent -> authorized typed Tool/Action -> Domain Service -> domain state`. | Keeps model output untrusted and business rules enforceable. | Workspace scope is server-injected; services reauthorize; high-impact actions may require approval. | The first effectful tool triggers the minimal authorization/audit implementation. |
+| Tool infrastructure | Do not build a speculative plugin framework, universal registry, service locator or workflow engine. | No current second implementation justifies the complexity. | Add only the smallest composition boundary required by an approved tool use case. | A concrete second/third tool family demonstrates repeated integration needs. |
+| Knowledge | PostgreSQL owns Knowledge sources, versions, chunks and active generations; Qdrant is derived/rebuildable. | Deletion, tenancy and lifecycle require relational authority. | Vector hits are filtered and revalidated; structured mutable facts stay outside RAG. | A replacement must preserve equivalent authority and rebuild semantics. |
+| Runtime provider | OpenAI remains behind server-side generation, vision and embedding adapters. | This is the approved implemented stack. | No extra model provider without an approved task-specific reason. | Reliability, capability, legal or commercial evidence justifies another provider. |
+| Architecture | Use a domain-oriented modular monolith and `router/adapter -> service -> repository/provider`. | Current scale benefits from local transactions and lower operational complexity. | No microservice split, Redis or distributed workflow framework by default. | Measured scaling, isolation or deployment requirements exceed the monolith. |
+| Commerce | Commerce is an optional first-class domain capability and current functionality is preserved. | It is valuable implemented product depth without defining all workspaces. | Extend it additively; do not rename/rehome working modules for visual purity. | A functional blocker requires a bounded migration. |
+| Inventory | Current quantity is sufficient for read availability; operational mutation requires a transactional service and auditable stock movements. | POS, returns and transfers need proof of why stock changed. | No POS/order fulfillment/return mutation may write levels as an unaudited number. | First approved operational stock mutation. |
+| Contact/customer | Contact is a generic cross-channel identity/relationship; it is not automatically a Commerce Customer. | Non-commerce conversations also produce contacts. | Future Commerce customer profile may link to Contact through an explicit domain decision. | Commerce customer lifecycle is approved. |
+| Payments/regulation | Prefer licensed external providers for payments and other regulated services. | Avoids casual custody/intermediary/regulatory scope. | AgentHub may orchestrate requests, verify events and reconcile records; no wallets/custody/lending by default. | Separate owner-approved product, legal, security and architecture review. |
+| Compatibility | Preserve working APIs, identifiers, routes and schema unless a concrete requirement authorizes change. | Migration cost and risk outweigh cosmetic consistency. | Historical `/create-shop` or commerce-oriented names may remain as naming debt. | The name causes a proven functional/security/user blocker. |
+| UI | UI represents user tasks and meaningful relationships, not the database schema. | A table-per-navigation CMS obscures agent operation. | Use progressive disclosure and contextual domain UI; avoid filler and duplicate facts. | User research or a concrete workflow proves a different information architecture. |
 
-| Area | Decision |
-|---|---|
-| Product | AgentHub is a multi-tenant, omnichannel AI-agent platform |
-| Initial vertical | Fashion-shop assistance is the first implemented vertical, not a permanent limitation of the core |
-| Core channels | Website, Facebook Messenger and Zalo are product capabilities; Website is complete and Facebook/Zalo are the current delivery priority |
-| Operating model | AI automation and human inbox/handoff share one normalized conversation system |
-| Later deliveries | Agent quality, guided onboarding, data synchronization and SaaS commercialization will follow omnichannel operations |
-| Commerce safety | Catalog consultation is read-only; autonomous orders, payments, refunds and stock mutation are not authorized |
+## Confirmed technology and data choices
 
-## Confirmed technology decisions
+- Next.js/strict TypeScript dashboard and independent TypeScript/Vite widget.
+- FastAPI/Python 3.12 backend with SQLAlchemy async and Alembic.
+- Supabase PostgreSQL and private Storage; Supabase Vault for channel credentials.
+- FastAPI-owned email/password authentication, not Supabase Auth.
+- UUIDv7 and BIGINT usage as specified in [`data-model.md`](data-model.md).
+- Typed bounded custom orchestration rather than an agent framework.
+- Durable PostgreSQL jobs with leases/fencing for ingestion and outbound work.
+- Current Catalog truth uses exact Decimal prices, generic options, locations and nullable inventory where `NULL` differs from zero.
 
-| Area | Decision |
-|---|---|
-| Frontend | Next.js and TypeScript dashboard; independent TypeScript/Vite widget bundle |
-| Backend | FastAPI and Python 3.12 |
-| Database | Supabase PostgreSQL accessed server-side through SQLAlchemy 2 async and asyncpg |
-| Migrations | Alembic; schema changes use migrations rather than manual production edits |
-| Channel credential vault | Supabase Vault; application tables retain only opaque Vault UUID references and Supabase manages the per-project root key |
-| Storage | Supabase Storage with private buckets for customer uploads and knowledge documents |
-| Authentication | Custom FastAPI-owned email/password authentication; no Supabase Auth dependency |
-| AI provider | OpenAI behind server-side generation, vision and embedding adapters |
-| Retrieval | Qdrant is the rebuildable vector index; PostgreSQL owns authoritative documents, chunks and active generations |
-| Agent orchestration | Simple bounded custom orchestration with typed tools; no framework dependency |
-| Ingestion | Durable PostgreSQL jobs claimed by a dedicated worker with leases and fencing |
-| UI foundation | Tailwind CSS and shadcn/ui conventions; only approved components are introduced |
+## Open operating choices
 
-## Confirmed data decisions
+These do not reopen product architecture:
 
-| Area | Decision |
-|---|---|
-| Tenant vocabulary | `workspace` is the tenant; `agent` is the domain entity |
-| Identifiers | UUIDv7 for users/workspaces and externally addressed agent/conversation IDs; BIGINT identity for dense internal rows |
-| Catalog | Generic options/attributes, locations and collections; structured CSV/XLS/XLSX MERGE import |
-| Catalog truth | Current structured catalog owns price, SKU, options and stock; `NULL` remains unknown and differs from zero |
-| Knowledge | Manual text and private PDF/TXT are implemented; catalog data is not embedded as the source of current stock/price |
-| Contact capture | Optional, explicit, versioned consent; chat never requires contact details |
-| Local retention | Visitor sessions/transcripts 24 hours, unattached images 30 minutes, attached images one hour, leads 30 days |
-| Local quota | 1,000 generated turns per workspace-local month, shared by Widget and Playground |
+- exact production model IDs, embedding dimensions and budgets;
+- production retention periods and jurisdiction-specific privacy wording;
+- Zalo/provider prerequisites and supported provider-specific message classes;
+- production domains, backup objectives and external connector vendors;
+- commercial plan structure and payment provider for platform billing.
 
-## Open implementation and operating decisions
-
-These choices do not reopen committed product scope:
-
-- Exact OpenAI model IDs, embedding dimensions and production budgets.
-- Zalo app/account prerequisites, token rotation, provider-specific message windows and supported payload subsets.
-- Production retention periods, jurisdiction-specific privacy wording and processor disclosures.
-- Email provider, production domains and backup objectives beyond the required Supabase Vault key-preservation procedure.
-- External catalog/knowledge connector vendors and synchronization SLAs.
-- Commercial plan structure, payment provider and billing rules for M3.
-
-## Change control
-
-An owner request may add or supersede a decision. Update this register, the affected domain document and the active task in the same change. Do not silently reinterpret a roadmap capability as optional, or treat an open implementation detail as permission to change the confirmed stack.
-
-Superseded details remain available through Git history; they are not duplicated in the current documentation tree.
+Owner instructions may supersede a decision. Update this register, affected authority documents and the approved task together; do not silently reinterpret an open implementation choice as permission to change the product or stack.

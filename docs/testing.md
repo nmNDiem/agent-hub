@@ -14,6 +14,15 @@
 
 Use at least two workspaces with similar products, knowledge and external-looking IDs. Prove that neither dashboard actors, visitors, background jobs, Qdrant queries, Storage grants nor channel connections cross the workspace boundary. Every newly exposed tenant resource gets a negative test.
 
+## Permanent product scenarios
+
+Changes to Platform/Core, Agents, onboarding, navigation, or the World UI must preserve both:
+
+1. A knowledge-only workspace that creates, grounds, publishes, and operates an Agent with no Catalog, Inventory, Order, POS, or Commerce Customer records.
+2. A Commerce-enabled workspace that uses Catalog scope and validated product evidence without letting the model invent or mutate structured facts.
+
+Capability-aware UI tests assert that absent domains leave no broken route, required setup step, empty navigation placeholder, or authorization shortcut.
+
 ## Existing regression areas
 
 - Authentication, refresh rotation/reuse, CSRF and generic failures.
@@ -88,3 +97,4 @@ error and forbidden states plus filter reloads and accessible table alternatives
 - Never run chatbot tests that can incur paid calls; provide manual steps for the owner.
 - Report exact commands, pass/fail/skip counts and environment assumptions.
 - Migration changes require upgrade and practical downgrade/rollback verification.
+- Documentation-only changes run link/status consistency checks and `git diff --check`; they do not require application builds or paid/provider tests.

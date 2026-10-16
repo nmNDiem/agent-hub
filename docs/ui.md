@@ -1,56 +1,42 @@
-# UI and interaction
+# Product UI principles
 
-## Direction
+This is the product-wide UI authority. [`ui/`](ui/) contains the approved **World** concept and implementation-ready design details; it does not describe the current frontend unless explicitly marked.
 
-AgentHub uses a compact, approachable SaaS control panel with neutral light surfaces, clear hierarchy and real data. Lagoon is the default palette; Aurora and Ember are allowlisted alternatives. [`ui-tokens.json`](ui-tokens.json) is the machine-readable token source. The Website widget uses independent workspace branding.
+## Current implementation
 
-The current interface language is Vietnamese. Format numbers, currency and time from actual locale/workspace data. Never copy products, people, dates, IDs, metrics or Facebook/Zalo connection states from reference images.
+The dashboard is a Vietnamese, route-based SaaS control panel for Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channels, Analytics, and Settings. The agent workbench combines configuration, Playground, publishing, and channel assignment. Website, Facebook, and Zalo share the implemented inbox/contact operations.
 
-## Information architecture
+Current navigation reflects the shipped Commerce-first product. It must remain compatible until a task delivers capability-aware navigation and equivalent access to existing behavior.
 
-Primary areas are Overview, Inbox, Contacts, Agents, Catalog, Knowledge, Channels, Analytics and Settings. Existing routes remain compatible until their approved task migrates them. Workspace slugs and public IDs are navigation identifiers, not authorization.
+## Approved direction
 
-The selected agent uses one workbench for configuration, Playground, publishing and channel assignment. Catalog import follows `Analyze -> Resolve -> Review diff -> Commit`. The implemented unified inbox presents Website/Facebook/Zalo threads through the same list/detail workflow, with explicit AI/human mode, assignment, per-operator unread, status, notes, tags and delivery state.
+AgentHub should feel like an operational environment, not a database administration panel or generic CMS. Users should understand their workspace, agents, knowledge, channels, and enabled domain capabilities before encountering records and settings.
 
-Analytics is a separate owner/admin workspace screen rather than an overloaded Overview. It uses
-7/30-day and channel/agent filters, persisted KPI cards, a daily activity chart with an accessible
-table, channel/agent tables, AI/human outcomes, lead conversion and product-card impressions.
-Unavailable samples use explicit text and Website provider delivery remains not applicable.
+The **World** is the preferred spatial overview: agents and capability areas form a navigable map, while focused work still uses legible lists, forms, tables, and inspectors. Spatial presentation is a projection of real backend state, never a second state model.
 
-The inbox uses a thread/filter list, transcript/composer and operational metadata panel. On narrow
-screens the selected detail replaces the list and exposes a back action. Human reply remains
-disabled until takeover succeeds; resume is explicit and does not process historical backlog.
+Principles:
 
-Contacts uses the same responsive list-to-detail pattern. The list supports scoped search,
-assignment and tag filters; detail shows consent-aware identities, the combined conversation/lead/
-note/merge timeline, assignment, shared tags and notes. Owner/admin additionally see exact-identity
-duplicate suggestions, reasoned merge/reversal actions and CSV export. Inbox threads link to their
-contact by public ID.
+- Establish clear hierarchy: workspace context, operational state, next action, then detail.
+- Reveal configuration progressively; do not place every field and action on one screen.
+- Show a concept once in its clearest location and link to it elsewhere rather than duplicating panels.
+- Make navigation contextual. A workspace without Commerce must not see empty Catalog, Inventory, or Orders areas as if they were core requirements.
+- Keep capability states honest: unavailable, disconnected, empty, degraded, and unauthorized are distinct.
+- Use real persisted data. Never fabricate products, people, dates, IDs, metrics, delivery state, or provider health.
+- Avoid “AI slop”: decorative gradients, excessive cards, meaningless activity, faux intelligence, and motion without information.
+- Preserve user input and partial streamed output on recoverable errors.
 
-The workbench channel switch includes adjacent Website, Facebook and Zalo views. Facebook renders real
-Page cards with agent binding, health, last verification and latest queue/delivery state, plus
-connect, reauthorize, recheck and revoke actions for owner/admin. Page tokens are write-only
-password fields and disappear after submission. Reply composition remains in the M1.4 inbox.
+## Interaction and accessibility
 
-Zalo starts authorization with a single OAuth action and never renders access or refresh token
-fields. After callback it shows OA identity, token/webhook health, verification, OAuth reconnect,
-revocation and a one-time password field for the separately issued OA webhook secret. The panel
-states that automatic replies are restricted to 48 hours.
+Every async surface supports loading, ready, empty, error, and forbidden states; mutations also communicate submission and success, while deliveries expose their real lifecycle. Workspace changes cancel pending requests and clear tenant-scoped caches and drafts.
 
-## Shared behavior
+The UI must provide semantic structure, keyboard access, visible focus, associated labels/errors, text in addition to color, reduced-motion behavior, and accessible alternatives for charts or spatial views. Test responsive behavior at 1440, 1024, 768, 390, and 320 pixels. Dense multi-pane tools become tabs or list-to-detail navigation on narrow screens.
 
-- Every async surface supports loading, ready, empty, error and forbidden; mutations add submitting/success and message delivery adds queued/sending/delivered/failed.
-- Preserve form input and partial streamed text on recoverable failure.
-- Workspace switching cancels pending requests and clears old scoped caches/drafts.
-- Product/source cards render only server-validated evidence.
-- Connection status comes from backend verification; unavailable providers never appear connected.
-- Metrics state period/timezone and appear only when backed by persisted facts.
-- Do not render raw provider HTML, private attachment URLs or unsanitized model output.
+Product/source cards render only server-validated evidence. Connection status comes from backend verification. Raw provider HTML, private attachment URLs, unsanitized model output, and secrets never render.
 
-## Responsive and accessibility
+## World delivery boundary
 
-Review at 1440, 1024, 768, 390 and 320 px. Multi-pane views become tabs or list-to-detail navigation on narrow screens. Chat composers respect safe areas and on-screen keyboards. Provide logical headings, labels/error associations, keyboard access, visible focus, focus restoration, 44 px primary touch targets, text status in addition to color and accessible chart/table alternatives. Streaming announcements are polite and throttled; reduced motion is respected.
+The World documents are an approved target specification. PixiJS, ELK, d3-force, Motion, or similar packages are not assumed to exist in the current app and must not be added until an approved implementation slice justifies them. A first slice must preserve conventional accessible navigation and prove both a knowledge-only workspace and a Commerce-enabled workspace.
 
-## Reference images
+## Visual language
 
-Assets under `assets/reference/` guide visual language only: admin shell, agent workbench, Website widget and catalog density. Product/domain behavior and security rules always override screenshots.
+Use the shared design tokens in [`ui-tokens.json`](ui-tokens.json). Workspace/widget branding remains bounded by accessibility and security rules. Reference assets guide visual language only; product, domain, and security rules override screenshots and fixtures.

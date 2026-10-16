@@ -1,53 +1,43 @@
 # Conversations
 
-## Purpose
+## Function and ownership
 
-Conversations are normalized customer threads across Website, Facebook and Zalo. They retain channel provenance while presenting one operating model for AI and human participants.
+Conversations normalize Website, Facebook, and Zalo threads into one AI/human operating model while retaining channel provenance and delivery truth.
 
-## Current capability
+## CURRENT
 
-- Website visitor session and one scoped conversation.
-- Idempotent persisted messages with SSE generation/replay.
-- Safe product/source evidence and visitor-image metadata.
-- Owner/admin read-only history with stable cursor pagination.
-- Retention and deletion behavior for local-pilot visitor data.
-- Channel-neutral conversation/message ownership with explicit inbound/outbound direction.
-- A connection-scoped external thread/message identity model for social adapters.
-- Independent `active | deleted` lifecycle, `open | pending | resolved` workflow status and
-  `ai | human | paused` handling mode; existing Website conversations default to
-  `active/open/ai`.
-- Persisted outbound delivery state with lease fencing and bounded retry.
-- Facebook response jobs with independent lease fencing, one job per inbound message and explicit
-  completed/retryable/terminal/suppressed outcomes.
-- M1.4 adds one Website/Facebook/Zalo inbox with channel, agent, assignee, workflow, tag and period
-  filters; per-member unread state; assignment; internal notes and normalized tags; and visible
-  provider delivery state.
-- Owner/admin can operate every workspace thread. Members can see unassigned and self-assigned
-  threads, claim an unassigned thread and operate only a self-assigned thread.
-- Takeover moves a thread to `human` and suppresses AI output at claim and completion fences.
-  Resume affects future inbound messages only.
-- Human replies persist idempotently before delivery. Facebook/Zalo reuse the durable queue and
-  response-window enforcement; Website replies remain scoped to the originating visitor session.
-  The Website transcript exposes only a handoff-waiting flag so the widget can restore scoped
-  polling while its panel is open after reload, and stop it when the panel closes or AI handling
-  resumes.
+- Scoped Website sessions and persisted streaming/replay.
+- Conversation lifecycle, `open | pending | resolved` workflow, and `ai | human | paused` handling mode.
+- Idempotent messages, external thread/message mappings, response jobs, and outbound deliveries.
+- Unified Inbox with filters, per-member unread state, assignment, notes, tags, takeover/resume, human replies, and provider delivery state.
+- Role-aware access: owner/admin see the workspace; members see unassigned or self-assigned threads and may claim unassigned work.
+- Safe product/source evidence is stored in message response JSON; there is no separate message-evidence table.
 
-## Complete domain capability
+Main data: conversations/messages, read states, notes/tags, conversation audit events, channel mappings/jobs/deliveries, and Website sessions. Main surface: Inbox and scoped visitor transcript.
 
-The M1.4 operational inbox capabilities above are implemented. Every Website lead and verified
-social thread now links to a workspace-scoped contact, and authenticated inbox summaries expose
-the safe contact public ID for contact-timeline navigation. Analytics derived from these persisted
-facts remains in M1.6.
+## Core flow
+
+Persist and deduplicate inbound message → evaluate explicit handling state/provider policy → schedule at most one response job → persist assistant/human outbound message before delivery → deliver or stream → retain exact outcome → update read/workflow state through authorized operations.
 
 ## Invariants
 
-- A provider retry cannot create a second message, conversation or paid model turn.
-- Persist inbound messages before processing and outbound attempts before provider delivery.
 - Public/widget sessions cannot read another session's thread.
-- AI/human authorship and delivery state are explicit and auditable.
-- Only `ai` mode may schedule automated generation; duplicate inbound work never schedules it.
-- Provider opt-out and response-window policy is rechecked before generation completion and send.
-- Message DTOs omit private object paths, credentials and raw provider payloads.
-- Handoff does not falsely claim that a human is available.
+- Only `ai` mode schedules new automated responses; takeover fences both job claim and completion.
+- Resume affects future inbound messages, not historical backlog.
+- AI/human authorship, direction, processing, and provider delivery are explicit.
+- Handoff never claims a human is available unless the product actually knows that.
+- Retention removes sensitive content without inventing delivery or audit facts.
 
-The M1 UI is described in [`../ui.md`](../ui.md).
+## APPROVED DIRECTION
+
+Quality/evaluation links may reference conversations without duplicating their sensitive content. Future domain actions may be presented in a conversation only after their owning service authorizes and records them.
+
+## NOT IMPLEMENTED
+
+No general `agent_tool_calls` table, universal workflow state machine, staffed-SLA scheduler, or cross-workspace shared inbox exists.
+
+## Change trigger
+
+Any new participant, delivery class, or action card must define authorship, authorization, idempotency, retention, fallback, and accessible rendering.
+
+Related authority: [`channels.md`](channels.md), [`contacts.md`](contacts.md), [`../ui.md`](../ui.md).

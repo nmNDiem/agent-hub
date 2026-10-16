@@ -1,70 +1,49 @@
-# AgentHub — Instructions for Codex
+# AgentHub — Codex operating contract
 
-Read this file and follow the minimal task-specific route in [`docs/README.md`](docs/README.md) before changing code. Do not load the entire documentation tree. Historical specifications are available through Git history and are not current guidance.
+AgentHub is a general-purpose platform for creating, equipping, deploying and operating AI agents. Fashion commerce is the first substantial implemented domain capability; it does not define the platform. A workspace is a tenant boundary, not a shop type, and an agent is one configurable aggregate rather than a separate model per use case.
 
-## 1. Decision precedence
+## Before implementation
 
-1. Explicit repository-owner instructions in the current task.
-2. Approved task acceptance criteria.
-3. Confirmed decisions in [`docs/decisions.md`](docs/decisions.md).
-4. Security and tenant-isolation invariants in [`docs/security.md`](docs/security.md).
-5. Relevant domain document, then technical reference and design guidance.
+1. Read [`docs/README.md`](docs/README.md) and follow its task-specific route.
+2. Read the approved task specification and inspect the existing implementation it affects.
+3. Treat working code and migrations as valid current architecture unless the requirement proves otherwise.
+4. Report conflicts between owner instructions, task criteria, decisions, security rules and implementation.
+5. Present a plan and obtain owner approval before non-trivial changes.
+6. Obtain UI direction approval before a new or materially redesigned screen.
 
-If current documents conflict, report and fix the conflict rather than choosing silently. Ask before an irreversible architectural change. Do not replace Next.js/TypeScript, FastAPI/Python, Supabase PostgreSQL, Supabase Storage, Qdrant, OpenAI or FastAPI-owned email/password authentication.
+Priority is: current owner instructions, approved acceptance criteria, [`docs/decisions.md`](docs/decisions.md), [`docs/security.md`](docs/security.md), then relevant domain and technical documents.
 
-## 2. Product and roadmap
+## Permanent architecture rules
 
-AgentHub is a multi-tenant, omnichannel AI-agent platform. F0-F5 are complete. The current product delivery is M1 Omnichannel Operations: shared channel foundations, Facebook Messenger, Zalo, unified inbox/human handoff, customer/contact timeline and operational analytics. Agent quality, guided onboarding, knowledge/catalog synchronization and SaaS commercialization follow in M2/M3.
+- Keep Platform/Core domain-agnostic. Core must not require Catalog, Inventory, Orders, Customers or another Commerce concept.
+- Preserve the modular monolith and `router/adapter -> service/use case -> repository/provider` direction. Services own business rules, authorization and transactions; repositories do not commit independently.
+- Domain modules own authoritative state. An agent uses an authorized typed tool/action to call a domain service; model output never directly mutates authoritative data.
+- PostgreSQL is authoritative relational storage. Qdrant is a derived, filtered and rebuildable index. The LLM is a runtime, never a source of truth.
+- Keep current price, SKU, options, inventory, order state and payment state in structured domain records, not RAG or agent configuration.
+- Do not create one agent table/class per use case, a speculative plugin/capability framework, unused provider abstractions, a workflow engine without a current user, or one microservice per domain.
+- Do not broadly rename tables, routes, identifiers or folders for conceptual purity. Historical shop-oriented names may remain when they do not create a functional blocker.
+- Preserve working APIs and completed behavior unless a breaking change is explicitly approved. A migration must solve a concrete requirement.
+- Do not implement future roadmap capabilities opportunistically.
 
-All capabilities in [`docs/product.md`](docs/product.md) belong to the complete system. [`docs/roadmap.md`](docs/roadmap.md) defines delivery order, not optionality. Implement only the currently approved task; create its concise spec under `docs/tasks/` before code and archive it after completion.
+## Security and external effects
 
-## 3. Non-negotiable invariants
+- Scope every tenant-owned operation, join, job, vector search, Storage object and tool call to a validated `workspace_id`.
+- Resolve identity, ownership and permission server-side. Never trust client- or provider-supplied tenant, agent, conversation, contact or permission claims.
+- Browser, widget and channel adapters call FastAPI; they never use privileged PostgreSQL, Storage, Qdrant or model access directly.
+- Treat prompts, documents, websites, uploads, provider payloads and model/tool output as untrusted.
+- Keep credentials, private content, prompts and PII out of public responses, browser bundles and logs.
+- Persist and deduplicate channel work before external side effects; retries are bounded and idempotent where the provider contract permits.
+- No autonomous payment, order, refund or stock mutation. The first effectful agent tool requires explicit authorization, audit, side-effect policy and any necessary approval/idempotency design.
 
-- Scope every tenant-owned read/write/query/tool/job/vector search/Storage object/channel connection to a validated `workspace_id`.
-- Never trust workspace, agent, conversation, contact or permission identity supplied by a client/provider payload without resolving it against authenticated membership, a scoped Website session or a verified server-owned channel connection.
-- Keep database, Supabase service, Qdrant, OpenAI, JWT and channel credentials out of browser bundles, public responses, logs and commits.
-- Browser/widget/channel adapters call FastAPI; they never connect directly to privileged database, Storage, Qdrant or model resources. Custom app tokens are not Supabase Auth tokens.
-- Current price, SKU, options and inventory come from structured catalog records at answer time. Never invent availability, discounts, shipping commitments or order outcomes.
-- Treat prompts, documents, websites, images and provider payloads as untrusted data. They cannot override system/tool policy.
-- Authorize before issuing private Storage access or returning tenant-owned data. Use private buckets for customer uploads and knowledge sources.
-- No autonomous payment, order, refund or stock mutation.
-- Errors/logs must not leak prompts, credentials, private content, PII or tracebacks.
+Do not replace Next.js/TypeScript, FastAPI/Python, Supabase PostgreSQL/Storage, Qdrant, OpenAI or FastAPI-owned authentication without an approved architecture decision.
 
-## 4. Working agreement
+## Delivery rules
 
-Before non-trivial implementation:
-
-1. Identify the roadmap delivery/task and list acceptance criteria.
-2. Read only the documents routed for that work in `docs/README.md`.
-3. State confirmed decisions and genuinely open implementation choices.
-4. Present a plan and wait for owner approval before implementation.
-5. For a new or materially redesigned screen, provide and obtain approval for the UI direction before coding it.
-
-While implementing:
-
-- Follow `router/adapter -> service/use case -> repository/provider` boundaries. Services own business rules, authorization and transactions; repositories do not commit independently.
-- Use strict TypeScript and explicit Python typing. Do not introduce implicit `any` or bypass validation without a documented boundary.
-- Validate all external input, including webhook signatures/raw bodies, upload bytes and model/tool output.
-- Persist and deduplicate inbound/outbound channel work before external side effects; keep retries idempotent and bounded.
-- Add Alembic migrations for schema changes; never edit a production database manually or edit generated artifacts.
-- Use UUIDv7 only as defined in `docs/data-model.md`; never silently substitute UUIDv4 or require PostgreSQL native `uuidv7()`.
-- Keep `.env.example` minimal. Stable limits and tuning defaults belong in typed configuration.
-- Do not add dependencies, Redis, extra model providers, workflow frameworks or services without a scoped reason and approved task.
-- Reuse existing components and abstractions; keep changes focused and remove dead code/imports introduced by the task.
-
-Before completion:
-
-- Run relevant existing lint, type, unit, integration and migration checks; report exact commands and results.
-- Do not run paid chatbot/provider flows automatically. Use fakes/local substitutes and give the owner manual provider steps.
+- Create the concise approved task spec under `docs/tasks/` before implementation and remove it after completion; Git preserves history.
+- Use Alembic for schema changes and UUIDv7 only as defined in [`docs/data-model.md`](docs/data-model.md).
+- Reuse existing components and dependencies. Add infrastructure or dependencies only for a measured task requirement.
 - Add a negative cross-workspace test for every newly exposed tenant-owned resource.
-- Update the single authoritative domain/core document rather than copying behavior into multiple files.
-- Report schema/configuration impact, manual verification and known limitations.
-- Create a focused Conventional Commit with a clear subject and detailed body describing what changed and why.
-
-## 5. Commands
-
-Use only actual repository commands documented in [`README.md`](README.md) and inspect package scripts before running them. Do not claim a command was run when it was not. Avoid builds, dev servers and E2E unless requested, required by project rules or necessary to verify the task.
-
-## 6. Definition of done
-
-Acceptance criteria pass; authentication/authorization and tenant isolation are covered; external inputs and user data are handled safely; API/data/UI behavior is documented once; no secrets are exposed; migrations are reversible when practical; test results are accurate; and no unrelated roadmap capability is implemented.
+- Follow the existing test framework. Do not automatically run paid model/provider flows; use fakes and provide manual verification steps.
+- Update the single authoritative document for changed behavior instead of duplicating it.
+- Report schema, API, configuration and UI impact; exact verification commands/results; manual checks; and known limitations.
+- Create a focused Conventional Commit after the approved task is complete.

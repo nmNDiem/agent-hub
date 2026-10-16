@@ -1,108 +1,80 @@
 # Delivery roadmap
 
-The roadmap sequences capabilities already defined in [`product.md`](product.md). A later delivery is still part of the product. Each implementation task requires an approved task spec, acceptance criteria and focused commit; that gate refines execution rather than reconsidering whether the roadmap capability belongs in AgentHub.
+The roadmap preserves shipped history while sequencing the smallest coherent next outcomes. `Complete` describes the repository today. `Approved next` is agreed direction but still requires a task spec. `Unscheduled` is intentionally not a commitment.
 
-Status values: `Complete`, `Current`, `Later`.
+Every implementation slice needs a goal, user outcome, scope, non-goals, architecture/data/API/UI/security impacts, tests, and acceptance criteria before coding.
 
-## Completed foundation — F0-F5
+## F0–F5 foundation
 
 Status: **Complete**
 
-| Delivery | Outcome |
+| Delivery | Shipped outcome |
 |---|---|
-| F0 Foundation | Repository, API/dashboard/widget skeleton, configuration, CI, migrations and local boot |
-| F1 Identity and tenancy | Custom authentication, sessions, workspaces, membership and tenant boundaries |
-| F2 Catalog | Products, variants, options, locations, collections, images and universal CSV/XLS/XLSX import |
-| F3 Knowledge and agents | Private ingestion, OpenAI/Qdrant adapters, grounded runtime, typed tools and Playground |
-| F4 Website widget and vision | Publishing, anonymous scoped sessions, SSE, product cards and visitor image flow |
-| F5 Local operations | Consented leads, conversation history, dashboard usage/quota, retention and observability |
+| F0 Foundation | Repository, API/dashboard/widget skeleton, configuration, CI, migrations, and local boot |
+| F1 Identity and tenancy | Authentication, sessions, workspaces, membership, and tenant boundaries |
+| F2 Catalog | Products, variants, options, locations, collections, images, and spreadsheet import |
+| F3 Knowledge and agents | Private ingestion, OpenAI/Qdrant adapters, grounded runtime, typed read tools, and Playground |
+| F4 Website widget and vision | Publishing, scoped visitor sessions, streaming, product cards, and visitor images |
+| F5 Local operations | Consented leads, conversation history, usage/quota, retention, and observability |
 
-Detailed F0-F5 implementation history remains available through Git history and is not duplicated in current docs.
+Detailed delivery history remains in Git rather than being restated as current product definition.
 
-## M1 — Omnichannel Operations
-
-Status: **Complete**
-
-Goal: operate Website, Facebook Messenger and Zalo conversations through one secure conversation, contact and human-service workflow.
-
-### M1.1 Shared channel foundation
+## M1 — Omnichannel operations
 
 Status: **Complete**
 
-- Normalized inbound/outbound contracts and capability-aware rendering.
-- Channel connections and encrypted credential lifecycle.
-- Verified webhooks, deduplication, ordering and bounded retries.
-- Durable outbound delivery state and provider-safe failure handling.
-- Contact/channel identity mapping without trusting provider payload tenancy.
+Website, Facebook Messenger, and Zalo now share normalized connection, conversation, contact, delivery, retry, and human-handoff foundations. The unified inbox supports explicit AI/human mode, assignment, unread state, status, notes, tags, delivery state, consent-aware contacts, identity linking/merge history, and persisted operational analytics.
 
-### M1.2 Facebook Messenger
+Commerce remains visible in product-card analytics and the current assistant runtime, but M1 did not make Commerce mandatory for every workspace.
 
-Status: **Complete**
+## M2 — General-purpose agent quality and experience
 
-- Page connection and revocation flow.
-- Verified inbound messages and supported attachments.
-- Outbound delivery through the shared pipeline.
-- Connection health, reauthorization and real failure states.
+Status: **Approved next**
 
-### M1.3 Zalo
+Goal: prove that AgentHub can configure, ground, evaluate, publish, and operate an agent without requiring Commerce while improving quality for existing Commerce users.
 
-Status: **Complete**
+Expected slices:
 
-- OAuth v4 Official Account connection, automatic token refresh and revocation flow.
-- Verified inbound messages and supported attachments.
-- Outbound delivery through the shared pipeline.
-- Zalo-specific constraints isolated inside its adapter.
+1. Define domain-neutral agent defaults and runtime composition while preserving existing published revisions and APIs.
+2. Add evaluation cases, feedback, unresolved-question review, regression comparison, and safe rollout evidence.
+3. Improve knowledge source freshness, version visibility, ingestion recovery, and retrieval diagnostics.
+4. Deliver guided onboarding and publish-readiness checks based on the capabilities actually enabled for a workspace.
+5. Validate the product through at least two permanent scenarios: knowledge-only service and Commerce-assisted service.
+6. Prototype the spatial **World** interface as a capability-aware projection if its task approves the required frontend dependencies and migration path.
 
-### M1.4 Unified inbox and human handoff
+Non-goals: effectful business actions, a generic plugin registry, a workflow canvas, and broad UI replacement without behavior parity.
 
-Status: **Complete**
+## M3 — SaaS commercialization
 
-- Website/Facebook/Zalo threads in one inbox.
-- Explicit AI/human ownership and takeover/resume behavior.
-- Reply composer, unread state, assignment, status, notes and tags.
-- Delivery state, retry visibility and role-aware access.
+Status: **Approved direction; unscheduled**
 
-### M1.5 Customer and lead timeline
+- Workspace invitations and richer role administration.
+- Plans, entitlements, commercial quotas, subscriptions, invoices, and signed billing webhooks.
+- Operator controls with narrowly scoped support access and auditable account lifecycle actions.
 
-Status: **Complete**
+Platform billing is separate from Commerce payments taken by a workspace from its customers.
 
-- Consent-aware contact profiles and channel identities.
-- Conversation/lead timeline, notes, tags and assignee.
-- Safe identity linking/merging with audit and reversal rules.
-- Retention and export rules for contact data.
+## Capability-triggered foundations
 
-### M1.6 Operational analytics
+Status: **Unscheduled**
 
-Status: **Complete**
+These are introduced by the first real use case, not built speculatively:
 
-- Conversation and response activity by channel and agent.
-- AI/human resolution and handoff measures.
-- Lead conversion, product interest and unresolved conversation signals.
-- Definitions based on persisted events; no invented cost or business uplift.
+- Before the first effectful tool: typed action contract, server-side authorization, validation, idempotency, approval policy, and durable redacted execution evidence.
+- Before the first stock mutation: append-only stock movements and transactionally derived balances.
+- Before payments/refunds or other regulated actions: external-provider-first integration, webhook verification, reconciliation, and minimal sensitive-data retention.
 
-M1 task specs are created one at a time in [`tasks/`](tasks/) and must preserve the boundaries in [`domains/channels.md`](domains/channels.md) and [`api.md`](api.md).
+## Optional Commerce expansion
 
-## M2 — Product Intelligence and Experience
+Status: **Unscheduled**
 
-Status: **Later**
+Commerce is the first substantial domain capability and remains optional. Its likely dependency order is inventory ledger, transactional order model, external payment references, fulfillment/returns, then suppliers and purchasing. POS is considered only after the same order and inventory invariants can support it without a parallel source of truth.
 
-- Agent evaluation, feedback, unresolved-question review and regression cases.
-- Version comparison, controlled rollout and quality analytics.
-- Guided onboarding, setup checklist and publish readiness.
-- Website/knowledge synchronization and source freshness management.
-- Catalog connector synchronization, reconciliation and freshness policy.
+See [`domains/commerce.md`](domains/commerce.md) and [`domains/inventory.md`](domains/inventory.md).
 
-## M3 — SaaS Commercialization
+## Explicitly not planned
 
-Status: **Later**
-
-- Workspace invitations and richer role administration where not delivered in M1.
-- Plans, entitlements and commercial quotas.
-- Subscriptions, billing, invoices and signed payment webhooks.
-- Platform operator controls, auditable support and account lifecycle.
-
-## Out of committed scope
-
-- Autonomous payments, refunds, order placement or stock mutation by an LLM.
-- A drag-and-drop workflow canvas.
-- Unrestricted arbitrary-code tools or arbitrary URL fetching.
+- Autonomous unrestricted payments, refunds, order placement, or stock changes by an LLM.
+- Arbitrary-code tools or arbitrary URL fetching.
+- A speculative plugin marketplace, universal capability registry, or drag-and-drop workflow engine.
+- Microservice extraction without measured ownership, scaling, or deployment pressure.

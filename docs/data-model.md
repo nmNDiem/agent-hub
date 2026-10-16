@@ -1,141 +1,90 @@
-# Data model reference
+# Data model
 
-This is the canonical logical model. Alembic migrations and SQLAlchemy models are the executable schema; this document records ownership and invariants rather than duplicating every column.
+This document describes ownership and invariants. SQLAlchemy models and Alembic migrations are the executable schema. Unless a section says otherwise, names below describe the current implementation.
 
-## Common rules
+## Shared rules
 
-- Tenant-owned rows carry `workspace_id` or a provably workspace-scoped composite parent relationship.
-- Use UTC timestamps and explicit lifecycle state. Use workspace timezone only for reporting/calendar boundaries.
-- Use UUIDv7 for `users.id`, `workspaces.id` and externally addressed IDs such as `agents.public_id`, `conversations.public_id` and visitor image handles. Generate UUIDv7 server-side through the tested adapter; never silently substitute UUIDv4 or require PostgreSQL native `uuidv7()`.
-- Use BIGINT identity for dense internal rows such as memberships, products, variants, messages, documents, chunks, jobs and events. Provider/channel IDs remain opaque strings namespaced by provider and connection. Bearer/session tokens are cryptographically random values stored only as hashes, never UUIDv7.
-- UUIDs identify resources but do not authorize access. Use `created_at` plus a deterministic tie-breaker for chronology rather than deriving business time from UUIDv7.
-- Cross-domain references must prevent cross-workspace linkage with composite keys or equivalent transactional checks.
-- Index by `workspace_id` plus the actual ordering/filter pattern. Avoid queries inside loops.
-- Archive/revoke before destructive external cleanup when external state can fail.
+- Tenant-owned data carries `workspace_id` directly or inherits it through a tenant-safe parent.
+- IDs identify records; they never authorize access. Public resources use opaque public IDs while dense internal records use database identities.
+- Cross-domain references must prove same-workspace ownership in a transaction or with tenant-safe composite constraints.
+- PostgreSQL owns authoritative business state. Qdrant is a rebuildable retrieval projection.
+- Use UTC timestamps, explicit lifecycle states, exact decimal money, and workspace-local time only for reporting boundaries.
+- Store provider IDs as opaque, provider-namespaced values. Store tokens and credentials only as hashes or protected secret references.
 
-## Identity and workspace
+## Current schema
 
-- `users`: UUIDv7 ID, normalized unique email, password hash, verification/status and timestamps.
-- `auth_sessions`: user, refresh-token hash, expiry, revocation and rotation-family linkage.
-- `email_tokens`: user, purpose, token hash, expiry and use time.
-- `workspaces`: UUIDv7 ID, unique slug, display name, timezone, status and bounded settings.
-- `workspace_members`: workspace, user and role; unique per pair.
-- Later invitations and permission grants remain workspace-owned and cannot grant across tenants.
+### Aggregate ownership and lifecycle
 
-## Agents
+| Aggregate | Workspace ownership and key relationships | Authoritative lifecycle/invariants |
+|---|---|---|
+| Workspace | Direct tenant root; members join authenticated users | Status-bound tenant; membership authorizes but IDs never do |
+| Agent | Belongs to one workspace; revisions and Knowledge/Catalog assignments must match it | Editable draft plus immutable published revisions; pause/archive stops new use without deleting history |
+| Knowledge document | Belongs to a workspace/base; versions produce generations/chunks | Only a selected ready generation is searchable; revocation precedes derived cleanup |
+| Catalog product/variant | Belongs to one workspace; options, locations, collections and images remain tenant-safe | Lifecycle preserves identity rules; exact price and unknown stock semantics remain stable |
+| Channel connection | Belongs to one workspace and binds one usable Agent revision | Active/revoked plus verified provider health; credential secrets live outside the record |
+| Conversation | Belongs to workspace, Agent revision and channel; may link a Contact | Explicit lifecycle, workflow and AI/human handling state; messages/deliveries are idempotent |
+| Contact | Belongs to one workspace; identities/leads/conversations link under explicit rules | Purpose-based retention; merges are logical, evidenced and reversible |
+| Usage/analytics fact | Belongs to one workspace and optionally scoped operational entities | Append/idempotent factual evidence; no raw content or invented business result |
 
-- `agents`: BIGINT ID, UUIDv7 public ID, workspace, name, greeting, safe instructions, locale, lifecycle and catalog-scope mode.
-- `agent_locations` / `agent_catalog_collections`: tenant-safe selected scope joins; `all` and empty selection remain distinct.
-- `agent_knowledge_bases`: tenant-safe many-to-many assignments.
-- `agent_revisions`: immutable versioned published configuration and policy references.
-- Tool/policy configuration stores references and allowlists, never provider secrets in public config.
+Cross-domain relationships never transfer ownership: an Agent assignment references Knowledge, a Conversation references an Agent revision, and a Contact links to a Conversation, but each owner retains its own invariants.
 
-## Catalog
+### Identity and workspaces
 
-- `products`: workspace, optional reserved SKU, title/description/category/brand, exact nullable price, currency, approved URL, attributes and lifecycle.
-- `product_variants`: tenant-safe product link, optional reserved SKU, name, nullable price override, inventory policy, option signature, attributes and lifecycle.
-- `product_option_definitions`, `product_option_values`, `variant_option_values`: canonical ordered generic option dimensions; one variant selects at most one value per definition.
-- `locations`, `location_variants`, `inventory_levels`: location metadata, nullable price/compare-price override and inventory keyed by workspace/location/variant. Quantity `NULL` is unknown; zero is known out of stock.
-- `catalog_collections`, `catalog_collection_products`: reusable product subsets without copying products.
-- `catalog_external_refs`: trusted `(workspace, source, namespace, external_id)` mapping to canonical entities.
-- `product_images`: product/optional variant, managed private object or recorded remote reference, source/lifecycle and display metadata.
-- `size_guides`: optional structured product/workspace guidance with source provenance.
-- `catalog_imports`, staged records, issues and mapping profiles: persistent Analyze/Resolve/Diff evidence; Commit applies one atomic idempotent MERGE.
+`users`, authentication sessions and email tokens own identity. `workspaces` and `workspace_members` own tenant membership and roles. A workspace is a generic tenant boundary; it has no required Commerce record.
 
-Product and variant SKU uniqueness is workspace-scoped and archived rows continue reserving identifiers. Price uses `NUMERIC(18,2)` and application `Decimal` with explicit currency.
+### Agents
 
-## Knowledge and storage
+`agents` owns the generic assistant identity and lifecycle. `agent_revisions` stores immutable published snapshots. Current revisions and scopes include Commerce-era catalog configuration, assigned knowledge bases, locale, greeting, and instructions. That coupling is current implementation debt, not the definition of an Agent.
 
-- `knowledge_bases`: workspace, name/status, active and optional target embedding profile.
-- `media_assets`: immutable private object metadata, byte count, checksum and cleanup state; original name is display-only.
-- `knowledge_documents`: logical source identity and lifecycle.
-- `knowledge_document_versions`: immutable manual/file versions.
-- `knowledge_generations`: document version, immutable embedding profile, chunker/pipeline versions and `building | ready | failed | revoked` state.
-- `knowledge_document_active_generations`: selects at most one ready generation per document.
-- `knowledge_chunks`: workspace/generation, deterministic position, authoritative text, hash, locator and bounded metadata.
-- `embedding_profiles`: provider, model, dimensions, provider revision, pipeline, distance metric, collection/config hash and immutable lifecycle.
-- `knowledge_chunk_embeddings`: chunk/profile to deterministic Qdrant point, hash and index status.
-- `ingestion_jobs` / `ingestion_job_attempts`: source/generation identity, state, attempt, lease, fencing, heartbeat and safe error code. At most one active job per document.
+### Knowledge
 
-## Channels
+Knowledge bases, documents, immutable document versions, generations, chunks, embedding profiles, embedding mappings, and ingestion jobs form the authoritative PostgreSQL graph. The active-generation pointer selects the searchable version. Qdrant points are indexed copies identified from this graph and may be recreated.
 
-- `channel_connections`: workspace, provider (`web | facebook | zalo`), display/external account identity, opaque credential reference, `active | revoked` lifecycle, health and timestamps. No credential value is stored in this table.
-- `channel_agent_bindings`: one connection to its allowed agent and active published revision with tenant-safe keys.
-- `channel_oauth_attempts`: short-lived provider/user/workspace/agent/revision-bound authorization
-  state hash, Vault verifier reference, optional same-workspace reauthorization target, one-time
-  consumption and safe outcome. Authorization codes and raw state are never stored.
-- `website_channel_configs`: Website-only presentation and handoff configuration; origins remain in `widget_domains` and reference the shared connection.
-- `channel_webhook_events`: connection/external event ID, payload fingerprint, received/processed state and safe error; unique per connection for dedupe. Raw payloads are not retained.
-- `channel_thread_mappings`: a connection-namespaced external thread mapped to one normalized conversation.
-- Facebook and Zalo thread mappings also own latest inbound time and exact-keyword automation opt-in state;
-  this state is provider policy, not model-controlled consent inference.
-- `channel_message_mappings`: a normalized message mapped to its connection/thread and optional provider message ID; IDs are unique only within the connection.
-- `outbound_deliveries`: message, connection, idempotency key, attempt schedule, lease/fencing
-  state, provider message ID, safe provider result and
-  `queued | sending | accepted | delivered | failed_retryable | failed_terminal` state.
-  Acceptance and delivery timestamps are distinct.
-- `channel_delivery_receipts`: minimal connection-scoped provider message/thread identity and
-  delivery time. It intentionally retains reordered receipts until the matching accepted delivery
-  can be reconciled and never stores the raw webhook payload.
-- `channel_response_jobs`: one workspace/connection/conversation-scoped job per inbound message,
-  with bounded attempts, lease/fencing state, safe failure and the resulting outbound message.
-- `channel_inbound_media`: message-scoped supported/unsupported attachment metadata, ephemeral
-  provider URL, private quarantine object metadata, expiry and cleanup state. Provider URLs are
-  cleared after fetch/failure and never enter API responses or logs.
+### Catalog and current inventory view
 
-Raw provider payloads and access tokens are not general-purpose conversation metadata. Retain only fields needed for validation, retry, audit and supported rendering.
+Products, variants, option definitions/values, collections, external references, images, size guides, locations, and location/variant assignments form the current Commerce catalog. Import tables preserve analyze, resolve, diff, and atomic commit evidence.
 
-## Conversations
+`inventory_levels` stores a current quantity for a workspace/location/variant. `NULL` means unknown and zero means known out of stock. It is not a movement ledger and cannot yet explain how a quantity changed.
 
-- `conversations`: BIGINT ID, UUIDv7 public ID, workspace, agent/revision, channel connection,
-  optional Website session, lifecycle, workflow/handling state, optional same-workspace assignee,
-  optimistic state version, last-message time and retention.
-- `conversation_read_states`: per-conversation/member last-read sequence used to derive inbound
-  unread counts without a shared global flag.
-- `conversation_notes`: immutable internal notes with a same-workspace member author.
-- `conversation_tags` / `conversation_tag_links`: normalized workspace tag vocabulary and scoped
-  conversation assignments.
-- `conversation_audit_events`: safe structured assignment/mode/status and human-reply events;
-  message bodies and provider payloads are not duplicated into audit details.
-- `conversation_messages`: workspace/conversation, actor (`visitor | assistant | human | tool | system`), normalized text/evidence, `inbound | outbound` direction, processing state and timestamps. Provider delivery state is owned by `outbound_deliveries` rather than duplicated here.
-- `message_evidence`: validated product/source references associated with a message.
-- `agent_tool_calls`: redacted tool identity, result reference, status, latency and usage facts.
-- Website `widget_sessions` bind an opaque token hash to workspace, agent, revision, origin, conversation and expiry.
+### Channels and conversations
 
-Provider retries map to the same normalized message/delivery record. AI/human handling mode is explicit; it is not inferred from the latest message text.
+Channel connections, agent bindings, OAuth attempts, Website configuration, webhook events, thread/message mappings, outbound deliveries and receipts, response jobs, and quarantined inbound-media metadata implement Website, Facebook, and Zalo transport concerns.
 
-The Website migration preserves existing public conversation IDs, session links, request keys,
-transcripts, leads, images, usage and retention deadlines. Social adapters must supply an
-explicit retention deadline; they do not inherit the local Website 24-hour default.
+Conversations own an agent/revision/channel association, handling mode, assignee, status, retention, messages, per-member read state, notes, tags, and scoped audit events. Website sessions bind opaque token hashes to trusted workspace, agent, revision, origin, and conversation state.
 
-## Contacts and leads
+Evidence returned by the runtime is currently embedded in `conversation_messages.response_json`. Aggregate usage facts, including tool-call counts, live in `usage_events`. There are no current `message_evidence`, `agent_tool_calls`, or general `audit_logs` tables.
 
-- `contacts`: workspace-owned profile with consent-aware display data, lifecycle and retention classification.
-- `contact_identities`: contact plus namespaced identity type/provider/value hash or external ID, verification/consent evidence and uniqueness policy.
-- `leads`: immutable originating workspace/conversation/session/agent/contact scope, optional validated email/phone/name, consent version/time, idempotency evidence, status and retention.
-- `contact_notes`, `contact_tag_links` and `contacts.assigned_member_id`: permissioned operational metadata using the shared `workspace_tags` vocabulary.
-- `contact_audit_events`, `contact_merge_events`: content-minimized audit history and auditable reversible identity-link decisions; never merge by display name alone.
-- `conversations.contact_id`: the contact attached to a normalized thread. Every lead also has a required contact link.
+### Contacts and leads
 
-The contact migration backfills Website leads without changing their public IDs or consent
-provenance, creates distinct contacts for existing social threads and renames the inbox-only tag
-vocabulary to the shared `workspace_tags` table.
+Contacts own a workspace-level human profile, channel identities, notes, tags, assignment, retention, contact audit events, and reversible merge events. Leads preserve an originating consented conversion and link to a contact and conversation.
 
-## Usage and analytics
+A Contact is channel/customer-service identity. It is not automatically a Commerce Customer: purchasing identity, addresses, tax data, and commercial history would have different rules and are not implemented.
 
-- `workspace_usage_months`: workspace-local month and transactional generated-turn reservations.
-- `usage_events`: workspace/agent/conversation/channel, generation or vision kind, provider/model, observed calls/tokens/tools and status; no prompt/chat/image content.
-- `analytics_events`: idempotent product-card impressions with tenant-safe agent, conversation,
-  message, product and channel scope. Rows contain no message content, contact PII or provider
-  payload; the current allowlist contains only `product_impression`.
-- `audit_logs`: actor, action, resource type/ID, redacted metadata and time.
+### Analytics and usage
 
-Analytics aggregates derive from these facts or bounded source queries; they do not persist invented cost or duplicate raw content.
+`usage_events` and monthly usage records support model/provider consumption and quotas without retaining prompts. `analytics_events` currently records a narrow allowlist of product-card facts. Conversation and contact audit tables are bounded, domain-specific trails rather than a platform-wide audit subsystem.
 
-## Retention relationships
+## Approved model direction
 
-The local sweeper revokes expired Website sessions/conversations, removes transcript/lead PII,
-expires contact PII and identities at their inherited source deadline, expires image grants/rate
-windows, retries private-image deletion and purges dependency-free tombstones. Merge reasons are
-redacted when a related contact expires. Content-free usage and audit facts may outlive nullable
-conversation/contact data.
+These concepts are approved boundaries, not existing tables:
+
+- A domain-neutral agent configuration with optional capability assignments; existing revision shapes remain compatible until deliberately migrated.
+- A durable, redacted execution record before the first tool can mutate business state. It should record the actor, authorized capability/action, idempotency key, status, safe request/result references, and timing without copying secrets or sensitive content.
+- Commerce aggregates for Customer, Order, Order Line, Payment reference/status, Return, Supplier, Purchase Order, and Stock Movement only when their workflows are scheduled.
+- An append-only stock movement ledger with a derived current balance before reservations, receipts, adjustments, sales, returns, or other operational stock mutations are introduced.
+
+New domain tables must own their invariants and expose actions through their domain service. Agent configuration may reference a capability but must not duplicate the domain's authoritative state.
+
+## Not implemented
+
+- A generic plugin/capability registry or workflow engine.
+- General-purpose tool-call and platform audit tables.
+- Orders, checkout, payments, refunds, returns, suppliers, purchasing, POS, or a stock movement ledger.
+- A Commerce Customer aggregate or automatic promotion of Contacts into customers.
+- Qdrant as an authoritative store.
+
+## Change triggers
+
+- Before the first effectful agent action: define the minimum action contract, authorization policy, idempotency behavior, approval boundary, and durable execution evidence.
+- Before the first operational inventory mutation: add the ledger, balance derivation, transaction rules, concurrency strategy, and migration/backfill plan.
+- Before regulated payment or identity data: select an external provider, minimize retained data, and document webhook, reconciliation, failure, and deletion behavior.

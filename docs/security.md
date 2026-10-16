@@ -47,10 +47,12 @@ These rules apply to every phase and override convenience or UI assumptions.
 ## AI and tools
 
 - User messages, documents, websites, image metadata and provider payloads are untrusted data and cannot override system/tool policy.
-- Tools use allowlisted typed inputs, server-injected tenant scope, independent authorization, bounded results and audited safe metadata.
+- Current read tools use allowlisted typed inputs, server-injected tenant scope, independent authorization, bounded results and persisted usage facts.
 - Current catalog records own price, SKU, options and inventory. The model cannot invent availability, discount, shipping guarantees or order outcomes.
 - Token, tool-call, provider-call, concurrency and workspace quotas are enforced before external spend where possible.
 - No autonomous payment, order, refund or stock mutation is authorized.
+
+Before the first effectful tool, define its owning domain action, server-side permission and approval policy, typed input, idempotency/concurrency behavior, and durable redacted execution evidence. Do not pass model output directly to a database or regulated provider, and do not claim a general tool audit system exists today.
 
 ## Uploads and retention
 

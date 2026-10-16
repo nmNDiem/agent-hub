@@ -1,38 +1,42 @@
 # Agents
 
-## Purpose
+## Function and ownership
 
-An agent combines behavior, allowed knowledge/catalog scope, tools and channel bindings. The fashion UI calls it a chatbot. Agent logic stays channel-neutral so one published agent can serve supported channels without duplicating reasoning.
+An Agent is a workspace-owned assistant configuration: identity, instructions, assigned knowledge, allowed capabilities, published revision, and channel bindings. It is generic even though the current runtime and UI retain Commerce-oriented fields.
 
-## Current capability
+## CURRENT
 
-- Workspace-owned drafts with name, greeting, locale and bounded safe instructions.
-- Location/collection catalog scope and assigned knowledge bases.
-- Authenticated Playground over the same grounded runtime used by the Website channel.
-- Immutable published revision for the widget, publish/pause controls and Web branding/origin settings.
-- Bounded OpenAI orchestration with validated product/source evidence.
-- Owner/admin archival that removes a chatbot from active reads and stops new channel/runtime use while preserving history.
+- Draft agents with name, greeting, locale, safe instructions, knowledge assignments, and catalog location/collection scope.
+- Immutable published revisions, publish/pause/archive behavior, authenticated Playground, Website publication, and social-channel bindings.
+- A bounded OpenAI runtime with knowledge retrieval and typed catalog read tools.
+- Server-validated source/product evidence and usage accounting.
 
-## Complete domain capability
+Main data: agents, revisions, knowledge assignments, catalog scope joins, and channel bindings. Main surfaces: agent workbench, Playground, and publish/channel configuration.
 
-- Multiple managed agents per workspace and channel assignments.
-- Draft/version history, comparison, rollback and controlled publishing.
-- Tool allowlists, fallback/handoff policy and per-agent limits.
-- Evaluation cases, human feedback, unresolved-question review and quality trends.
-- Templates and reusable policies without copying tenant data.
+## Core flow
 
-## Lifecycle
-
-`draft -> ready -> published -> paused -> archived`
-
-Publishing creates an immutable snapshot. Later edits remain draft until republished. Pausing prevents new automated turns without deleting history. Archiving is a confirmed owner/admin soft delete: the agent disappears from active management and cannot serve new runtime requests, while historical records remain intact. A channel connection may use only a compatible active published revision.
+Edit draft → validate referenced workspace resources → publish immutable revision → bind a supported channel → receive a normalized message → compose server-owned policy and authorized read tools → persist response/evidence and usage.
 
 ## Invariants
 
-- Platform safety, tenancy and tool authorization are not editable agent instructions.
-- Agent configuration never contains raw provider/channel secrets in public DTOs.
-- Query intent can narrow assigned catalog/knowledge scope but cannot widen it.
-- Product/source evidence is validated server-side before rendering.
-- Model output cannot directly perform business writes; tools independently validate scope and policy.
+- Instructions cannot override tenancy, safety, authorization, or provider policy.
+- Query intent may narrow assigned scope but never widen it.
+- Model output cannot directly write authoritative business state.
+- Public DTOs never contain secrets; rendered evidence is revalidated server-side.
+- Historical conversations keep their revision association.
 
-Runtime/API boundaries are in [`../architecture.md`](../architecture.md) and [`../api.md`](../api.md).
+## APPROVED DIRECTION
+
+Remove mandatory Commerce assumptions from defaults and runtime composition while preserving existing revisions. Add evaluation cases, feedback, regression comparison, controlled rollout, and capability-aware onboarding.
+
+Before an effectful action exists, introduce a minimum typed action boundary: Agent → authorized action/tool → owning domain service → authoritative PostgreSQL state, with validation, idempotency, approval policy, and durable redacted execution evidence.
+
+## NOT IMPLEMENTED
+
+No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, or autonomous payment/order/stock action exists.
+
+## Change trigger
+
+The first approved non-read tool must define its concrete domain action and audit requirements; it must not cause a speculative universal framework.
+
+Related authority: [`../architecture.md`](../architecture.md), [`../security.md`](../security.md), [`commerce.md`](commerce.md).

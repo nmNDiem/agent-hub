@@ -1,34 +1,40 @@
 # Catalog
 
-## Purpose
+## Function and ownership
 
-The catalog is the authoritative structured source for products, variants, options, price, inventory and safe presentation references. It is useful to commerce agents but is not a dependency of every AgentHub agent.
+Catalog is an optional Commerce capability owning structured product presentation facts. It serves agents and user workflows but is not required to create a Workspace, Agent, knowledge base, or conversation.
 
-## Current capability
+## CURRENT
 
-- Workspace master products and optional variants.
-- Generic option definitions/values and flexible non-identity attributes.
-- Locations, per-location inventory/price overrides and collections.
-- Private managed images or recorded remote references with safe delivery rules.
-- Manual CRUD and one structure-driven CSV/XLS/XLSX Analyze -> Resolve -> Diff -> Commit importer.
+- Products, variants, generic options, locations, current inventory quantities, location price overrides, collections, images, size guides, and namespaced external references.
+- Manual management and CSV/XLS/XLSX `Analyze → Resolve → Diff → Commit` import.
 - Tenant/location/collection-scoped search and typed agent read tools.
 
-## Complete domain capability
+Main data: catalog entities and persistent import staging/issues/mappings. Main surfaces: Catalog management/import and validated product cards in conversations.
 
-- External commerce/catalog connections with explicit identity reconciliation.
-- Scheduled synchronization, freshness status and failure recovery.
-- Provider-specific mapping isolated behind connector adapters.
-- Deliberate deletion/archive semantics and conflict review.
+## Core flow
 
-## Truth and identity rules
+Create or analyze input → resolve identity/mapping issues → review deterministic diff → atomically and idempotently merge → expose only active, authorized records to search/runtime.
 
-- Product/variant identity comes from canonical IDs, trusted namespaced external references or workspace-scoped SKU; names and model guesses never merge records.
-- Generic options are canonical; legacy color/size fields are compatibility projections.
-- Exact price uses `NUMERIC(18,2)`/`Decimal` with explicit ISO currency.
-- Effective price is location override, then variant override, then product price; zero is valid.
-- Inventory `NULL` means unknown and differs from known zero.
-- Multiple option filters must match the same actual variant.
-- Import MERGE never treats absence from a file as deletion.
-- Import analysis/commit never fetches arbitrary remote image URLs.
+## Invariants
 
-Detailed entities and API contracts are in [`../data-model.md`](../data-model.md) and [`../api.md`](../api.md).
+- Identity uses canonical IDs, trusted namespaced external references, or workspace-scoped SKU; never names/model guesses.
+- Money is exact decimal with explicit currency; zero is valid.
+- Effective price is location override, variant override, then product price.
+- Inventory `NULL` means unknown and differs from zero.
+- Multiple option filters must match one actual variant.
+- Import absence never implies deletion and import never fetches arbitrary remote image URLs.
+
+## APPROVED DIRECTION
+
+External catalog synchronization may add explicit reconciliation, freshness, recovery, and provider-isolated adapters. Operational inventory evolves separately under [`inventory.md`](inventory.md).
+
+## NOT IMPLEMENTED
+
+No order, checkout, payment, fulfillment, supplier, purchasing, POS, or stock-movement model exists.
+
+## Change trigger
+
+Any workflow that changes stock must first adopt the inventory ledger rules. Any connector must define identity reconciliation and conflict ownership before synchronization.
+
+Related authority: [`commerce.md`](commerce.md), [`inventory.md`](inventory.md), [`../data-model.md`](../data-model.md).

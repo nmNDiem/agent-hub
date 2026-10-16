@@ -1,73 +1,90 @@
 # Product
 
-## Product thesis
+## Definition
 
-AgentHub lets organizations create knowledge-grounded AI assistants, connect them to customer channels, operate conversations and contacts, and add controlled business tools. The first vertical is fashion commerce, but the core agent, channel, conversation and knowledge models must not require a product catalog for every use case.
+AgentHub is a general-purpose platform for creating, configuring, equipping, deploying and operating AI agents. It combines knowledge-grounded reasoning, controlled tools, channels, conversations, human operations and observable runtime behavior inside a workspace tenancy boundary.
 
-The product is not merely a website chatbot. The complete system combines AI automation with human operations across Website, Facebook Messenger and Zalo.
+AgentHub is not a POS product with AI attached, not a commerce-only system and not only a chatbot builder. Fashion commerce is the first substantial implemented domain capability and remains a major product direction, but Platform/Core must work without Commerce.
 
-## Users
+## Problem and users
 
-- **Workspace owner/admin:** configures agents, knowledge, catalog, channels, staff access and business policies; monitors conversations, contacts and performance.
-- **Workspace member/operator:** handles assigned conversations and contacts within granted permissions.
-- **Visitor/customer:** communicates through Website, Facebook or Zalo, receives grounded answers and product suggestions, and may consent to contact follow-up.
-- **Platform operator:** manages plans, quotas, abuse response and platform operations without unrestricted access to customer content by default.
+AgentHub gives individuals and organizations one place to:
 
-## Product capabilities
+- configure agent behavior and immutable published revisions;
+- attach trusted Knowledge and, when available, authorized domain tools;
+- deploy through Website and messaging Channels;
+- operate normalized conversations with AI/human handoff;
+- preserve tenant isolation, auditability and authoritative domain state.
 
-| Domain | Complete product capability |
+Primary actors are workspace owners/admins, workspace members/operators, external visitors or contacts, and least-privilege platform operators. A user may belong to multiple workspaces.
+
+## Core concepts
+
+| Concept | Product meaning |
 |---|---|
-| Identity and workspaces | Email/password accounts, sessions, workspaces, invitations, roles and permissioned membership |
-| Agents | Multiple agents, editable drafts, immutable published versions, tools, policies, evaluation and quality improvement |
-| Knowledge | Manual content, private files, citations, ingestion/re-indexing, website sources and controlled synchronization |
-| Catalog | Products, variants, generic options/attributes, locations, collections, current price/inventory and external synchronization |
-| Channels | Website widget, Facebook Messenger and Zalo through a shared channel contract |
-| Conversations | Normalized threads, AI processing, unified inbox, human handoff, assignment, status, notes, tags and delivery state |
-| Contacts | Anonymous visitors, consented leads, channel identities, customer profiles and interaction timeline |
-| Analytics | Usage, channel activity, response time, AI/human resolution, conversion, product interest and agent quality |
-| Platform | Plans, entitlements, quotas, subscriptions, billing, invoices and operator controls |
+| Workspace | Generic tenant and isolation boundary; not a permanent business type |
+| Agent | Generic configurable runtime aggregate with lifecycle and published revisions |
+| Knowledge | Workspace-owned grounded content independent of Commerce |
+| Tool / Action | Authorized typed entry to a domain service; never arbitrary model-side mutation |
+| Channel | Delivery boundary such as Website, Facebook or Zalo |
+| Conversation | Channel-normalized thread shared by AI and human operations |
+| Contact | Cross-channel relationship identity; not automatically a Commerce Customer |
+| Domain capability | Optional authoritative business functionality such as Commerce, CRM or Booking |
 
-These are parts of one product. The roadmap controls delivery order; it does not turn later capabilities into optional add-ons.
+A workspace may use zero or more domain capabilities. Do not encode a permanent `shop`, `portfolio`, `company`, `clinic` or similar workspace type merely to choose functionality.
 
-## Completed foundation and omnichannel operations
+## Permanent architecture scenarios
 
-F0-F5 provide a working local fashion-shop vertical:
+### Portfolio Agent
+
+A Personal Portfolio workspace publishes an Agent that answers from CV, biography, projects, skills and articles through a Website embed and can expose an approved contact or CV action. It must function with no products, locations, inventory, orders, POS or Commerce customer records.
+
+### Commerce workspace
+
+A Fashion Shop workspace may operate Sales, Support and Operations Agents with Knowledge, Catalog, Inventory, Orders, Contacts/Customers, Purchasing, payment integrations, analytics and eventually POS. Agents reach these domains only through authorized tools and services.
+
+### Internal assistant
+
+A Company workspace operates an Agent over internal documents and approved internal tools/workflows without any Commerce dependency.
+
+Every platform-level design must remain compatible with all three scenarios.
+
+## Current product
+
+The completed F0-F5 and M1 deliveries provide:
 
 - FastAPI-owned authentication, workspace membership and tenant isolation;
-- structured catalog, variants, locations, collections, images and CSV/XLS/XLSX import;
-- private knowledge ingestion, Qdrant retrieval and grounded OpenAI runtime;
-- agent configuration, Playground, publishing and embeddable website widget;
-- text and image conversations with authoritative product cards;
-- consented leads, safe contact handoff and read-only conversation history;
-- basic dashboard usage, shared generation quota, retention and redacted operations.
+- one generic Agent model with draft configuration, immutable publication and pause/archive behavior;
+- private Knowledge ingestion, PostgreSQL-authoritative chunks, Qdrant retrieval and citations;
+- a substantial Commerce Catalog with products, variants, options, collections, locations, pricing, current inventory and import;
+- bounded grounded generation with read-only Catalog tools;
+- Website widget and visitor image input;
+- Facebook Messenger and Zalo channel adapters;
+- normalized conversations, durable delivery, unified inbox and human handoff;
+- consent-aware Contacts/leads and operational analytics;
+- usage limits, retention and redacted operations.
 
-This foundation proves the core data and AI boundaries. It is not the final depth of the operational product.
+Current agent runtime defaults, Catalog scope and much of the UI remain commerce-oriented first-vertical coupling. They are not universal platform semantics.
 
-M1 adds shared Website/Facebook/Zalo channel operations, durable delivery, a unified human inbox,
-consent-aware contact timelines and workspace-scoped operational analytics from persisted facts.
+## Approved direction
 
-## Product outcomes
+- Platform/Core remains domain-agnostic.
+- Agent behavior comes primarily from configuration, assigned Knowledge, authorized Tools, policies and Channels—not separate foundational agent types.
+- Domain modules remain authoritative for their own state.
+- Commerce expands as an optional first-class domain; CRM, Booking, Forms, Email/Calendar, Documents, Projects, HR, Education and custom systems are future possibilities, not implemented commitments.
+- High-impact actions must support authorization, attribution, audit and approval where appropriate.
+- Regulated functions integrate with qualified external providers unless a separate product, legal, security and architecture decision authorizes otherwise.
 
-- A business can connect its customer channels without creating separate silos.
-- AI answers remain grounded in workspace-owned knowledge and authoritative structured facts.
-- A human can take over, assign and resolve work without losing channel history.
-- A contact has one understandable timeline across consented identities and conversations.
-- Owners can see whether agents and channels produce useful business outcomes.
-- The platform can add new agent types and tools without weakening tenant isolation or making commerce mandatory.
+## Non-goals
 
-## Product principles
+- Making Commerce mandatory for workspace or agent creation.
+- Creating one agent model per use case.
+- Treating RAG, agent configuration or LLM prose as authoritative business state.
+- A speculative plugin registry, universal service locator or unused workflow engine.
+- One microservice per domain without an operational requirement.
+- Autonomous payment, refund, order or stock mutation under the current authorization model.
+- Wallet, stored-value, custody, lending, credit or unlicensed payment intermediation.
+- A generic CRUD/CMS interface where every table becomes navigation.
+- Repository-wide renames or migrations for architectural aesthetics.
 
-1. **One conversation core, multiple channels.** Provider payloads are normalized at adapters; business logic is not duplicated per channel.
-2. **Structured facts outrank model prose.** Price, SKU, options and inventory come from current catalog records.
-3. **AI and human work are one workflow.** Handoff is a state transition, not a disconnected callback form.
-4. **Consent and least privilege are defaults.** Identity, contact data and channel credentials are collected and exposed only when justified.
-5. **Quality is observable.** Unknowns, failed deliveries, unresolved questions and human takeovers must become measurable signals.
-6. **Later does not mean optional.** Committed product domains remain visible in the target model even when delivered after the current phase.
-
-## Explicit boundaries
-
-- No autonomous payment, refund, order placement or stock mutation without a separately designed authorization and confirmation model.
-- No model-generated claim may override authoritative catalog or policy data.
-- No channel is described as connected until its provider credentials and webhook/delivery checks succeed.
-- No drag-and-drop workflow builder is required for the committed M1-M3 deliveries.
-- Provider-specific limitations are respected; feature parity across Website, Facebook and Zalo is not assumed.
+Delivery order and implemented/planned status live only in [`roadmap.md`](roadmap.md).

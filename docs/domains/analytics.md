@@ -1,46 +1,43 @@
-# Analytics
+# Analytics and usage
 
-## Purpose
+## Function and ownership
 
-Analytics turns persisted operational facts into understandable measures. It must not invent business impact, cost or attribution that the system does not record.
+Analytics derives understandable measures from persisted operational facts. Usage records provider/model consumption and quota facts. Neither may manufacture cost, revenue, attribution, or outcomes.
 
-## Current capability
+## CURRENT
 
-- Workspace-local 7/30-day conversation and completed-reply activity.
-- Active Website agents, recent conversations/leads and monthly generation quota.
-- Generation/vision usage events with observed model/tool calls and token counts.
-- Owner/admin operational analytics with channel and agent filters.
-- First-response and human-response averages with measured sample counts.
-- AI-only resolved, human-handled resolved, unresolved and handoff measures.
-- Consented lead conversion and product-card impressions from persisted facts.
-- Provider delivery outcomes and failed-reply signals without exposing payloads or PII.
-- No estimated provider cost or unsupported sales metric.
+- Workspace-local 7/30-day conversation activity, completed replies, active Website agents, leads, and monthly generation quota.
+- Generation/vision usage with observed provider/model/token/tool-count facts.
+- Channel/agent filters, response-time measures with sample counts, AI/human outcomes, lead conversion, product-card impressions, and provider delivery/failure signals.
+- Product interest means an idempotently persisted impression only; Website provider-delivery status is unavailable, not synthesized.
 
-## Metric definitions
+Main data: usage events/months, narrowly allowlisted analytics events, plus bounded queries over conversations/messages/leads/deliveries. Main surface: owner/admin Analytics.
 
-- Reports use a half-open 7- or 30-day period from the first workspace-local midnight through the
-  request time. The cohort is distinct active conversations with an inbound message in that period.
-- First response is the first completed assistant/human outbound after the cohort conversation's
-  first inbound in the period. Human response is a recorded transition to human mode followed by
-  the first completed human reply. Missing pairs are excluded and reported with a sample count.
-- AI-only resolved is a currently resolved cohort conversation with no human takeover or human
-  reply. Human-handled resolved has either fact. Open/pending cohort conversations are unresolved.
-- Lead conversion is distinct cohort conversations with a consented lead created in the same
-  period divided by the cohort size. An empty denominator produces unavailable, not zero percent.
-- Product interest is an idempotently persisted product-card impression. No product click, order,
-  sale, revenue or attribution is inferred.
-- Website responses have no provider receipt, so provider delivery outcomes are unavailable for
-  Website rather than synthesized as delivered.
+## Core flow
 
-## Later capability
+Persist idempotent operational/usage facts → query a tenant-scoped, timezone-bounded cohort → calculate a documented measure → return value plus sample/availability metadata → render the same definition in UI and accessible tables.
 
-- Agent evaluation and feedback trends.
-- Retrieval-empty, unanswered-question and regression quality measures.
-- Configurable provider cost derived from versioned price data rather than hardcoded constants.
+## Metric contract
+
+Every metric states numerator, denominator, workspace timezone, half-open time boundary, cohort, and unavailable behavior. Current 7/30-day cohorts are distinct conversations with inbound activity from the first workspace-local midnight through request time. Missing response pairs are excluded and expose sample count. Empty denominators return unavailable, never fabricated zero-percent success.
 
 ## Invariants
 
-- Every metric has a written numerator, denominator, time boundary and timezone.
-- Dashboard values come from persisted tenant-scoped data, never mockups.
-- Analytics does not duplicate raw conversations, images or contact PII without a documented need.
-- Unknown and unavailable data render as such; they are not converted to zero or success.
+- Tenant scope is server-derived and mandatory.
+- Raw chat, images, prompts, contact PII, and provider payloads are not copied into analytics.
+- Facts are idempotent and definitions are versioned when semantics change.
+- No click, order, sale, revenue, cost, or uplift is inferred from an impression or lead.
+
+## APPROVED DIRECTION
+
+Agent evaluation, unresolved-question, retrieval-empty, feedback, and regression measures. Provider cost appears only from versioned price data and explicit calculation policy.
+
+## NOT IMPLEMENTED
+
+No sales attribution, revenue dashboard, estimated ROI, generic event warehouse, or current pricing oracle exists.
+
+## Change trigger
+
+Before adding a metric, write its decision purpose and complete definition, then prove the required source fact already exists or deliberately add the smallest privacy-safe event.
+
+Related authority: [`../data-model.md`](../data-model.md), [`../ui.md`](../ui.md), [`../testing.md`](../testing.md).
