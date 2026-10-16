@@ -23,26 +23,27 @@ Current core flow: maintain/import Catalog → assign Catalog scope to an Agent 
 | Inventory availability | **CURRENT — LIMITED** | Inventory levels hold current quantity only; there is no stock ledger or auditable operational history |
 | Product/conversation analytics | **CURRENT — LIMITED** | Product impressions and existing operational conversation/lead measures exist; revenue, margin, sell-through, and purchasing analytics do not |
 | Generic Contact/lead | **CURRENT** | Contacts owns cross-channel identity, consent, lead state, linking, and merge history; a Contact is not automatically a Commerce Customer |
-| Inventory operations | **PLANNED — C1** | Inventory will own stock movements, transactionally derived balances, transfers, stocktakes, adjustments, and auditable history |
-| Orders and sales | **PLANNED — C2** | Orders will own order lifecycle, order items, immutable price snapshots, fulfillment state, idempotency, and returns foundation |
-| Commerce Customer / CRM | **PLANNED — C2** | Commerce will own purchase-oriented profile/history, segmentation, and any justified loyalty state, with an explicit auditable link to generic Contact |
-| Suppliers and purchasing | **PLANNED — C3** | Purchasing will own suppliers, purchase orders, receipts, and operational supplier balances/records; receipts will post through Inventory |
-| POS and retail operations | **PLANNED — C4** | POS will provide checkout, barcode, cart, discount, cashier/session, return/exchange, and location-aware workflows over shared Orders and Inventory |
-| Payments and invoicing integrations | **PLANNED — C5** | AgentHub will orchestrate provider-backed requests, records, verified webhooks, reconciliation, refunds, and electronic-invoice integration without default fund custody |
-| Commerce analytics and AI operations | **PLANNED — C6** | Analytics will derive revenue, margin, inventory health, sell-through, purchasing measures, alerts, and authorized insights from owning-domain records |
+| Inventory operations | **PLANNED — 4.1** | Inventory will own stock movements, transactionally derived balances, transfers, stocktakes, adjustments, and auditable history |
+| Orders and sales | **PLANNED — 4.2** | Orders will own order lifecycle, order items, immutable price snapshots, fulfillment state, idempotency, and returns foundation |
+| Pricing and promotions | **PLANNED — 4.2 / 4.4** | Commerce will own explicit price-list, discount, and promotion rules; Orders snapshot applied results and POS consumes the same rules |
+| Commerce Customer / CRM | **PLANNED — 4.2** | Commerce will own purchase-oriented profile/history, segmentation, and any justified loyalty state, with an explicit auditable link to generic Contact |
+| Suppliers and purchasing | **PLANNED — 4.3** | Purchasing will own suppliers, purchase orders, receipts, and operational supplier balances/records; receipts will post through Inventory |
+| POS and retail operations | **PLANNED — 4.4** | POS will provide checkout, barcode, cart, discount/promotion application, cashier/session, return/exchange, and location-aware workflows over shared Orders and Inventory |
+| Payments and invoicing integrations | **PLANNED — 4.5** | AgentHub will orchestrate provider-backed requests, records, verified webhooks, reconciliation, refunds, and electronic-invoice integration without default fund custody |
+| Commerce analytics and AI operations | **PLANNED — 4.6** | Analytics will derive revenue, margin, inventory health, sell-through, purchasing measures, alerts, and authorized insights from owning-domain records |
 
 No **PLANNED** row describes implemented entities, APIs, screens, services, or schema.
 
 ## Planned dependency order
 
-1. **C1 — Inventory integrity and operations:** establish an append-only stock ledger and transactional inventory before any operational stock mutation.
-2. **C2 — Orders, customers, and fulfillment:** build idempotent Orders and Commerce Customer behavior on transactional Inventory; establish fulfillment and returns foundations.
-3. **C3 — Suppliers and purchasing:** add purchasing workflows whose receipts and corrections use the same Inventory ledger.
-4. **C4 — POS and retail operations:** add retail interaction workflows only by reusing Orders, Customers, and Inventory truth.
-5. **C5 — Payments and invoicing integrations:** introduce provider-backed payment, reconciliation, refund, and electronic-invoice flows when an approved sales workflow needs them.
-6. **C6 — Commerce analytics and AI operations:** derive measures and alerts only after the relevant authoritative transactional data exists.
+1. **4.1 — Inventory integrity and operations:** establish an append-only stock ledger and transactional inventory before any operational stock mutation, including transfers, stocktakes, adjustments, receipts, reservations, sale deductions, returns, and corrections as approved.
+2. **4.2 — Orders, customers, pricing, and fulfillment:** build idempotent Orders, price/promotion rules and snapshots, Commerce Customer purchase history/segmentation/loyalty foundations, fulfillment, and returns foundations on transactional Inventory.
+3. **4.3 — Suppliers and purchasing:** add supplier records, purchase orders, operational balances/records, and receipt workflows whose inventory changes and corrections use the same ledger.
+4. **4.4 — POS and retail operations:** add checkout, barcode, cart, cashier/session, location-aware sales, promotion/discount application, and return/exchange workflows by reusing Orders, Customers, Pricing, and Inventory truth.
+5. **4.5 — Payments and invoicing integrations:** introduce provider-backed payment requests/records, webhook verification, reconciliation, refund orchestration, and electronic-invoice integration when an approved sales workflow needs them.
+6. **4.6 — Commerce analytics and AI operations:** derive revenue, margin, inventory health, sell-through, purchasing analytics, alerts, and Agent/AI insights only after the relevant authoritative transactional data exists.
 
-This order expresses dependency gates, not a requirement that every phase ship contiguously. C3 can proceed after C1 independently of C4. C5 can accompany the first approved payment-requiring Order or POS workflow once provider and reconciliation boundaries are defined. Every phase requires its own approved implementation packet.
+This order expresses dependency gates, not a requirement that every phase ship contiguously. Phase 4.3 can proceed after 4.1 independently of 4.4. Phase 4.5 can accompany the first approved payment-requiring Order or POS workflow once provider and reconciliation boundaries are defined. Every phase requires its own approved implementation packet.
 
 Effectful Agent actions are independently gated on typed action contracts, server-side authorization, input validation, idempotency, audit/attribution, failure behavior, and approval policy where required. Model output never directly mutates Commerce state.
 
@@ -54,6 +55,7 @@ Effectful Agent actions are independently gated on typed action contracts, serve
 | Stock movement history and derived availability | Inventory |
 | Cross-channel identity and communication consent | Contacts |
 | Purchase-oriented customer state | Planned Commerce Customer, linked explicitly to Contact |
+| Price lists, discounts, promotions, and eligibility rules | Planned Commerce pricing capability; Orders snapshot applied results and POS does not fork the rules |
 | Order, line snapshot, fulfillment, and return lifecycle | Planned Orders domain |
 | Supplier, purchase order, and receipt lifecycle | Planned Purchasing domain |
 | Checkout and cashier interaction | Planned POS workflow over Orders, Customers, and Inventory; never parallel transaction truth |
@@ -96,7 +98,8 @@ Do not infer implementation authority for these capabilities from this domain ma
 ## Change triggers
 
 - First operational stock mutation: satisfy [`inventory.md`](inventory.md), including ledger design and migration, before coding the workflow.
-- First transactional purchase: define Order lifecycle, price snapshots, inventory transactions, idempotency/concurrency, cancellation, fulfillment/returns, and Contact/Customer policy.
+- First transactional purchase: define Order lifecycle, price/promotion authority and snapshots, inventory transactions, idempotency/concurrency, cancellation, fulfillment/returns, and Contact/Customer policy.
+- First promotion or discount: define eligibility, precedence/stacking, time/location/customer scope, authorization, rounding/tax interaction, snapshot, and audit behavior.
 - First supplier receipt: define Purchasing ownership, receipt/variance behavior, supplier records/balances, and Inventory source references.
 - First POS workflow: prove reuse of Orders, Customers, Inventory, location, payment, return, and discount rules without parallel truth.
 - First money movement or refund: select a qualified provider and define webhook verification, authorization, reconciliation, failure, dispute, sensitive-data, and refund behavior; load [`../compliance.md`](../compliance.md).

@@ -53,7 +53,7 @@ Every platform-level design must remain compatible with all three scenarios.
 
 ## Current product
 
-The completed F0-F5 and M1 deliveries provide:
+The completed roadmap sections 1 and 2, together with phase 3.1, provide:
 
 - FastAPI-owned authentication, workspace membership and tenant isolation;
 - one generic Agent model with draft configuration, immutable publication and pause/archive behavior;
@@ -66,14 +66,14 @@ The completed F0-F5 and M1 deliveries provide:
 - consent-aware Contacts/leads and operational analytics;
 - usage limits, retention and redacted operations.
 
-Current agent runtime defaults, Catalog scope and much of the UI remain commerce-oriented first-vertical coupling. They are not universal platform semantics.
+Agent defaults and runtime composition are domain-neutral: Catalog instructions and tools are exposed only when readable products exist in the server-authorized scope. Catalog scope naming and some UI remain first-vertical coupling, not universal platform semantics.
 
 ## Approved direction
 
 - Platform/Core remains domain-agnostic.
 - Agent behavior comes primarily from configuration, assigned Knowledge, authorized Tools, policies and Channels—not separate foundational agent types.
 - Domain modules remain authoritative for their own state.
-- Commerce expands as an optional first-class domain; CRM, Booking, Forms, Email/Calendar, Documents, Projects, HR, Education and custom systems are future possibilities, not implemented commitments.
+- Commerce expands as an optional first-class domain. Booking, Forms, Email/Calendar, Documents, custom/internal API tools and controlled automations/workflows are planned cross-domain directions without implementation phases. Projects, HR and Education remain future possibilities rather than commitments.
 - High-impact actions must support authorization, attribution, audit and approval where appropriate.
 - Regulated functions integrate with qualified external providers unless a separate product, legal, security and architecture decision authorizes otherwise.
 
