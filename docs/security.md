@@ -1,6 +1,6 @@
 # Security and privacy invariants
 
-These rules apply to every phase and override convenience or UI assumptions.
+These rules apply to every phase and override convenience or UI assumptions. A phase should link the relevant section and trigger; routine work should not preload unrelated sections.
 
 ## Identity and authorization
 

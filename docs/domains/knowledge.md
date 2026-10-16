@@ -38,4 +38,13 @@ No unrestricted web crawler, arbitrary URL fetch tool, continuously self-editing
 
 Each new source type needs explicit trust, parsing, size, synchronization, retention, and failure policy before ingestion support.
 
-Related authority: [`../security.md`](../security.md), [`../operations.md`](../operations.md), [`../data-model.md`](../data-model.md).
+## Dependencies and conditional references
+
+- Agent assignment behavior belongs to [`agents.md`](agents.md).
+- Load [`../data-model.md#knowledge`](../data-model.md#knowledge) for persistence changes, [`../security.md#uploads-and-retention`](../security.md#uploads-and-retention) for new inputs/retention, and [`../operations.md`](../operations.md) for provider or worker operations.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/knowledge/`
+- `apps/web/src/features/knowledge/`
+- `apps/api/src/agent_hub_api/agents/` only when retrieval/runtime composition changes

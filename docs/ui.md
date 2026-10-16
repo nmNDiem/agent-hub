@@ -1,6 +1,6 @@
 # Product UI principles
 
-This is the product-wide UI authority. [`ui/`](ui/) contains the approved **World** concept and implementation-ready design details; it does not describe the current frontend unless explicitly marked.
+Load this authority for user-visible behavior, interaction or accessibility changes. This is not routine backend context. [`ui/world/`](ui/world/) contains the approved **World** concept and routes work to only the required detailed specifications; it does not describe the current frontend unless explicitly marked.
 
 ## Current implementation
 

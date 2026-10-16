@@ -43,4 +43,14 @@ The ledger and every operational movement listed above are absent. Do not descri
 
 An order reservation, sale, return, receiving, transfer, adjustment, purchasing, or POS workflow is blocked on the approved ledger design and migration. The ledger should not be built earlier merely as generic infrastructure.
 
-Related authority: [`catalog.md`](catalog.md), [`commerce.md`](commerce.md), [`../data-model.md`](../data-model.md).
+## Dependencies and conditional references
+
+- Variant/location identity belongs to [`catalog.md`](catalog.md); transactional sequencing belongs to [`commerce.md`](commerce.md).
+- Load [`../data-model.md#catalog-and-current-inventory-view`](../data-model.md#catalog-and-current-inventory-view) for current persistence or any approved ledger schema work.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/catalog/`
+- `apps/web/src/features/catalog/`
+
+There is no separate Inventory service/module today; creating one is justified only by the operational-mutation trigger above.

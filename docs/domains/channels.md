@@ -40,4 +40,14 @@ No proactive marketing/broadcast engine, arbitrary provider adapter framework, o
 
 A new provider starts with a concrete adapter contract and threat model; shared abstractions change only after repeated proven needs.
 
-Related authority: [`conversations.md`](conversations.md), [`contacts.md`](contacts.md), [`../api.md`](../api.md), [`../security.md`](../security.md).
+## Dependencies and conditional references
+
+- Normalized thread/workflow behavior belongs to [`conversations.md`](conversations.md); identity linking belongs to [`contacts.md`](contacts.md).
+- Load [`../api.md#shared-channel-httpevent-contract`](../api.md#shared-channel-httpevent-contract) only for shared transport changes and the relevant provider reference only for adapter-specific work: [Facebook](../refs/channels/facebook.md), [Zalo](../refs/channels/zalo.md).
+- Load [`../security.md#channels-and-messaging`](../security.md#channels-and-messaging) when verification, credentials, media or external delivery changes.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/channels/`
+- `apps/api/src/agent_hub_api/facebook/` or `apps/api/src/agent_hub_api/zalo/` only for that provider
+- `apps/web/src/features/agents/*-channel-panel.tsx`

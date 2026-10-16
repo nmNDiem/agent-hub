@@ -36,4 +36,14 @@ No generic per-resource ACL engine, enterprise identity federation, or platform-
 
 Add finer permissions only when a shipped workflow cannot be safely expressed by the three current roles; define the resource/action matrix before changing persistence.
 
-Related authority: [`../security.md`](../security.md), [`../data-model.md`](../data-model.md), [`../api.md`](../api.md).
+## Dependencies and conditional references
+
+- Every domain depends on trusted workspace context but retains ownership of its own records.
+- Load [`../security.md#identity-and-authorization`](../security.md#identity-and-authorization) for authorization changes, [`../data-model.md#identity-and-workspaces`](../data-model.md#identity-and-workspaces) for persistence, and [`../api.md`](../api.md) for external auth/session contracts.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/identity/`
+- `apps/api/src/agent_hub_api/workspaces/`
+- `apps/web/src/features/auth/`
+- `apps/web/src/features/workspaces/`

@@ -38,4 +38,14 @@ No Commerce Customer, loyalty profile, marketing audience engine, or probabilist
 
 Introduce Customer only with the first transactional Commerce workflow that needs durable purchasing identity; define consent, duplicate handling, retention, and link/reversal rules first.
 
-Related authority: [`commerce.md`](commerce.md), [`conversations.md`](conversations.md), [`../security.md`](../security.md).
+## Dependencies and conditional references
+
+- Conversation linkage belongs to [`conversations.md`](conversations.md); future Customer promotion is bounded by [`commerce.md`](commerce.md).
+- Load [`../security.md#tenant-owned-data`](../security.md#tenant-owned-data) for identity/PII authorization or retention changes.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/contacts/`
+- `apps/api/src/agent_hub_api/leads/`
+- `apps/web/src/features/contacts/`
+- `apps/web/src/features/leads/` only for lead workflow compatibility

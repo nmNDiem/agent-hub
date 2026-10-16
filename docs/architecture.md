@@ -1,5 +1,7 @@
 # Architecture
 
+Load this authority only when a phase changes module ownership, dependency direction, runtime composition, source of truth or an external-system boundary. Routine domain work should not preload it.
+
 ## Current system topology
 
 ```mermaid

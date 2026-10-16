@@ -1,6 +1,6 @@
 # Decision register
 
-This register contains durable product and architecture decisions. Current behavior belongs in domain/technical documents; sequencing belongs in [`roadmap.md`](roadmap.md).
+Load this register only when a durable design question is not already settled by the active phase and domain packet. Current behavior belongs in domain/technical documents; sequencing belongs in [`roadmap.md`](roadmap.md).
 
 ## Confirmed decisions
 

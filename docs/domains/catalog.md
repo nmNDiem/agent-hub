@@ -37,4 +37,13 @@ No order, checkout, payment, fulfillment, supplier, purchasing, POS, or stock-mo
 
 Any workflow that changes stock must first adopt the inventory ledger rules. Any connector must define identity reconciliation and conflict ownership before synchronization.
 
-Related authority: [`commerce.md`](commerce.md), [`inventory.md`](inventory.md), [`../data-model.md`](../data-model.md).
+## Dependencies and conditional references
+
+- Catalog is bounded by [`commerce.md`](commerce.md); operational quantity changes trigger [`inventory.md`](inventory.md).
+- Load [`../data-model.md#catalog-and-current-inventory-view`](../data-model.md#catalog-and-current-inventory-view) only for persistence/schema work.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/catalog/`
+- `apps/web/src/features/catalog/`
+- `apps/api/src/agent_hub_api/agents/` only when Catalog read tools/runtime evidence change

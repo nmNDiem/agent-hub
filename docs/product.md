@@ -1,5 +1,7 @@
 # Product
 
+Load this authority when defining product meaning, users, permanent scenarios or non-goals. Routine implementation should rely on its phase and domain packet instead.
+
 ## Definition
 
 AgentHub is a general-purpose platform for creating, configuring, equipping, deploying and operating AI agents. It combines knowledge-grounded reasoning, controlled tools, channels, conversations, human operations and observable runtime behavior inside a workspace tenancy boundary.

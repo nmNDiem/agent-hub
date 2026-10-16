@@ -1,8 +1,8 @@
 # Delivery roadmap
 
-The roadmap preserves shipped history while sequencing the smallest coherent next outcomes. `Complete` describes the repository today. `Approved next` is agreed direction but still requires a task spec. `Unscheduled` is intentionally not a commitment.
+The roadmap preserves shipped history and selects coherent phases. `Complete` describes the repository today. `Approved next` is agreed direction but still requires an explicitly approved packet under [`phases/`](phases/). `Unscheduled` is intentionally not a commitment.
 
-Every implementation slice needs a goal, user outcome, scope, non-goals, architecture/data/API/UI/security impacts, tests, and acceptance criteria before coding.
+The roadmap is planning context, not a routine implementation contract. Every implementation phase needs a goal, user outcome, scope, non-goals, architecture/data/API/UI/security impacts, tests, acceptance criteria and context manifest before coding.
 
 ## F0–F5 foundation
 
@@ -33,14 +33,14 @@ Status: **Approved next**
 
 Goal: prove that AgentHub can configure, ground, evaluate, publish, and operate an agent without requiring Commerce while improving quality for existing Commerce users.
 
-Expected slices:
-
-1. Define domain-neutral agent defaults and runtime composition while preserving existing published revisions and APIs.
-2. Add evaluation cases, feedback, unresolved-question review, regression comparison, and safe rollout evidence.
-3. Improve knowledge source freshness, version visibility, ingestion recovery, and retrieval diagnostics.
-4. Deliver guided onboarding and publish-readiness checks based on the capabilities actually enabled for a workspace.
-5. Validate the product through at least two permanent scenarios: knowledge-only service and Commerce-assisted service.
-6. Prototype the spatial **World** interface as a capability-aware projection if its task approves the required frontend dependencies and migration path.
+| Phase | Outcome | Status |
+|---|---|---|
+| [M2.1 General-purpose Agent baseline](phases/M2.1-general-purpose-agent-baseline.md) | Domain-neutral Agent defaults/runtime behavior and permanent knowledge-only plus Commerce regression scenarios | Next candidate; packet awaits explicit implementation approval |
+| M2.2 Agent evaluation and rollout evidence | Evaluation cases, feedback, unresolved-question review, regression comparison and safe rollout evidence | Planned; packet not written |
+| M2.3 Knowledge quality and freshness | Source freshness, version visibility, ingestion recovery and retrieval diagnostics | Planned; packet not written |
+| M2.4 Guided onboarding | Capability-aware setup and publish-readiness checks | Planned; packet not written |
+| M2.5 Capability-aware product navigation | Contextual domain presentation proven by real non-Commerce and Commerce flows | Planned; packet not written |
+| M2.6 World vertical prototype | Accessible spatial projection with approved dependencies and conventional-navigation parity | Planned; packet not written |
 
 Non-goals: effectful business actions, a generic plugin registry, a workflow canvas, and broad UI replacement without behavior parity.
 

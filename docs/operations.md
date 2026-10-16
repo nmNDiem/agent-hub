@@ -1,5 +1,7 @@
 # Local operations
 
+Load the relevant section only for setup, deployment/provider configuration, retention jobs, health, backup or recovery work. Routine feature implementation should not preload this file.
+
 ## Install and run
 
 Current baseline is Node.js 24, pnpm 10.33.0 and Python 3.12.

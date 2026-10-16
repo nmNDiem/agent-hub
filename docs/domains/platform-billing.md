@@ -38,4 +38,13 @@ All commercial billing behavior above is absent. There is no general platform au
 
 Before charging the first workspace, select the external provider and document price versioning, entitlement transitions, webhook/reconciliation behavior, failure states, support access, export, suspension, and deletion.
 
-Related authority: [`../roadmap.md`](../roadmap.md), [`../security.md`](../security.md), [`commerce.md`](commerce.md).
+## Dependencies and conditional references
+
+- Current quota facts use Analytics/Telemetry; merchant payment concepts remain separate under [`commerce.md`](commerce.md).
+- Load [`../roadmap.md`](../roadmap.md) only when selecting commercialization work and [`../security.md`](../security.md) when a concrete billing/provider phase introduces sensitive or financial effects.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/telemetry/`
+- `apps/api/src/agent_hub_api/core/` for current bounded configuration
+- No subscription, invoice or billing-provider module exists today

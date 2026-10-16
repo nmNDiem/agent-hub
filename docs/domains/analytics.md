@@ -40,4 +40,13 @@ No sales attribution, revenue dashboard, estimated ROI, generic event warehouse,
 
 Before adding a metric, write its decision purpose and complete definition, then prove the required source fact already exists or deliberately add the smallest privacy-safe event.
 
-Related authority: [`../data-model.md`](../data-model.md), [`../ui.md`](../ui.md), [`../testing.md`](../testing.md).
+## Dependencies and conditional references
+
+- Metrics consume facts owned by their source domains; they do not take ownership of those records.
+- Load [`../data-model.md#analytics-and-usage`](../data-model.md#analytics-and-usage) for event persistence, [`../ui.md`](../ui.md) for presentation changes, and [`../testing.md`](../testing.md) when definitions/fixtures change.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/analytics/`
+- `apps/api/src/agent_hub_api/telemetry/`
+- `apps/web/src/features/analytics/`

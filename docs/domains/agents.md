@@ -39,4 +39,14 @@ No generic plugin registry, workflow engine, arbitrary-code tools, general tool-
 
 The first approved non-read tool must define its concrete domain action and audit requirements; it must not cause a speculative universal framework.
 
-Related authority: [`../architecture.md`](../architecture.md), [`../security.md`](../security.md), [`commerce.md`](commerce.md).
+## Dependencies and conditional references
+
+- Knowledge assignments use [`knowledge.md`](knowledge.md); Catalog scope uses [`catalog.md`](catalog.md) only for Commerce-enabled behavior.
+- Load [`../architecture.md#agent-runtime-boundary`](../architecture.md#agent-runtime-boundary) only for runtime composition/dependency changes.
+- Load [`../security.md#ai-and-tools`](../security.md#ai-and-tools) only for tool authorization, side effects or model-trust changes.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/agents/`
+- `apps/web/src/features/agents/`
+- `apps/widget/src/` and `apps/api/src/agent_hub_api/widget/` when publication/runtime behavior reaches Website visitors

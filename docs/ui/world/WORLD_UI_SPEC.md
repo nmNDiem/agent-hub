@@ -1,6 +1,6 @@
 # AgentHub World UI Specification
 
-Status: **APPROVED DIRECTION — not the current frontend implementation.** Product-wide UI authority and delivery boundaries live in [`../ui.md`](../ui.md).
+Status: **APPROVED DIRECTION — not the current frontend implementation.** Product-wide UI authority and delivery boundaries live in [`../../ui.md`](../../ui.md).
 
 ## 1. Purpose
 

@@ -1,5 +1,7 @@
 # Testing and verification
 
+Load only the section triggered by the active phase's changed behavior. The phase packet owns its focused test plan; this file owns shared verification rules and permanent regression gates.
+
 ## Test layers
 
 | Layer | Required coverage |

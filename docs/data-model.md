@@ -1,6 +1,6 @@
 # Data model
 
-This document describes ownership and invariants. SQLAlchemy models and Alembic migrations are the executable schema. Unless a section says otherwise, names below describe the current implementation.
+Load this reference when persistence, schema, lifecycle, relationships or migrations may change. SQLAlchemy models and Alembic migrations are the executable schema; this document describes ownership and invariants. Unless a section says otherwise, names below describe current implementation.
 
 ## Shared rules
 

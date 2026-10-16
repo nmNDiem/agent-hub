@@ -40,4 +40,14 @@ No general `agent_tool_calls` table, universal workflow state machine, staffed-S
 
 Any new participant, delivery class, or action card must define authorship, authorization, idempotency, retention, fallback, and accessible rendering.
 
-Related authority: [`channels.md`](channels.md), [`contacts.md`](contacts.md), [`../ui.md`](../ui.md).
+## Dependencies and conditional references
+
+- Transport/delivery belongs to [`channels.md`](channels.md); relationship identity belongs to [`contacts.md`](contacts.md).
+- Load [`../ui.md`](../ui.md) only for user-visible Inbox interaction/accessibility changes and [`../api.md`](../api.md) only for external contract changes.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/conversations/`
+- `apps/api/src/agent_hub_api/channels/` when delivery or provider mapping changes
+- `apps/web/src/features/conversations/`
+- `apps/widget/src/` for scoped Website transcript behavior

@@ -70,4 +70,12 @@ Commerce Customer, cart/checkout, orders/order lines, reservations, payments/ref
 - First money movement: select an external provider and define webhook verification, reconciliation, failures, disputes, and refunds.
 - First effectful Agent action: satisfy the action boundary in [`agents.md`](agents.md).
 
-Related authority: [`catalog.md`](catalog.md), [`inventory.md`](inventory.md), [`contacts.md`](contacts.md), [`../architecture.md`](../architecture.md).
+## Dependencies and conditional references
+
+- Current product facts belong to [`catalog.md`](catalog.md); stock evolution belongs to [`inventory.md`](inventory.md); communication identity remains in [`contacts.md`](contacts.md).
+- Load [`../architecture.md#platformcore-and-domain-capabilities`](../architecture.md#platformcore-and-domain-capabilities) only when changing the Platform/Commerce dependency boundary.
+
+## Relevant code paths
+
+- `apps/api/src/agent_hub_api/catalog/` and `apps/web/src/features/catalog/` for the implemented capability
+- No Order, Payment, Purchasing, POS or separate Commerce Customer module exists today
