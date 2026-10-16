@@ -9,6 +9,7 @@ Catalog is an optional Commerce capability owning structured product presentatio
 - Products, variants, generic options, locations, current inventory quantities, location price overrides, collections, images, size guides, and namespaced external references.
 - Manual management and source-agnostic CSV/XLS/XLSX `Analyze → Resolve → Diff → Commit` import. The user supplies a file without first declaring a vendor; profiling and mapping use the file structure.
 - Tenant/location/collection-scoped search and typed agent read tools.
+- Server-computed workspace capability and bounded Agent scope summaries drive contextual World/navigation presentation; Knowledge-only workspaces do not receive empty Commerce UI.
 
 Main data: catalog entities and persistent import staging/issues/mappings. Main surfaces: Catalog management/import and validated product cards in conversations.
 

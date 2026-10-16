@@ -22,6 +22,7 @@ All route families below are **CURRENT** unless explicitly labeled otherwise. Ag
 | Health | `/health`, `/health/live`, `/health/ready` |
 | Auth | register, login, refresh, logout, verification/recovery and `/me` |
 | Workspaces | list/create/read/update workspace and current membership context |
+| Workspace overview | bounded Agent-centric projection with Knowledge, Channels, Conversation/handover activity, Catalog capability and dependency state |
 | Agents | CRUD configuration, Catalog/Knowledge assignments, publish, pause, Website configuration and Playground stream |
 | Catalog | products, variants, size guides, images, locations, collections, imports and structured search |
 | Knowledge | bases, immutable document replacement/history/review, ingestion retry/rebuild, ephemeral retrieval diagnostics, archive and Agent assignments |
@@ -32,6 +33,8 @@ All route families below are **CURRENT** unless explicitly labeled otherwise. Ag
 | Widget | published config/session, messages, SSE, images, product-image grants and lead creation |
 
 A documentation refactor must not rename current routes. Provider-specific current paths and protocol constraints are routed through [`refs/channels/README.md`](refs/channels/README.md).
+
+`GET /api/v1/workspaces/{workspace_id}/overview?days=7|30` is the authenticated initial read contract for the World. It derives role from membership, caps Agents at 50 and each relationship kind at 20, scopes Conversation counts to the actor's existing Inbox access, and returns server-computed Catalog navigation/setup capability. The response contains safe identifiers, counts, lifecycle/health/readiness state and bounded attention reasons only.
 
 Knowledge replacement routes create a new manual or private-file version and reject unchanged content. Version history is bounded and returns provenance/status metadata rather than source bodies or Storage locations. Review timestamps produce advisory freshness states with a seven-day due-soon window. Retry and rebuild accept a bounded reason and idempotency key and always report that the active generation did not change synchronously. `POST /api/v1/workspaces/{workspace_id}/knowledge/diagnostics` targets selected bases or an Agent assignment, returns only active PostgreSQL-validated sources/chunks, and distinguishes no scope, no ready generation, filtered stale points, no hit and unavailable dependencies.
 

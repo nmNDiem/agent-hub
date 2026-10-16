@@ -16,6 +16,7 @@ Knowledge provides grounded workspace-specific context. PostgreSQL owns sources,
 - Owner/admin retry and rebuild recovery with idempotency, actor/reason evidence, active-work conflict checks, and preservation of the last ready generation.
 - Ephemeral owner/admin retrieval diagnostics for selected bases or an Agent's server-resolved assignment, using production embedding/filter/revalidation behavior without a chat completion.
 - Knowledge-only Agents can publish and execute without Commerce records; their runtime omits Catalog instructions, tools and product rendering.
+- The workspace World projects bounded assigned-base identity plus advisory stale/failed attention state; detailed documents and recovery remain in Knowledge management.
 
 Main data: knowledge bases/documents/versions/generations/chunks, embedding profiles/mappings, media assets, ingestion jobs/attempts. Main surfaces: Knowledge management and agent assignment.
 

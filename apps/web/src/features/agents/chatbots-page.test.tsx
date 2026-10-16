@@ -135,8 +135,8 @@ describe("ChatbotsPage", () => {
 
   it("persists agent behavior, catalog scope and knowledge assignments", async () => {
     render(<ChatbotsPage />);
-    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
-    expect(screen.getByRole("heading", { name: "Thử chatbot" })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Đổi Agent" })).toHaveValue(agent.public_id);
+    expect(screen.getByRole("heading", { name: "Thử Agent" })).toBeInTheDocument();
     expect(screen.getByText(/Catalog dùng khi có dữ liệu phù hợp/)).toBeInTheDocument();
 
     fireEvent.change(await screen.findByLabelText(/Tính cách và phong cách trả lời/), {
@@ -166,25 +166,25 @@ describe("ChatbotsPage", () => {
 
   it("creates a ready-to-use chatbot from only its name", async () => {
     render(<ChatbotsPage />);
-    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+    await screen.findByRole("combobox", { name: "Đổi Agent" });
 
-    expect(screen.getAllByRole("button", { name: "Tạo chatbot" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Tạo Agent" })).toHaveLength(1);
 
-    const pageHeading = screen.getByRole("heading", { name: "Chatbot" }).closest("section")!;
-    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo chatbot" }));
-    const nameInput = screen.getByLabelText("Tên chatbot mới");
+    const pageHeading = screen.getByRole("heading", { name: "Agents" }).closest("section")!;
+    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo Agent" }));
+    const nameInput = screen.getByLabelText("Tên Agent mới");
     fireEvent.change(nameInput, {
       target: { value: "Tư vấn viên mới" },
     });
-    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo chatbot" }));
+    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo Agent" }));
 
     await waitFor(() => expect(mocks.createAgent).toHaveBeenCalledWith(
       workspace.id,
       { name: "Tư vấn viên mới", default_locale: "vi" },
     ));
-    await waitFor(() => expect(screen.getByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(createdAgent.public_id));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Đổi Agent" })).toHaveValue(createdAgent.public_id));
     expect(mocks.listAgents).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Đã tạo chatbot. Bạn có thể cấu hình và thử ngay bây giờ.")).toBeInTheDocument();
+    expect(screen.getByText("Đã tạo Agent. Bạn có thể cấu hình và thử ngay bây giờ.")).toBeInTheDocument();
     expect(screen.queryByText("Không thể hoàn tất thao tác. Vui lòng thử lại.")).not.toBeInTheDocument();
   });
 
@@ -192,9 +192,9 @@ describe("ChatbotsPage", () => {
     mocks.listAgents.mockResolvedValue({ items: [agent, secondAgent] });
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<ChatbotsPage />);
-    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+    expect(await screen.findByRole("combobox", { name: "Đổi Agent" })).toHaveValue(agent.public_id);
 
-    fireEvent.click(screen.getByRole("button", { name: "Xóa chatbot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa Agent" }));
 
     await waitFor(() => expect(mocks.deleteAgent).toHaveBeenCalledWith(
       workspace.id,
@@ -202,9 +202,9 @@ describe("ChatbotsPage", () => {
     ));
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining(agent.name));
     await waitFor(() => expect(
-      screen.getByRole("combobox", { name: "Đổi chatbot" }),
+      screen.getByRole("combobox", { name: "Đổi Agent" }),
     ).toHaveValue(secondAgent.public_id));
-    expect(screen.getByText("Đã xóa chatbot.")).toBeInTheDocument();
+    expect(screen.getByText("Đã xóa Agent.")).toBeInTheDocument();
     expect(mocks.replace).toHaveBeenLastCalledWith(
       `/app/${workspace.slug}/chatbots?agent=${secondAgent.public_id}`,
       { scroll: false },
@@ -220,12 +220,12 @@ describe("ChatbotsPage", () => {
       "Không thể xóa chatbot lúc này.",
     ));
     render(<ChatbotsPage />);
-    expect(await screen.findByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+    expect(await screen.findByRole("combobox", { name: "Đổi Agent" })).toHaveValue(agent.public_id);
 
-    fireEvent.click(screen.getByRole("button", { name: "Xóa chatbot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa Agent" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Không thể xóa chatbot lúc này.");
-    expect(screen.getByRole("combobox", { name: "Đổi chatbot" })).toHaveValue(agent.public_id);
+    expect(screen.getByRole("combobox", { name: "Đổi Agent" })).toHaveValue(agent.public_id);
   });
 
   it("keeps the entered name and shows a support id when creation fails", async () => {
@@ -238,13 +238,13 @@ describe("ChatbotsPage", () => {
       "req-create-agent",
     ));
     render(<ChatbotsPage />);
-    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+    await screen.findByRole("combobox", { name: "Đổi Agent" });
 
-    const pageHeading = screen.getByRole("heading", { name: "Chatbot" }).closest("section")!;
-    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo chatbot" }));
-    const nameInput = screen.getByLabelText("Tên chatbot mới");
+    const pageHeading = screen.getByRole("heading", { name: "Agents" }).closest("section")!;
+    fireEvent.click(within(pageHeading).getByRole("button", { name: "Tạo Agent" }));
+    const nameInput = screen.getByLabelText("Tên Agent mới");
     fireEvent.change(nameInput, { target: { value: "Giữ lại tên này" } });
-    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo chatbot" }));
+    fireEvent.click(within(nameInput.closest("form")!).getByRole("button", { name: "Tạo Agent" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Dịch vụ tạm thời không sẵn sàng.");
     expect(screen.getByText(/req-create-agent/)).toBeInTheDocument();
@@ -254,12 +254,12 @@ describe("ChatbotsPage", () => {
 
   it("configures an exact website origin and publishes the web widget", async () => {
     render(<ChatbotsPage />);
-    await screen.findByRole("combobox", { name: "Đổi chatbot" });
+    await screen.findByRole("combobox", { name: "Đổi Agent" });
 
     fireEvent.click(screen.getByRole("button", { name: /Kênh Web/ }));
     expect(await screen.findByRole("heading", { name: "Widget trò chuyện" })).toBeInTheDocument();
     expect(screen.getByText("Có nguồn dữ liệu: tri thức hoặc catalog")).toBeInTheDocument();
-    expect(screen.getAllByText("Trợ lý AI").length).toBeGreaterThan(1);
+    expect(screen.getByText("Agent AI")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Thêm website"), {
       target: { value: "https://SHOP.example.com/" },
     });

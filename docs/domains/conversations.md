@@ -12,6 +12,7 @@ Conversations normalize Website, Facebook, and Zalo threads into one AI/human op
 - Unified Inbox with filters, per-member unread state, assignment, notes, tags, takeover/resume, human replies, and provider delivery state.
 - Role-aware access: owner/admin see the workspace; members see unassigned or self-assigned threads and may claim unassigned work.
 - Safe product/source evidence is stored in message response JSON; there is no separate message-evidence table.
+- The workspace World projects bounded per-Agent activity and handover counts for 7/30-day windows, applying the same member assignment visibility as Inbox.
 
 Main data: conversations/messages, read states, notes/tags, conversation audit events, channel mappings/jobs/deliveries, and Website sessions. Main surface: Inbox and scoped visitor transcript.
 

@@ -21,6 +21,7 @@ describe("AppShell", () => {
   it("renders the authorized workspace and marks future modules unavailable", () => {
     render(
       <AppShell
+        overview={{ capabilities: { catalog: { available: false } } } as never}
         user={{
           id: "01992f3c-4436-7000-8000-000000000002",
           email: "owner@example.com",
@@ -33,8 +34,30 @@ describe("AppShell", () => {
       </AppShell>,
     );
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Chọn cửa hàng" })).toHaveValue("fashion-shop");
-    expect(screen.getAllByText("Sắp triển khai")).not.toHaveLength(0);
+    expect(screen.getByRole("combobox", { name: "Chọn workspace" })).toHaveValue("fashion-shop");
+    expect(screen.getAllByText("Agents")).not.toHaveLength(0);
+    expect(screen.queryByText("Catalog")).not.toBeInTheDocument();
     expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+  });
+
+  it("shows Commerce navigation only when the server projection enables it", () => {
+    render(
+      <AppShell
+        overview={{ capabilities: { catalog: { available: true } } } as never}
+        user={{
+          id: "01992f3c-4436-7000-8000-000000000002",
+          email: "owner@example.com",
+          email_verified: false,
+        }}
+        workspace={workspace}
+        workspaces={[workspace]}
+      >
+        <h1>World</h1>
+      </AppShell>,
+    );
+
+    expect(screen.getAllByRole("link", { name: "Catalog" })).not.toHaveLength(0);
+    expect(screen.getAllByRole("link", { name: "Locations" })).not.toHaveLength(0);
+    expect(screen.getAllByRole("link", { name: "Collections" })).not.toHaveLength(0);
   });
 });

@@ -572,6 +572,94 @@ export type Dashboard = {
   usage: UsageSummary;
 };
 
+export type OverviewDependencyState = "ready" | "partial" | "stale" | "unavailable";
+export type OverviewAttentionReason =
+  | "knowledge_stale"
+  | "knowledge_failed"
+  | "website_not_ready"
+  | "channel_disconnected"
+  | "channel_degraded"
+  | "handover_pending";
+
+export type WorkspaceOverview = {
+  workspace_id: string;
+  workspace_slug: string;
+  workspace_name: string;
+  role: Workspace["role"];
+  generated_at: string;
+  days: 7 | 30;
+  window_started_at: string;
+  capabilities: {
+    catalog: { available: boolean; can_setup: boolean };
+  };
+  dependencies: Record<
+    "agents" | "knowledge" | "channels" | "conversations" | "catalog",
+    { state: OverviewDependencyState; reason: string | null }
+  >;
+  agent_total: number;
+  agents_truncated: boolean;
+  agents: Array<{
+    public_id: string;
+    name: string;
+    lifecycle_state: "draft" | "published" | "paused";
+    updated_at: string;
+    active_revision: { id: number; revision_no: number; published_at: string } | null;
+    knowledge: {
+      total: number;
+      truncated: boolean;
+      items: Array<{
+        id: number;
+        name: string;
+        kind: "shop" | "faq" | "policy" | "general";
+        state: "ready" | "stale" | "failed";
+      }>;
+    };
+    channels: Record<"web" | "facebook" | "zalo", {
+      total: number;
+      truncated: boolean;
+      items: Array<{
+        id: number;
+        provider: "web" | "facebook" | "zalo";
+        display_name: string;
+        lifecycle_state: "active" | "revoked";
+        health_state:
+          | "unknown"
+          | "healthy"
+          | "permission_expired"
+          | "reauth_required"
+          | "webhook_subscription_failure"
+          | "delivery_unknown";
+        enabled: boolean;
+        active_revision_id: number | null;
+      }>;
+    }>;
+    catalog_scope: {
+      available: boolean;
+      locations: {
+        total: number;
+        truncated: boolean;
+        all_accessible: boolean;
+        items: Array<{ id: number; name: string }>;
+      };
+      collections: {
+        total: number;
+        truncated: boolean;
+        all_accessible: boolean;
+        items: Array<{ id: number; name: string }>;
+      };
+    };
+    website_readiness: {
+      configured: boolean;
+      has_allowed_origin: boolean;
+      has_knowledge: boolean;
+      has_catalog_scope: boolean;
+      can_publish: boolean;
+    };
+    conversations: { total: number; open: number; pending: number; human_handling: number };
+    attention_reasons: OverviewAttentionReason[];
+  }>;
+};
+
 export type AnalyticsDeliveryOutcomes = {
   accepted: number;
   delivered: number;
@@ -1197,6 +1285,8 @@ export const api = {
     request<void>(`/api/v1/workspaces/${workspaceId}/conversations/${conversationPublicId}/replies`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ text }) }),
   getDashboard: (workspaceId: string, days: 7 | 30) =>
     request<Dashboard>(`/api/v1/workspaces/${workspaceId}/dashboard?days=${days}`),
+  getWorkspaceOverview: (workspaceId: string, days: 7 | 30 = 7) =>
+    request<WorkspaceOverview>(`/api/v1/workspaces/${workspaceId}/overview?days=${days}`),
   getAnalytics: (
     workspaceId: string,
     filters: { days: 7 | 30; channel?: "web" | "facebook" | "zalo"; agentPublicId?: string },

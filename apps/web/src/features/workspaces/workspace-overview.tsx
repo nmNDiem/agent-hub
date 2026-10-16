@@ -1,123 +1,167 @@
 "use client";
 
-import {
-  Bot,
-  CalendarDays,
-  LoaderCircle,
-  MessageSquareText,
-  ShieldAlert,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { Bot, Boxes, LoaderCircle, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
-import { api, type Dashboard } from "@/lib/api";
+import { WorldInspector } from "@/features/world/world-inspector";
+import { buildWorldModel, type WorldNode, type WorldProjection } from "@/features/world/world-model";
+import { WorldView } from "@/features/world/world-view";
+import { api, type WorkspaceOverview as WorkspaceOverviewData } from "@/lib/api";
 import { toUiError, type UiFeedback } from "@/lib/errors";
 import { useWorkspace } from "@/lib/use-workspace";
 
-const leadStatus = { new: "Mới", contacted: "Đã liên hệ", closed: "Đã hoàn tất" };
-
-function localDate(value: string): string {
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function ActivityChart({ dashboard }: { dashboard: Dashboard }) {
-  const { points, maximum } = useMemo(() => {
-    const max = Math.max(...dashboard.activity.map((item) => item.conversations), 1);
-    const chartPoints = dashboard.activity.map((item, index) => {
-      const x = dashboard.activity.length === 1
-        ? 50
-        : (index / (dashboard.activity.length - 1)) * 100;
-      const y = 94 - (item.conversations / max) * 82;
-      return `${x},${y}`;
-    }).join(" ");
-    return { points: chartPoints, maximum: max };
-  }, [dashboard.activity]);
-
-  return <div className="overview-chart">
-    <svg aria-hidden="true" preserveAspectRatio="none" viewBox="0 0 100 100">
-      <line x1="0" x2="100" y1="94" y2="94" />
-      <line x1="0" x2="100" y1="53" y2="53" />
-      <line x1="0" x2="100" y1="12" y2="12" />
-      <polyline points={points} />
-    </svg>
-    <div className="overview-chart-labels" aria-hidden="true">
-      <span>{dashboard.activity[0]?.date}</span>
-      <span>Tối đa {maximum}/ngày</span>
-      <span>{dashboard.activity.at(-1)?.date}</span>
-    </div>
-    <table className="sr-only">
-      <caption>Số hội thoại theo ngày, timezone {dashboard.timezone}</caption>
-      <thead><tr><th>Ngày</th><th>Hội thoại</th></tr></thead>
-      <tbody>{dashboard.activity.map((item) => <tr key={item.date}><td>{item.date}</td><td>{item.conversations}</td></tr>)}</tbody>
-    </table>
-  </div>;
-}
-
 export function WorkspaceOverview() {
   const params = useParams<{ workspaceSlug: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
-  const [days, setDays] = useState<7 | 30>(7);
-  const [dashboard, setDashboard] = useState<Dashboard>();
+  const [days, setDays] = useState<7 | 30>(() => searchParams.get("days") === "30" ? 30 : 7);
+  const [projection, setProjection] = useState<WorldProjection>(() => searchParams.get("projection") === "agents" ? "agents" : "system");
+  const [requestedAgentId] = useState(() => searchParams.get("agent"));
+  const [overview, setOverview] = useState<WorkspaceOverviewData>();
+  const [selectedNode, setSelectedNode] = useState<WorldNode>();
   const [feedback, setFeedback] = useState<UiFeedback>();
   const [loading, setLoading] = useState(true);
-  const canView = workspace?.role === "owner" || workspace?.role === "admin";
+
+  async function load(): Promise<void> {
+    if (!workspace) return;
+    try {
+      const result = await api.getWorkspaceOverview(workspace.id, days);
+      setOverview(result);
+      setFeedback(undefined);
+      setSelectedNode((current) => {
+        if (current && result.agents.some((agent) => agent.public_id === current.agentPublicId)) return current;
+        if (!requestedAgentId) return undefined;
+        return buildWorldModel(result, "system", "structure").nodes.find(
+          (node) => node.id === `agent:${requestedAgentId}`,
+        );
+      });
+    } catch (caught) {
+      setFeedback(toUiError(caught, {
+        operation: "workspace.overview.load",
+        fallback: "Không thể tải World của workspace. Hãy thử lại; dữ liệu hiện có không bị thay đổi.",
+      }));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!workspace || !canView) return;
+    if (!workspace) return;
     let active = true;
-    api.getDashboard(workspace.id, days).then((result) => {
+    api.getWorkspaceOverview(workspace.id, days).then((result) => {
       if (!active) return;
-      setDashboard(result);
+      setOverview(result);
       setFeedback(undefined);
-    }).catch((caught) => {
-      if (active) setFeedback(toUiError(caught, {
-        operation: "dashboard.load",
-        fallback: "Không thể tải số liệu tổng quan.",
+      setSelectedNode((current) => {
+        if (current && result.agents.some((agent) => agent.public_id === current.agentPublicId)) return current;
+        if (!requestedAgentId) return undefined;
+        return buildWorldModel(result, "system", "structure").nodes.find(
+          (node) => node.id === `agent:${requestedAgentId}`,
+        );
+      });
+    }).catch((caught: unknown) => {
+      if (!active) return;
+      setFeedback(toUiError(caught, {
+        operation: "workspace.overview.load",
+        fallback: "Không thể tải World của workspace. Hãy thử lại; dữ liệu hiện có không bị thay đổi.",
       }));
     }).finally(() => {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [canView, days, workspace]);
+  }, [days, requestedAgentId, workspace]);
+
+  function updateLocation(
+    nextProjection: WorldProjection,
+    nextDays = days,
+    nextSelected = selectedNode,
+  ): void {
+    if (!workspace) return;
+    const query = new URLSearchParams();
+    if (nextProjection !== "system") query.set("projection", nextProjection);
+    if (nextDays !== 7) query.set("days", String(nextDays));
+    if (nextSelected?.kind === "agent") query.set("agent", nextSelected.agentPublicId);
+    const suffix = query.size ? `?${query}` : "";
+    router.replace(`/app/${encodeURIComponent(workspace.slug)}/overview${suffix}`, { scroll: false });
+  }
 
   if (workspaceError) return <main className="centered-state"><FeedbackBanner feedback={workspaceError} /></main>;
-  if (!me || !workspace) return <main className="centered-state"><LoaderCircle className="spinner" aria-hidden="true" /> Đang tải cửa hàng…</main>;
+  if (!me || !workspace) return <main className="centered-state"><LoaderCircle className="spinner" aria-hidden="true" /> Đang tải workspace…</main>;
 
-  const quotaPercent = dashboard
-    ? Math.min((dashboard.usage.generated_turns / dashboard.usage.generated_turn_limit) * 100, 100)
-    : 0;
+  const currentOverview = overview?.workspace_id === workspace.id ? overview : undefined;
+  const degradedDependencies = currentOverview
+    ? Object.entries(currentOverview.dependencies).filter(([, dependency]) => dependency.state !== "ready")
+    : [];
 
-  return <AppShell user={me.user} workspace={workspace} workspaces={me.workspaces}>
-    <div className="page-heading overview-heading">
-      <div><p className="eyebrow"><Sparkles size={15} /> Dữ liệu cửa hàng</p><h1>Tổng quan</h1><p>Số liệu thật trong timezone {workspace.timezone}; không bao gồm hội thoại đã xóa.</p></div>
-      {canView && <div className="period-switch" aria-label="Khoảng thời gian">
-        {([7, 30] as const).map((value) => <button aria-pressed={days === value} key={value} onClick={() => { setDays(value); setLoading(true); }} type="button">{value} ngày</button>)}
-      </div>}
+  return <AppShell overview={currentOverview ?? null} user={me.user} workspace={workspace} workspaces={me.workspaces}>
+    <div className="world-page-heading">
+      <div>
+        <p className="eyebrow"><Sparkles size={15} /> Workspace World</p>
+        <h1>{workspace.display_name}</h1>
+        <p>{projection === "system" ? "Workspace này được kết nối như thế nào?" : "Các Agent được cấu hình và phân phạm vi ra sao?"}</p>
+      </div>
+      <div className="world-heading-actions">
+        <div className="world-projection-switch" aria-label="Projection" role="group">
+          {(["system", "agents"] as const).map((value) => <button
+            aria-pressed={projection === value}
+            key={value}
+            onClick={() => {
+              const retainedNode = selectedNode?.kind === "agent" ? selectedNode : undefined;
+              setProjection(value);
+              setSelectedNode(retainedNode);
+              updateLocation(value, days, retainedNode);
+            }}
+            type="button"
+          >{value === "system" ? "Hệ thống" : "Agents"}</button>)}
+        </div>
+        <div className="period-switch" aria-label="Khoảng thời gian">
+          {([7, 30] as const).map((value) => <button
+            aria-pressed={days === value}
+            key={value}
+            onClick={() => { setLoading(true); setDays(value); updateLocation(projection, value); }}
+            type="button"
+          >{value} ngày</button>)}
+        </div>
+      </div>
     </div>
-    {!canView ? <section className="empty-state"><ShieldAlert size={28} /><h2>Không có quyền truy cập</h2><p>Chỉ owner hoặc admin được xem hội thoại và mức sử dụng.</p></section> : feedback ? <FeedbackBanner feedback={feedback} /> : loading || !dashboard ? <section className="overview-loading" aria-live="polite"><LoaderCircle className="spinner" /> Đang tổng hợp dữ liệu…</section> : <>
-      <section className="overview-kpis" aria-label="Chỉ số tổng quan">
-        <article><span><MessageSquareText /></span><small>Tổng hội thoại</small><strong>{dashboard.total_conversations.toLocaleString("vi-VN")}</strong><p>{days} ngày gần nhất</p></article>
-        <article><span><Sparkles /></span><small>Phản hồi chatbot</small><strong>{dashboard.assistant_messages.toLocaleString("vi-VN")}</strong><p>Phản hồi đã hoàn tất</p></article>
-        <article><span><Bot /></span><small>Chatbot đang hoạt động</small><strong>{dashboard.active_agents.toLocaleString("vi-VN")}</strong><p>{dashboard.enabled_web_channels} kênh Web đang bật</p></article>
-        <article><span><CalendarDays /></span><small>Hạn mức tháng</small><strong>{dashboard.usage.generated_turns.toLocaleString("vi-VN")} / {dashboard.usage.generated_turn_limit.toLocaleString("vi-VN")}</strong><div className="quota-track"><i style={{ width: `${quotaPercent}%` }} /></div><p>Còn {dashboard.usage.generated_turns_remaining.toLocaleString("vi-VN")} lượt</p></article>
-      </section>
-      <section className="overview-activity card-surface">
-        <header><div><h2>Hoạt động hội thoại</h2><p>Số hội thoại bắt đầu theo ngày · {dashboard.timezone}</p></div><span>{days} ngày</span></header>
-        <ActivityChart dashboard={dashboard} />
-      </section>
-      <section className="overview-details">
-        <article className="card-surface overview-list"><header><div><h2>Hội thoại gần đây</h2><p>Chỉ đọc, từ kênh Web</p></div><Link href={`/app/${workspace.slug}/conversations`}>Xem tất cả</Link></header>{dashboard.recent_conversations.length === 0 ? <div className="overview-empty"><MessageSquareText /><strong>Chưa có hội thoại</strong><span>Hoạt động thật sẽ xuất hiện sau lượt chat đầu tiên.</span></div> : <ul>{dashboard.recent_conversations.map((item) => <li key={item.public_id}><Link href={`/app/${workspace.slug}/conversations/${item.public_id}`}><span><strong>Khách ẩn danh</strong><small>{item.last_visitor_preview || "Không có nội dung xem trước"}</small></span><time dateTime={item.last_message_at}>{localDate(item.last_message_at)}</time></Link></li>)}</ul>}</article>
-        <article className="card-surface overview-list"><header><div><h2>Khách tiềm năng gần đây</h2><p>Yêu cầu liên hệ đã có consent</p></div><Link href={`/app/${workspace.slug}/leads`}>Xem tất cả</Link></header>{dashboard.recent_leads.length === 0 ? <div className="overview-empty"><Users /><strong>Chưa có yêu cầu liên hệ</strong><span>Thông tin liên hệ không bắt buộc để chat.</span></div> : <ul>{dashboard.recent_leads.map((item, index) => <li key={`${item.created_at}-${index}`}><Link href={`/app/${workspace.slug}/leads`}><span><strong>{item.name || "Khách chưa cung cấp tên"}</strong><small>{item.agent_name} · {leadStatus[item.followup_status]}</small></span><time dateTime={item.created_at}>{localDate(item.created_at)}</time></Link></li>)}</ul>}</article>
-      </section>
-      <section className="usage-strip card-surface"><div><strong>Mức sử dụng tháng này</strong><span>{dashboard.usage.generation_model_calls} generation calls · {dashboard.usage.vision_model_calls} vision calls · {dashboard.usage.total_tokens.toLocaleString("vi-VN")} tokens đã ghi nhận</span></div><small>Không ước tính chi phí</small></section>
-    </>}
+
+    {currentOverview?.capabilities.catalog.can_setup && <div className="commerce-setup-callout">
+      <div><Boxes aria-hidden="true" size={20} /><span><strong>Commerce là tùy chọn</strong><small>Thiết lập Catalog khi Agent cần dùng dữ liệu sản phẩm.</small></span></div>
+      <Link href={`/app/${encodeURIComponent(workspace.slug)}/catalog`}>Thiết lập Commerce</Link>
+    </div>}
+
+    {degradedDependencies.length > 0 && <div className="world-partial-state" role="status">
+      <TriangleAlert aria-hidden="true" size={18} />
+      <span>Một phần World chưa đầy đủ: {degradedDependencies.map(([name]) => name).join(", ")}.</span>
+    </div>}
+
+    {feedback && !currentOverview ? <section className="world-load-error">
+      <FeedbackBanner feedback={feedback} />
+      <button className="secondary-button" onClick={() => { setLoading(true); void load(); }} type="button"><RefreshCw size={16} /> Thử lại</button>
+    </section> : !currentOverview ? <section className="world-loading" aria-live="polite">
+      <LoaderCircle className="spinner" aria-hidden="true" />
+      <strong>Đang dựng World từ dữ liệu workspace…</strong>
+      <span>Agents, kiến thức, kênh và hoạt động đang được tổng hợp.</span>
+    </section> : currentOverview.agents.length === 0 ? <section className="world-empty">
+      <span><Bot aria-hidden="true" size={28} /></span>
+      <h2>Tạo Agent đầu tiên</h2>
+      <p>Agent là trung tâm kết nối kiến thức, kênh và hội thoại trong workspace.</p>
+      <Link className="primary-button" href={`/app/${encodeURIComponent(workspace.slug)}/chatbots`}>Tạo Agent</Link>
+    </section> : <div className={`world-workspace${selectedNode ? " has-inspector" : ""}`} aria-busy={loading}>
+      <WorldView
+        onSelect={(node) => { setSelectedNode(node); updateLocation(projection, days, node); }}
+        overview={currentOverview}
+        projection={projection}
+        selectedId={selectedNode?.id}
+      />
+      <WorldInspector node={selectedNode} onClose={() => { setSelectedNode(undefined); updateLocation(projection, days, undefined); }} overview={currentOverview} />
+    </div>}
+
+    {currentOverview?.agents_truncated && <p className="world-truncated-note">Đang hiển thị 50/{currentOverview.agent_total} Agents. Mở màn hình Agents để quản lý toàn bộ.</p>}
   </AppShell>;
 }

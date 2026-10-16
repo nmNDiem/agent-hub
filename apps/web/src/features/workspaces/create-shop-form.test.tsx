@@ -30,10 +30,10 @@ describe("CreateShopForm", () => {
 
   it("suggests a normalized slug and creates the owner workspace", async () => {
     render(<CreateShopForm />);
-    const name = await screen.findByLabelText("Tên cửa hàng");
+    const name = await screen.findByLabelText("Tên workspace");
     fireEvent.change(name, { target: { value: "Cửa hàng Lumé" } });
-    expect(screen.getByLabelText(/Đường dẫn cửa hàng/)).toHaveValue("cua-hang-lume");
-    fireEvent.click(screen.getByRole("button", { name: "Tạo cửa hàng" }));
+    expect(screen.getByLabelText(/Đường dẫn workspace/)).toHaveValue("cua-hang-lume");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo workspace" }));
     await waitFor(() =>
       expect(mocks.createWorkspace).toHaveBeenCalledWith({
         display_name: "Cửa hàng Lumé",

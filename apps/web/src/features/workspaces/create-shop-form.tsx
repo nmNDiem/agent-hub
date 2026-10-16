@@ -46,7 +46,7 @@ export function CreateShopForm() {
     } catch (caught) {
       setFormFeedback(toUiError(caught, {
         operation: "workspaces.create",
-        fallback: "Không thể tạo cửa hàng. Thông tin bạn đã nhập vẫn được giữ lại.",
+        fallback: "Không thể tạo workspace. Thông tin bạn đã nhập vẫn được giữ lại.",
       }));
     } finally {
       setPending(false);
@@ -58,10 +58,10 @@ export function CreateShopForm() {
     <main className="onboarding-page">
       <section className="onboarding-card">
         <span className="brand-mark"><Sparkles aria-hidden="true" size={21} /></span>
-        <div><p className="eyebrow">Bước đầu tiên</p><h1>Tạo cửa hàng của bạn</h1><p>Mỗi cửa hàng là một workspace riêng với dữ liệu và quyền truy cập độc lập.</p></div>
+        <div><p className="eyebrow">Bước đầu tiên</p><h1>Tạo workspace của bạn</h1><p>Mỗi workspace có Agents, dữ liệu và quyền truy cập độc lập.</p></div>
         <form onSubmit={submit}>
           <label htmlFor="shop-name">
-            Tên cửa hàng
+            Tên workspace
             <input
               autoFocus
               id="shop-name"
@@ -73,14 +73,14 @@ export function CreateShopForm() {
             />
           </label>
           <label htmlFor="shop-slug">
-            Đường dẫn cửa hàng
+            Đường dẫn workspace
             <span className="slug-field"><span>agenthub.local/app/</span><input id="shop-slug" maxLength={63} minLength={2} onChange={(event) => { setSlugEdited(true); setSlug(suggestSlug(event.target.value)); }} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required value={slug} /></span>
             <small>Chỉ gồm chữ thường, số và dấu gạch ngang.</small>
           </label>
           {formFeedback && <FeedbackBanner feedback={formFeedback} />}
           <button className="primary-button" disabled={pending} type="submit">
             {pending ? <LoaderCircle className="spinner" aria-hidden="true" size={18} /> : <Store aria-hidden="true" size={18} />}
-            {pending ? "Đang tạo…" : "Tạo cửa hàng"}
+            {pending ? "Đang tạo…" : "Tạo workspace"}
           </button>
         </form>
       </section>

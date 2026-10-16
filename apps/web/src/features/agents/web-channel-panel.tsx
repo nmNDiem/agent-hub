@@ -250,7 +250,7 @@ export function WebChannelPanel({
             <div className="fake-site-bar"><i /><i /><i /><span /></div>
             <div className="fake-site-content"><span /><span /><span /></div>
             <div className={`widget-preview-window ${draft.launcher_position}`} style={{ "--widget-brand": draft.brand_color } as CSSProperties}>
-              <header><span className="preview-avatar"><MessageCircle size={16} /></span><div><strong>{draft.display_name || "Chatbot"}</strong><small>Trợ lý AI</small></div></header>
+              <header><span className="preview-avatar"><MessageCircle size={16} /></span><div><strong>{draft.display_name || "Agent"}</strong><small>Agent AI</small></div></header>
               <div className="preview-transcript"><p>{draft.greeting || "Xin chào! Mình có thể giúp bạn tìm hiểu thông tin."}</p><div className="preview-suggestions"><span>Tìm hiểu thông tin</span><span>Chính sách hỗ trợ</span><span>Liên hệ trực tiếp</span></div></div>
               <div className="preview-composer"><span>Nhập tin nhắn…</span><i /></div>
             </div>

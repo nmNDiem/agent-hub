@@ -180,7 +180,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
     <section className="playground-chat chatbot-test-panel">
       <div className="chat-toolbar">
         <div>
-          <h2><span aria-hidden="true" className="runtime-dot" /> Thử chatbot</h2>
+          <h2><span aria-hidden="true" className="runtime-dot" /> Thử Agent</h2>
           <small>Dùng runtime và dữ liệu thật · cấu hình đã lưu</small>
         </div>
         <div className="chat-toolbar-actions">
@@ -192,7 +192,7 @@ export function ChatbotPlayground({ agent, workspaceId }: { agent?: Agent; works
       </div>
       {playgroundFeedback && <FeedbackBanner feedback={playgroundFeedback} />}
       <div className="chat-transcript" aria-busy={streaming} aria-live="polite" ref={transcript} role="log">
-        {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử chatbot" : "Chọn hoặc tạo chatbot"}</h2><p>{agent ? "Đặt câu hỏi về tri thức đã gán hoặc catalog khả dụng." : "Bạn cần một chatbot trước khi bắt đầu thử nghiệm."}</p></div>}
+        {messages.length === 0 && <div className="chat-empty"><Bot size={30} /><h2>{agent ? "Bắt đầu thử Agent" : "Chọn hoặc tạo Agent"}</h2><p>{agent ? "Đặt câu hỏi về kiến thức đã gán hoặc Catalog khả dụng." : "Bạn cần một Agent trước khi bắt đầu thử nghiệm."}</p></div>}
         {messages.map((message) => <ChatBubble key={message.id} message={message} />)}
       </div>
       <div className="chat-prompt-zone">

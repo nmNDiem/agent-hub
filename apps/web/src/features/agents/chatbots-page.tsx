@@ -126,7 +126,7 @@ export function ChatbotsPage() {
       if (active) {
         setPageFeedback(toUiError(caught, {
           operation: "agents.load-page",
-          fallback: "Không thể tải cấu hình chatbot. Vui lòng thử lại.",
+          fallback: "Không thể tải cấu hình Agent. Vui lòng thử lại.",
         }));
       }
     }).finally(() => {
@@ -146,7 +146,7 @@ export function ChatbotsPage() {
       if (active) {
         setPageFeedback(toUiError(caught, {
           operation: "agents.load-knowledge-scope",
-          fallback: "Không thể tải nguồn tri thức của chatbot.",
+          fallback: "Không thể tải nguồn kiến thức của Agent.",
         }));
       }
     });
@@ -165,7 +165,7 @@ export function ChatbotsPage() {
 
   function openChannel(channel: "web" | "facebook" | "zalo") {
     if (dirty && !window.confirm(
-      "Bỏ thay đổi cấu hình chatbot chưa lưu để mở kênh?",
+      "Bỏ thay đổi cấu hình Agent chưa lưu để mở kênh?",
     )) return;
     if (dirty && selectedAgent) {
       setDraft(draftFrom(selectedAgent, draft?.knowledgeBaseIds));
@@ -196,11 +196,11 @@ export function ChatbotsPage() {
       formElement.reset();
       setShowCreate(false);
       selectAgent(created.public_id);
-      setPageFeedback(feedback("success", "Đã tạo chatbot. Bạn có thể cấu hình và thử ngay bây giờ."));
+      setPageFeedback(feedback("success", "Đã tạo Agent. Bạn có thể cấu hình và thử ngay bây giờ."));
     } catch (caught) {
       setPageFeedback(toUiError(caught, {
         operation: "agents.create",
-        fallback: "Không thể tạo chatbot. Tên bạn đã nhập vẫn được giữ lại.",
+        fallback: "Không thể tạo Agent. Tên bạn đã nhập vẫn được giữ lại.",
       }));
     } finally {
       setBusy(undefined);
@@ -252,7 +252,7 @@ export function ChatbotsPage() {
     } catch (caught) {
       const saveError = toUiError(caught, {
         operation: "agents.save",
-        fallback: "Không thể lưu cấu hình chatbot. Vui lòng thử lại.",
+        fallback: "Không thể lưu cấu hình Agent. Vui lòng thử lại.",
       });
       setPageFeedback(completedWrites > 0 ? {
         ...saveError,
@@ -267,7 +267,7 @@ export function ChatbotsPage() {
   async function deleteAgent() {
     if (!workspace || !selectedAgent) return;
     if (!window.confirm(
-      `Xóa chatbot "${selectedAgent.name}"? Chatbot sẽ ngừng hoạt động trên các kênh đang kết nối.`,
+      `Xóa Agent "${selectedAgent.name}"? Agent sẽ ngừng hoạt động trên các kênh đang kết nối.`,
     )) return;
 
     setBusy("delete");
@@ -290,11 +290,11 @@ export function ChatbotsPage() {
         nextAgentId ? `${path}?agent=${encodeURIComponent(nextAgentId)}` : path,
         { scroll: false },
       );
-      setPageFeedback(feedback("success", "Đã xóa chatbot."));
+      setPageFeedback(feedback("success", "Đã xóa Agent."));
     } catch (caught) {
       setPageFeedback(toUiError(caught, {
         operation: "agents.delete",
-        fallback: "Không thể xóa chatbot. Vui lòng thử lại.",
+        fallback: "Không thể xóa Agent. Vui lòng thử lại.",
       }));
     } finally {
       setBusy(undefined);
@@ -308,22 +308,22 @@ export function ChatbotsPage() {
   }
 
   if (workspaceError) return <main className="center-state"><FeedbackBanner feedback={workspaceError} onRetry={() => location.reload()} /></main>;
-  if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;
+  if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải workspace…</main>;
 
   return (
     <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
       <section className="page-heading chatbot-page-heading">
-        <div><p className="eyebrow">Trợ lý AI</p><h1>Chatbot</h1><p>Quản lý cấu hình và thử phản hồi bằng dữ liệu thật trên cùng một màn hình.</p></div>
+        <div><p className="eyebrow">Vận hành Agent</p><h1>Agents</h1><p>Cấu hình danh tính, kiến thức, phạm vi, kiểm thử và kênh triển khai.</p></div>
         <div className="chatbot-heading-actions">
           {!canWrite && <span className="status-pill archived">Chỉ đọc</span>}
-          {canWrite && <button className="secondary-button" onClick={() => setShowCreate((current) => !current)} type="button">{showCreate ? <X size={16} /> : <Plus size={16} />}{showCreate ? "Đóng" : "Tạo chatbot"}</button>}
+          {canWrite && <button className="secondary-button" onClick={() => setShowCreate((current) => !current)} type="button">{showCreate ? <X size={16} /> : <Plus size={16} />}{showCreate ? "Đóng" : "Tạo Agent"}</button>}
         </div>
       </section>
-      {showCreate && canWrite && <form className="chatbot-create-bar" onSubmit={createAgent}><label><span>Tên chatbot mới</span><input maxLength={160} name="name" placeholder="Ví dụ: Trợ lý ND Shop" required /></label><button className="primary-button compact-button" disabled={busy === "create"} type="submit">{busy === "create" ? <LoaderCircle className="spinner" size={16} /> : <Plus size={16} />} Tạo chatbot</button></form>}
+      {showCreate && canWrite && <form className="chatbot-create-bar" onSubmit={createAgent}><label><span>Tên Agent mới</span><input maxLength={160} name="name" placeholder="Ví dụ: Agent hỗ trợ" required /></label><button className="primary-button compact-button" disabled={busy === "create"} type="submit">{busy === "create" ? <LoaderCircle className="spinner" size={16} /> : <Plus size={16} />} Tạo Agent</button></form>}
       {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
-      {savedNotice && <p className="success-message" role="status">Đã lưu cấu hình chatbot.</p>}
+      {savedNotice && <p className="success-message" role="status">Đã lưu cấu hình Agent.</p>}
       {loading && <section className="chatbot-page-state"><LoaderCircle className="spinner" size={20} /> Đang tải cấu hình…</section>}
-      {!loading && agents.length === 0 && <section className="chatbot-page-state"><Bot size={30} /><h2>Chưa có chatbot</h2><p>Tạo chatbot đầu tiên để cấu hình nguồn dữ liệu và thử phản hồi ngay trên màn hình này.</p>{canWrite && <button className="primary-button compact-button" onClick={() => setShowCreate(true)} type="button"><Plus size={16} /> Tạo chatbot đầu tiên</button>}</section>}
+      {!loading && agents.length === 0 && <section className="chatbot-page-state"><Bot size={30} /><h2>Chưa có Agent</h2><p>Tạo Agent đầu tiên để cấu hình kiến thức, phạm vi và thử phản hồi.</p>{canWrite && <button className="primary-button compact-button" onClick={() => setShowCreate(true)} type="button"><Plus size={16} /> Tạo Agent đầu tiên</button>}</section>}
       {!loading && selectedAgent && (
         <>
           <section className="chatbot-agent-strip">
@@ -331,14 +331,14 @@ export function ChatbotsPage() {
             <div className="chatbot-agent-copy"><strong>{selectedAgent.name}</strong><small>{selectedAgent.status === "published" ? "Đã phát hành" : selectedAgent.status === "paused" ? "Đã tạm dừng" : "Bản nháp"} · {draft?.knowledgeBaseIds.length ?? 0} nguồn tri thức · Catalog dùng khi có dữ liệu phù hợp</small></div>
             <div className="chatbot-agent-actions">
               {dirty && <span className="status-pill pending">Có thay đổi chưa lưu</span>}
-              <div className="chatbot-view-switch" aria-label="Khu vực chatbot" role="group"><button aria-pressed={activeView === "workbench"} onClick={() => setActiveView("workbench")} type="button"><Bot size={15} /> Cấu hình & thử</button><button aria-pressed={activeView === "web"} onClick={() => openChannel("web")} type="button"><Globe2 size={15} /> Kênh Web</button><button aria-pressed={activeView === "facebook"} onClick={() => openChannel("facebook")} type="button"><MessagesSquare size={15} /> Facebook</button><button aria-pressed={activeView === "zalo"} onClick={() => openChannel("zalo")} type="button"><MessageSquareText size={15} /> Zalo</button></div>
-              <label className="chatbot-agent-select"><span className="sr-only">Đổi chatbot</span><select aria-label="Đổi chatbot" onChange={(event) => selectAgent(event.target.value)} value={selectedId}>{agents.map((agent) => <option key={agent.public_id} value={agent.public_id}>{agent.name}</option>)}</select></label>
-              {canWrite && <button className="danger-button compact-button" disabled={Boolean(busy)} onClick={() => void deleteAgent()} type="button"><Trash2 size={16} /> Xóa chatbot</button>}
+              <div className="chatbot-view-switch" aria-label="Khu vực Agent" role="group"><button aria-pressed={activeView === "workbench"} onClick={() => setActiveView("workbench")} type="button"><Bot size={15} /> Cấu hình & thử</button><button aria-pressed={activeView === "web"} onClick={() => openChannel("web")} type="button"><Globe2 size={15} /> Kênh Web</button><button aria-pressed={activeView === "facebook"} onClick={() => openChannel("facebook")} type="button"><MessagesSquare size={15} /> Facebook</button><button aria-pressed={activeView === "zalo"} onClick={() => openChannel("zalo")} type="button"><MessageSquareText size={15} /> Zalo</button></div>
+              <label className="chatbot-agent-select"><span className="sr-only">Đổi Agent</span><select aria-label="Đổi Agent" onChange={(event) => selectAgent(event.target.value)} value={selectedId}>{agents.map((agent) => <option key={agent.public_id} value={agent.public_id}>{agent.name}</option>)}</select></label>
+              {canWrite && <button className="danger-button compact-button" disabled={Boolean(busy)} onClick={() => void deleteAgent()} type="button"><Trash2 size={16} /> Xóa Agent</button>}
             </div>
           </section>
           {activeView === "workbench" && <><div className="chatbot-mobile-tabs" role="tablist">
             <button aria-selected={mobileTab === "config"} onClick={() => setMobileTab("config")} role="tab" type="button">Cấu hình</button>
-            <button aria-selected={mobileTab === "chat"} onClick={() => setMobileTab("chat")} role="tab" type="button">Thử chatbot</button>
+            <button aria-selected={mobileTab === "chat"} onClick={() => setMobileTab("chat")} role="tab" type="button">Thử Agent</button>
           </div>
           <div className="chatbot-workbench">
             <section className={`agent-config-card chatbot-config-panel ${mobileTab === "config" ? "mobile-active" : ""}`}>
@@ -346,7 +346,7 @@ export function ChatbotsPage() {
                 <form onSubmit={saveAgent}>
                   <div className="card-heading agent-config-heading"><div><h2>Cấu hình</h2><p>Thay đổi áp dụng cho bản nháp sau khi lưu</p></div>{dirty && <span className="status-pill pending">Chưa lưu</span>}</div>
                   <div className="agent-config-sections">
-                    <fieldset className="agent-fieldset" disabled={!canWrite}><legend>Thông tin và hành vi</legend><label>Tên<input maxLength={160} onChange={(event) => updateDraft({ name: event.target.value })} required value={draft.name} /></label><label>Ngôn ngữ<select onChange={(event) => updateDraft({ defaultLocale: event.target.value })} value={draft.defaultLocale}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label><label className="full-field">Lời chào<textarea maxLength={2000} onChange={(event) => updateDraft({ greeting: event.target.value })} rows={3} value={draft.greeting} /></label><label className="full-field">Tính cách và phong cách trả lời<small className="agent-field-help">Chatbot mới đã có cấu hình thân thiện để dùng ngay. Bạn có thể chỉnh cách xưng hô, độ dài và phong cách hỗ trợ tại đây.</small><textarea maxLength={10000} onChange={(event) => updateDraft({ safeInstructions: event.target.value })} placeholder="Ví dụ: Xưng hô gần gũi, trả lời ngắn gọn và luôn hỏi thêm nhu cầu của người dùng." rows={5} value={draft.safeInstructions} /></label></fieldset>
+                    <fieldset className="agent-fieldset" disabled={!canWrite}><legend>Danh tính và hành vi</legend><label>Tên<input maxLength={160} onChange={(event) => updateDraft({ name: event.target.value })} required value={draft.name} /></label><label>Ngôn ngữ<select onChange={(event) => updateDraft({ defaultLocale: event.target.value })} value={draft.defaultLocale}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label><label className="full-field">Lời chào<textarea maxLength={2000} onChange={(event) => updateDraft({ greeting: event.target.value })} rows={3} value={draft.greeting} /></label><label className="full-field">Tính cách và phong cách trả lời<small className="agent-field-help">Agent mới đã có cấu hình thân thiện để dùng ngay. Bạn có thể chỉnh cách xưng hô, độ dài và phong cách hỗ trợ tại đây.</small><textarea maxLength={10000} onChange={(event) => updateDraft({ safeInstructions: event.target.value })} placeholder="Ví dụ: Xưng hô gần gũi, trả lời ngắn gọn và luôn hỏi thêm nhu cầu của người dùng." rows={5} value={draft.safeInstructions} /></label></fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MessageSquareText aria-hidden="true" size={17} /> Nguồn tri thức</legend><p className="fieldset-help">Chỉ dữ liệu đã ingestion thành công mới được runtime truy xuất.</p><div className="scope-options">{knowledgeBases.map((base) => <label className="check-option" key={base.id}><input checked={draft.knowledgeBaseIds.includes(base.id)} onChange={() => toggleId("knowledgeBaseIds", base.id)} type="checkbox" /><span><strong>{base.name}</strong><small>{base.document_count} tài liệu · {base.kind}</small></span></label>)}{knowledgeBases.length === 0 && <p className="muted-copy">Chưa có kho tri thức.</p>}</div></fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MapPin aria-hidden="true" size={17} /> Phạm vi location</legend><label className="check-option"><input checked={draft.allLocations} onChange={(event) => updateDraft({ allLocations: event.target.checked })} type="checkbox" /><span><strong>Tất cả location đang hoạt động</strong><small>Tự động bao gồm location mới.</small></span></label>{!draft.allLocations && <div className="scope-options">{locations.map((location) => <label className="check-option" key={location.id}><input checked={draft.locationIds.includes(location.id)} onChange={() => toggleId("locationIds", location.id)} type="checkbox" /><span>{location.name}</span></label>)}</div>}</fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><Boxes aria-hidden="true" size={17} /> Phạm vi collection</legend><label className="check-option"><input checked={draft.allCollections} onChange={(event) => updateDraft({ allCollections: event.target.checked })} type="checkbox" /><span><strong>Tất cả collection đang hoạt động</strong><small>Tự động bao gồm collection mới.</small></span></label>{!draft.allCollections && <div className="scope-options">{collections.map((collection) => <label className="check-option" key={collection.id}><input checked={draft.collectionIds.includes(collection.id)} onChange={() => toggleId("collectionIds", collection.id)} type="checkbox" /><span>{collection.name}</span></label>)}</div>}</fieldset>

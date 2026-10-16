@@ -145,9 +145,9 @@ Do not introduce a universal registry, plugin framework or workflow engine befor
 
 ## Agent workspace projection
 
-The Agent-centric World is a read projection over existing authoritative state, never another state model. It may aggregate Agents, Knowledge assignments, Channel bindings, Conversation activity, handover/attention state and enabled domain relationships for one authorized workspace.
+The Agent-centric World is a read projection over existing authoritative state, never another state model. `GET /api/v1/workspaces/{workspace_id}/overview` aggregates bounded Agents, Knowledge assignments, Channel bindings, actor-authorized Conversation activity, handover/attention state and enabled Catalog relationships for one authorized workspace. It reports explicit dependency state and capability-aware navigation facts without exposing document bodies, transcripts or provider secrets.
 
-When a multi-Agent overview would otherwise require per-Agent request loops, an approved phase may add one bounded server-composed read contract. It must derive from owning domains, preserve their authorization and freshness semantics, avoid copying sensitive content and expose honest unavailable/partial states. Configuration and mutations continue through their owning services and APIs.
+The projection is composed with a fixed set of tenant-scoped queries rather than per-Agent request loops. Configuration and mutations continue through their owning services and APIs.
 
 ## Knowledge-RAG boundary
 

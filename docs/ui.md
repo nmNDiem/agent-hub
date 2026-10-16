@@ -10,7 +10,7 @@ Knowledge management distinguishes advisory freshness from ingestion health and 
 
 Agent workbench and Website preview copy is domain-neutral. It presents Knowledge or Catalog as alternative data sources and does not imply that a Knowledge-only Agent is a shopping assistant.
 
-Current navigation reflects the shipped Commerce-first product. User-facing phrases such as “cửa hàng”, “Chatbot”, always-visible Catalog/Locations/Collections and card-based Overview remain implementation debt. Working routes and behavior stay compatible until an approved task delivers generic Workspace/Agent language, capability-aware navigation and equivalent access to existing behavior.
+The workspace entry is an Agent-centric World with System and Agents projections over authoritative overview data. It uses deterministic DOM/SVG layout, semantic zoom, selection/focus, a contextual inspector and a structured mobile/list alternative. Navigation uses server-computed capabilities: Catalog, Locations and Collections appear only when Commerce data exists, while authorized operators can reach an explicit optional Commerce setup action. Existing focused routes remain compatible even where historical route identifiers still say `chatbots`.
 
 ## Approved direction
 

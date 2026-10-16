@@ -12,6 +12,7 @@ Channels adapt external transports to the shared conversation model. Website, Fa
 - Facebook Page validation, Graph API messaging, 24-hour response-window enforcement, opt-out handling, and bounded private image quarantine.
 - Zalo OA OAuth v4 with PKCE/rotating refresh, separately stored webhook secret, signature verification, and 48-hour customer-service window enforcement.
 - Supabase Vault references for production social credentials; secret values are never returned by application APIs.
+- The workspace World projects bounded Website/Facebook/Zalo binding and health summaries without credentials or private provider payloads.
 
 Main data: connections/bindings, OAuth attempts, Website config, webhook events, provider mappings, delivery/receipt records, response jobs, and inbound-media metadata. Main surfaces: channel setup/health and the shared Inbox.
 

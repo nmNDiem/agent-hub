@@ -11,6 +11,7 @@ An Agent is a workspace-owned operational actor: identity, instructions, assigne
 - A bounded OpenAI runtime with knowledge retrieval and capability-aware typed Catalog read tools.
 - Owner/admin Knowledge diagnostics may resolve an Agent's current Knowledge assignment server-side but do not call the chat model, create conversations, publish revisions or change bindings.
 - Server-validated source/product evidence and usage accounting.
+- A bounded multi-Agent World projection with lifecycle, published revision, assigned Knowledge, Channel, Catalog scope, Conversation activity and safe attention summaries. The World links back to existing focused mutation surfaces.
 
 The runtime uses a generic base policy. It exposes Catalog tools and Catalog-specific instructions only when the Agent's server-authorized scope currently contains readable products; Knowledge-only Agents receive neither and cannot emit product cards.
 
@@ -42,7 +43,7 @@ Evaluation suites, feedback, regression comparison and rollout evidence remain f
 
 ## NOT IMPLEMENTED
 
-No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, effectful Agent Action, autonomous payment/order/stock action or Agent-centric World implementation exists.
+No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, effectful Agent Action or autonomous payment/order/stock action exists. The current World includes only the approved System/Agents slice; separate Catalog/Customer projections remain deferred.
 
 ## Change trigger
 
