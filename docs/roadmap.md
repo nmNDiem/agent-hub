@@ -1,10 +1,10 @@
 # Delivery roadmap
 
-The roadmap preserves shipped history and selects coherent phases. `Complete` describes accepted delivery present in the repository. `Next candidate` identifies sequencing, but implementation still requires an explicitly approved packet under [`phases/`](phases/). `Unscheduled` is intentionally not a delivery commitment.
+This roadmap preserves shipped history and sequences coherent product outcomes. `Complete` means accepted behavior is present in the repository. `Next candidate` selects the next planning target but does not authorize implementation. `Planned` and `Unscheduled` are not delivery commitments.
 
-The roadmap is planning context, not a routine implementation contract. Every implementation phase needs a goal, user outcome, scope, non-goals, architecture/data/API/UI/security impacts, tests, acceptance criteria and context manifest before coding.
+The roadmap is planning context, not a routine implementation contract. Every implementation phase requires an explicitly approved packet under [`phases/`](phases/) with a user outcome, scope, non-goals, architecture/data/API/UI/security impacts, tests, acceptance criteria and context manifest.
 
-Numbered sections provide one stable reading order. Decimal identifiers name delivery phases within a section; dependency gates, rather than numbering alone, determine when planned phases may safely interleave.
+Numbering provides one stable reading order. Dependency gates, rather than numbering alone, determine when phases may safely interleave. New roadmap entries describe work an Agent or operator can complete; implementation primitives such as Forms, Documents, Calendar APIs or tool schemas do not become product phases by themselves.
 
 ## 1 — Foundation
 
@@ -12,12 +12,12 @@ Status: **Complete**
 
 | Delivery | Shipped outcome |
 |---|---|
-| 1.1 Repository foundation | Repository, API/dashboard/widget skeleton, configuration, CI, migrations, and local boot |
-| 1.2 Identity and tenancy | Authentication, sessions, workspaces, membership, and tenant boundaries |
-| 1.3 Catalog | Products, variants, options, locations, collections, images, and spreadsheet import |
-| 1.4 Knowledge and Agents | Private ingestion, OpenAI/Qdrant adapters, grounded runtime, typed read tools, and Playground |
-| 1.5 Website widget and vision | Publishing, scoped visitor sessions, streaming, product cards, and visitor images |
-| 1.6 Local operations | Consented leads, conversation history, usage/quota, retention, and observability |
+| 1.1 Repository foundation | Repository, API/dashboard/widget skeleton, configuration, CI, migrations and local boot |
+| 1.2 Identity and tenancy | Authentication, sessions, workspaces, membership and tenant boundaries |
+| 1.3 Catalog | Products, variants, generic options, locations, collections, images and source-agnostic spreadsheet import |
+| 1.4 Knowledge and Agents | Private ingestion, OpenAI/Qdrant adapters, grounded runtime, typed read tools and Playground |
+| 1.5 Website widget and vision | Publishing, scoped visitor sessions, streaming, product cards and visitor images |
+| 1.6 Local operations | Consented leads, conversation history, usage/quota, retention and observability |
 
 Detailed delivery history remains in Git rather than being restated as current product definition.
 
@@ -25,91 +25,107 @@ Detailed delivery history remains in Git rather than being restated as current p
 
 Status: **Complete**
 
-Website, Facebook Messenger, and Zalo now share normalized connection, conversation, contact, delivery, retry, and human-handoff foundations. The unified inbox supports explicit AI/human mode, assignment, unread state, status, notes, tags, delivery state, consent-aware contacts, identity linking/merge history, and persisted operational analytics.
+Website, Facebook Messenger and Zalo share normalized connection, conversation, contact, delivery, retry and human-handoff foundations. The unified inbox supports explicit AI/human mode, assignment, unread state, status, notes, tags, delivery state, consent-aware contacts, identity linking/merge history and persisted operational analytics.
 
-Commerce remains visible in product-card analytics and the current assistant runtime, but this delivery did not make Commerce mandatory for every workspace.
+These capabilities remain Platform/Core. Future workflows reuse the same Conversations, Contacts and handover state rather than creating channel-specific or workflow-specific substitutes.
 
-## 3 — General-purpose Agent quality and experience
+## 3 — General-purpose Agent core
 
 Status: **In progress; 3.2 is the next candidate**
 
-Goal: prove that AgentHub can configure, ground, evaluate, publish, and operate an agent without requiring Commerce while improving quality for existing Commerce users.
+Goal: make the Agent the primary product interaction and establish trustworthy Knowledge plus a safe path to real work without requiring Commerce.
 
-| Phase | Outcome | Status |
+| Phase | User-visible outcome | Status and dependency |
 |---|---|---|
-| [3.1 General-purpose Agent baseline](phases/3.1-general-purpose-agent-baseline.md) | Domain-neutral Agent defaults/runtime behavior and permanent knowledge-only plus Commerce regression scenarios | Complete |
-| [3.2 Agent evaluation and rollout evidence](phases/3.2-agent-evaluation-and-rollout-evidence.md) | Evaluation cases, feedback, unresolved-question review, regression comparison and safe rollout evidence | Next candidate; packet awaits explicit implementation approval |
-| [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, version visibility, ingestion recovery and retrieval diagnostics | Complete |
-| 3.4 Guided onboarding | Capability-aware setup and publish-readiness checks | Planned; packet not written |
-| 3.5 Capability-aware product navigation | Contextual domain presentation proven by real non-Commerce and Commerce flows | Planned; packet not written |
-| 3.6 World vertical prototype | Accessible spatial projection with approved dependencies and conventional-navigation parity | Planned; packet not written |
+| [3.1 General-purpose Agent baseline](phases/3.1-general-purpose-agent-baseline.md) | Domain-neutral defaults/runtime behavior and permanent Knowledge-only plus Commerce regression scenarios | **Complete** |
+| [3.2 Agent workspace experience](phases/3.2-agent-workspace-experience.md) | An Agent-centric workspace for creating, configuring, grounding, testing, publishing, observing and operating Agents through a contextual World and accessible focused screens | **Next candidate — not approved for implementation** |
+| [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, immutable version visibility, ingestion recovery and retrieval diagnostics | **Complete** |
+| 3.4 Agent actions and real-work execution | The first concrete effectful workflow proves the minimum typed action, authorization, confirmation/approval, idempotency, execution-state, audit and failure boundary | **Planned; packet not written; requires a selected real workflow** |
 
-Non-goals: effectful business actions, a generic plugin registry, a workflow canvas, and broad UI replacement without behavior parity.
+Phase 3.2 includes minimum guidance, honest empty/error/readiness state and capability-aware navigation. It does not absorb full guided onboarding. Phase 3.4 must grow from a real user workflow; it is not permission to build a universal action platform, capability registry or workflow engine.
 
-## Future cross-domain capability directions
+## 4 — General-purpose real-world workflows
 
-Status: **Planned direction; unscheduled and without implementation packets**
+Status: **Planned direction; no implementation packets**
 
-General-purpose growth does not stop at knowledge-only Agents or Commerce. Future work may equip Agents with authorized domain tools in other optional workspace capabilities:
+These phases prove that AgentHub is useful outside Commerce. They are named after work completed for a user, not the internal primitives used to implement it. Each phase reuses the action safety boundary introduced by the first approved effectful workflow and adds only infrastructure demonstrated by that workflow.
 
-| Capability direction | Intended boundary |
-|---|---|
-| Booking | Availability, resources, appointments, reservations, cancellations, reminders, and provider/calendar synchronization under an owning domain service |
-| Forms | Typed form definitions, validation, submissions, consent, review, and bounded follow-up actions |
-| Email and Calendar | Provider-backed mail and calendar reads/actions with server-side authorization, scoped credentials, idempotency, audit, and approval where required |
-| Documents | Authorized document templates, generation, review, storage, retrieval, and lifecycle operations without treating model output as authoritative by default |
-| Custom/internal API tools | Explicitly configured, typed, allowlisted integrations to approved business APIs; never arbitrary URL fetching or client-asserted authority |
-| Controlled automations/workflows | Concrete triggers and bounded actions with authorization, idempotency, audit, failure recovery, human approval, and ownership defined before execution |
+| Phase | User-visible outcome | Dependency gate |
+|---|---|---|
+| 4.1 Qualified contact and structured intake | An Agent can collect, validate and persist the information needed to qualify a contact or service request, building on current Contacts/leads and consent rules | Requires the minimum effectful-action boundary; must not replace current Contacts or handover |
+| 4.2 Information and document delivery | An Agent can select and send an authorized document or information package with attributable delivery state | Requires a concrete delivery channel/provider, content authorization and failure/audit policy |
+| 4.3 Email, calendar and appointment workflows | An Agent can arrange, confirm, reschedule and cancel an appointment against authoritative availability and approved provider state | Requires typed actions, resource/timezone rules, idempotency, confirmation and reconciliation |
+| 4.4 External and internal system actions | An Agent can invoke explicitly configured, typed and allowlisted business operations without arbitrary URL or arbitrary-code execution | Requires concrete target APIs, credential ownership, authorization and safe failure semantics |
+| 4.5 Controlled automations | Operators can enable bounded triggers over stable real actions with visible status, pause/disable, retry, audit and loop protection | Requires implemented actions and real events; no automation engine is built in anticipation |
 
-These directions are optional per workspace and require concrete user workflows before implementation phases are selected. They do not authorize a speculative universal plugin registry, arbitrary-code tools, or a generic workflow engine. Shared action infrastructure is introduced only when an approved capability proves the need.
+Forms, Documents, Email, Calendar, webhooks and API clients may appear inside these workflows as tools or workflow components. They are not automatically peer business domains or top-level navigation. Existing human handover from section 2 remains available across all workflows.
 
-## Capability-triggered foundations
+## 5 — Commerce operations
 
-Status: **Unscheduled**
+Status: **Major planned product track; Catalog baseline is complete; operational phase packets are not written**
 
-These are introduced by the first real use case, not built speculatively:
+Commerce is optional for a workspace but remains AgentHub's first substantial business domain and a major product priority. It is expected to grow toward operational breadth comparable to retail-management products while remaining native to both human and Agent actors over one authoritative state.
 
-- Before the first effectful tool: typed action contract, server-side authorization, validation, idempotency, approval policy, and durable redacted execution evidence.
-- Before the first stock mutation: append-only stock movements and transactionally derived balances.
-- Before payments/refunds or other regulated actions: external-provider-first integration, webhook verification, reconciliation, and minimal sensitive-data retention.
-- Before electronic invoicing, digital signatures, marketplace/platform behavior, regulated accounting services, or material sensitive-data/AI changes: load the conditional constraints in [`compliance.md`](compliance.md) and obtain any required legal/product approval.
-
-## 4 — Commerce operations
-
-Status: **Major planned product track; phase packets not yet written**
-
-Commerce is optional for each workspace but is not an optional product priority. AgentHub is planned to grow this track toward retail and business operations comparable in scope to products such as KiotViet, while the Platform/Core, portfolio, and internal-assistant experiences continue to work without Commerce. Commerce is not a prerequisite for non-Commerce Agents.
-
-The remaining section 3 phases remain the next platform-quality priority. Commerce phases may follow or interleave with later platform work only when their stated foundations are ready and an explicit phase packet is approved. Nothing in this roadmap authorizes implementation by itself.
+The completed Catalog baseline already provides products, variants, generic options, images, collections, locations, pricing, current nullable inventory and source-agnostic spreadsheet import. The phases below extend that baseline; they must not re-plan shipped Catalog work as absent.
 
 | Phase | Planned outcome | Dependency gate |
 |---|---|---|
-| 4.1 Inventory integrity and operations | Append-only stock movement ledger, transactionally maintained balances, transfers, stocktakes, authorized adjustments, reason/source evidence, and auditable inventory history | Required before any order, purchasing, return, or POS flow mutates stock |
-| 4.2 Orders, customers, pricing, and fulfillment | Orders and immutable price snapshots, order items, pricing/promotion rules, lifecycle and fulfillment state, idempotent creation, returns foundation, Commerce Customer linked explicitly to generic Contact, purchase history, segmentation, and a loyalty foundation only when justified | Requires 4.1 transactional inventory semantics; effectful Agent actions additionally require authorization, audit, idempotency, failure, and approval foundations |
-| 4.3 Suppliers and purchasing | Supplier records, purchase orders, receipts, and operational supplier balances/records that post inventory changes through the shared ledger | Requires 4.1; receipt and balance semantics must be specified in the approved packet |
-| 4.4 POS and retail operations | Location-aware checkout, barcode workflows, cart, application of pricing/promotions and discounts, cashier/session concepts where required, and returns/exchanges | Requires 4.1 and 4.2; POS must use shared Orders, Customers, and Inventory rather than create parallel truth |
-| 4.5 Payments and invoicing integrations | Payment requests, provider integrations, minimal payment records, verified webhooks, reconciliation, refund orchestration, and electronic-invoice integration | Requires provider selection plus reconciliation design; regulated capabilities remain integration-first and follow [`compliance.md`](compliance.md) |
-| 4.6 Commerce analytics and AI operations | Revenue, margin, inventory health, sell-through, purchasing analytics, operational alerts, and authorized Agent/AI insights over authoritative Commerce data | Requires the owning transactional domains; analytics and model output never become transaction truth |
+| 5.1 Inventory integrity and operations | Append-only stock movements, transactionally maintained balances, transfers, stocktakes, authorized adjustments, receiving and auditable history | Required before Orders, Purchasing, Returns or POS mutate stock |
+| 5.2 Orders, customers, pricing and fulfillment | Orders and line snapshots, Commerce Customer linked explicitly to Contact, pricing/promotions, lifecycle, cancellation, fulfillment and returns foundation | Requires 5.1 for stock effects; Agent mutations also require the effectful-action boundary |
+| 5.3 Suppliers and purchasing | Supplier records, purchase orders, receipts, costs, supplier history and applicable operational balances/returns | Requires 5.1; receipt/variance and payable ownership must be explicit |
+| 5.4 POS and retail operations | Location-aware checkout, barcode/cart, customer selection, approved pricing/discounts, payment method, returns/exchanges and relevant staff/session concepts | Requires 5.1 and 5.2; POS reuses Orders, Customers, Pricing and Inventory truth |
+| 5.5 Payment and electronic-invoice integrations | Provider-backed payment requests/status/reconciliation/refunds and electronic-invoice workflow integrations | Requires provider selection, compliance review and the first approved payment-requiring workflow |
+| 5.6 Commerce analytics and AI operations | Revenue, margin, inventory health, sell-through, purchasing analytics, operational alerts and authorized Agent insights | Requires the owning transactional domains; derived output never becomes transaction truth |
 
-The sequencing is dependency-driven rather than a promise that every phase ships contiguously. Phase 4.3 may proceed after 4.1 independently of later sales UI, while 4.5 may be introduced alongside the first approved payment-requiring Order or POS workflow. Phase 4.6 grows only from implemented authoritative data. Each phase should remain coherent rather than split into dozens of infrastructure-only packets.
+Branches/locations, receivables/payables, loyalty, staff/shift operations and deeper reports enter the relevant phase only when a concrete workflow requires them. Commerce work may interleave with section 4 when it proves shared Agent-action architecture, but it must not redefine Platform/Core or block all cross-domain progress.
 
-See [`domains/commerce.md`](domains/commerce.md) and [`domains/inventory.md`](domains/inventory.md).
+See [`domains/commerce.md`](domains/commerce.md), [`domains/catalog.md`](domains/catalog.md) and [`domains/inventory.md`](domains/inventory.md).
 
-## 5 — SaaS commercialization
+## 6 — Agent quality and rollout
+
+Status: **Planned; baseline quality remains mandatory in every earlier phase**
+
+| Phase | Planned outcome | Dependency gate |
+|---|---|---|
+| [6.1 Agent evaluation and rollout evidence](phases/6.1-agent-evaluation-and-rollout-evidence.md) | Centralized evaluation suites, regression comparison, feedback review, observability and evidence for a human rollout decision | Benefits from stable Agent workflows and action-specific regression cases; not approved for implementation |
+
+This section systematizes quality; it does not defer correctness. Every earlier capability must ship its own business-critical tests, tenant-isolation coverage, side-effect tests and regression cases.
+
+## 7 — SaaS commercialization
 
 Status: **Approved direction; unscheduled**
 
 | Phase | Planned outcome |
 |---|---|
-| 5.1 Workspace administration | Workspace invitations and richer role administration |
-| 5.2 Plans and platform billing | Plans, entitlements, commercial quotas, subscriptions, invoices, and signed billing webhooks |
-| 5.3 Operator controls | Narrowly scoped support access and auditable account lifecycle actions |
+| 7.1 Workspace administration | Invitations and richer role administration |
+| 7.2 Plans and platform billing | Plans, entitlements, commercial quotas, subscriptions, invoices and signed billing webhooks |
+| 7.3 Operator controls | Narrowly scoped support access and auditable account-lifecycle actions |
 
-Platform billing is separate from Commerce payments taken by a workspace from its customers.
+Commercialization follows demonstrated Agent value, real workflows and domain operation. Platform billing remains separate from payments a workspace receives from its customers.
+
+## 8 — Guided onboarding
+
+Status: **Planned after the interaction model and real workflows stabilize**
+
+| Phase | Planned outcome | Dependency gate |
+|---|---|---|
+| 8.1 Guided onboarding and publish readiness | End-to-end setup guidance, capability discovery, workflow-aware readiness and role-appropriate launch assistance | Requires stable 3.2 interaction, real capabilities/actions and meaningful publish-readiness rules |
+
+Useful empty states, next-step suggestions, inline explanations, validation and actionable errors are required from phase 3.2 onward; they are not postponed to section 8.
+
+## Cross-phase foundations introduced only when triggered
+
+- Before the first effectful action: typed input/output, server-side authorization, validation, Agent permission, confirmation/approval policy, idempotency, execution status, predictable errors, durable redacted audit evidence and reconciliation where external state exists.
+- Before the first stock mutation: append-only stock movements and transactionally derived/reconciled balances.
+- Before payment, refund, electronic invoicing, digital signing, marketplace/platform behavior, regulated financial/accounting behavior or material sensitive-data/AI changes: load [`compliance.md`](compliance.md), identify AgentHub/provider roles and obtain any required legal/product/security approval.
+- Before automation: at least one stable real action and a real trigger, with scope, authorization, audit, retry, disable/pause, visibility and loop prevention.
 
 ## Explicitly not planned
 
-- Autonomous unrestricted payments, refunds, order placement, or stock changes by an LLM.
-- Arbitrary-code tools or arbitrary URL fetching.
-- A speculative plugin marketplace, universal capability registry, or drag-and-drop workflow engine.
-- Microservice extraction without measured ownership, scaling, or deployment pressure.
+- A Commerce-only product, generic CMS, developer console for AI primitives or disconnected collection of Forms/Documents/Calendar/Booking modules.
+- Autonomous unrestricted payments, refunds, Orders, appointment changes or stock mutations by an LLM.
+- Arbitrary-code tools, arbitrary URL fetching or client-asserted authority.
+- A speculative plugin marketplace, universal capability registry, generic action platform or drag-and-drop workflow engine.
+- Empty provider implementations, one Agent model per use case or one microservice per domain.
+- A 3D game, decorative AI imagery, fake operational activity or spatial UI without an accessible conventional path.
+- Treating the quality phase as permission to omit tests now, or the onboarding phase as permission to omit guidance now.

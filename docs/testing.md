@@ -35,7 +35,13 @@ Capability-aware UI tests assert that absent domains leave no broken route, requ
 - Grounded runtime budgets, prompt injection, safe fallback and validated product/source evidence.
 - Website session/conversation/image ownership, SSE replay/cancel, lead consent, quota and retention.
 
-## M1 channel and inbox gates
+## Quality follows each capability
+
+A later centralized evaluation phase does not defer correctness. Every approved capability adds its business-critical tests in the same delivery: appointment Actions test scheduling/idempotency/conflicts, Order Actions test authoritative side effects and failure recovery, and retrieval changes add grounding/regression cases. Effectful Actions require authorization, confirmation/approval where applicable, idempotency, audit/attribution, failure and tenant-isolation coverage.
+
+PostgreSQL-specific behavior must be tested against PostgreSQL where SQLite semantics are insufficient. Import/parsing changes retain representative source-agnostic fixtures. Keep phase acceptance criteria measurable and coherent rather than splitting one capability into infrastructure-only fragments to avoid end-to-end verification.
+
+## Omnichannel delivery gates
 
 - Invalid/missing webhook verification cannot persist or trigger work.
 - Duplicate/reordered provider events do not duplicate messages, model spend or delivery.
@@ -52,7 +58,7 @@ event/message identity, payload-fingerprint conflicts, reordered events, handlin
 delivery idempotency, lease fencing, exhausted leases, bounded retry and terminal acceptance.
 Provider tasks add signature/challenge fixtures and provider-specific payload/media limits.
 
-The M1.1 migration gate has an opt-in PostgreSQL rehearsal that upgrades to `20261005_0013`,
+The shared-channel foundation migration gate has an opt-in PostgreSQL rehearsal that upgrades to `20261005_0013`,
 seeds a Website connection/session/conversation with inbound and outbound messages, upgrades to
 `20261006_0014`, verifies all shared-channel backfills and downgrades to `20261005_0013`. The
 Facebook first slice additionally covers challenge/signature failure, raw-body size, Page and
@@ -63,31 +69,31 @@ to `0013`. Mock Graph tests verify bearer-token placement, official text payload
 error classification, missing credentials, early/duplicate receipts and cross-workspace receipt
 isolation. No test sends a live provider message.
 
-The M1.2 completion gate continues through `20261008_0016`, verifies thread-policy backfill,
+The Facebook completion gate continues through `20261008_0016`, verifies thread-policy backfill,
 response/media tables and downgrade removal, then rehearses rollback through `0015`, `0014` and
 `0013`. Fake tests cover duplicate-to-single-model-run behavior, response fencing, exact opt
 keywords, 24-hour enforcement, media host/redirect/MIME/byte/pixel limits, private cleanup,
 same-Page credential rotation, cross-workspace denial and accessible connection UI states.
 
-The M1.3 gate continues through `20261014_0017` and covers PKCE/state construction, callback
+The Zalo integration gate continues through `20261014_0017` and covers PKCE/state construction, callback
 replay and initiating-user binding, OAuth token exchange, same-OA connection identity, Vault
 secret rotation, automatic refresh, invalid Zalo signatures, inbound deduplication and negative
 cross-workspace access. Provider gateways and Vault are faked; automated tests never authorize or
 send through a live Zalo OA.
 
-The M1.4 gate continues through `20261014_0018` and rehearses creation/removal of inbox read,
+The unified-Inbox gate continues through `20261014_0018` and rehearses creation/removal of inbox read,
 note, tag and audit tables plus the tenant-safe assignee reference. API/widget tests cover CSRF,
 role-scoped visibility, cross-workspace denial, optimistic updates, model suppression after
 takeover, idempotent Website human replies and scoped transcript synchronization. Existing fake
 Facebook/Zalo delivery tests cover the shared queue; no provider is called live.
 
-The M1.5 gate continues through `20261014_0019`, verifies Website lead and social-thread contact
+The Contact timeline gate continues through `20261014_0019`, verifies Website lead and social-thread contact
 backfills, the shared tag-table rename and downgrade restoration. API tests keep same-email lead
 submissions distinct, verify exact-match suggestions, negative cross-workspace access, CSRF,
 member claim scope, logical merge and reversal, formula-safe export and contact PII expiry. Channel
 tests verify a retried social thread reuses its connection-scoped contact identity.
 
-The M1.6 gate continues through `20261015_0020`, verifies analytics event/reporting indexes and
+The operational-analytics gate continues through `20261015_0020`, verifies analytics event/reporting indexes and
 downgrade removal. API tests cover workspace-timezone periods, channel/agent filters, response
 sample availability, AI/human resolution, handoff, consented conversion, product-impression
 idempotency, role denial and cross-workspace isolation. Frontend tests cover populated, empty,

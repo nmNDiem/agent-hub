@@ -4,6 +4,19 @@ This is a conditional product and architecture reference. Load it only when a ph
 
 This document records design constraints and review triggers. It does not determine jurisdiction-specific obligations or replace qualified legal advice. An approved phase must identify applicable markets, providers, data flows, and required legal/product review before implementation.
 
+## Vietnam legal baseline
+
+The following references were re-verified against the Government legal-document portal on 2026-10-16. They are a planning baseline, not a complete legal analysis, and must be checked again when a triggering capability is implemented or released:
+
+- [Law 91/2025/QH15 on Personal Data Protection](https://vanban.chinhphu.vn/?docid=214590&pageid=27160), effective 2026-01-01, and [Decree 356/2025/NĐ-CP](https://vanban.chinhphu.vn/?classid=1&docid=216387&orggroupid=2&pageid=27160), effective 2026-01-01.
+- [Law 20/2023/QH15 on Electronic Transactions](https://vanban.chinhphu.vn/?classid=1&docid=208421&pageid=27160), effective 2024-07-01, including the boundaries applicable to regulated trust services.
+- The current non-cash payment and payment-intermediary framework, including the applicable State Bank consolidated/current instruments; AgentHub must not provide a licensed service merely because a product workflow requests payment.
+- [Decree 123/2020/NĐ-CP](https://vanban.chinhphu.vn/?docid=201365&lang=vi&pageid=27160), [Decree 70/2025/NĐ-CP](https://vanban.chinhphu.vn/?docid=213179&lang=vi&pageid=27160) and [Circular 32/2025/TT-BTC](https://vanban.chinhphu.vn/?classid=0&docid=213855&pageid=27160) for electronic invoices/documents, subject to later amendments or replacements.
+- [Law 122/2025/QH15 on E-commerce](https://vanban.chinhphu.vn/?classid=1&docid=216503&pageid=27160&typegroupid=3), effective 2026-07-01, plus its current implementing instruments.
+- Any sector-specific law and implementing instrument triggered by healthcare, finance, insurance, conditional education or another regulated domain.
+
+Do not treat this list, product documentation or an integration-first default as legal advice. The implementation review must verify current text, effective dates, transition rules, target jurisdiction and AgentHub's actual operating role.
+
 ## Capability boundary
 
 | Boundary | Capabilities | Product and architecture consequence |

@@ -10,13 +10,22 @@ Knowledge management distinguishes advisory freshness from ingestion health and 
 
 Agent workbench and Website preview copy is domain-neutral. It presents Knowledge or Catalog as alternative data sources and does not imply that a Knowledge-only Agent is a shopping assistant.
 
-Current navigation reflects the shipped Commerce-first product. It must remain compatible until a task delivers capability-aware navigation and equivalent access to existing behavior.
+Current navigation reflects the shipped Commerce-first product. User-facing phrases such as “cửa hàng”, “Chatbot”, always-visible Catalog/Locations/Collections and card-based Overview remain implementation debt. Working routes and behavior stay compatible until an approved task delivers generic Workspace/Agent language, capability-aware navigation and equivalent access to existing behavior.
 
 ## Approved direction
 
 AgentHub should feel like an operational environment, not a database administration panel or generic CMS. Users should understand their workspace, agents, knowledge, channels, and enabled domain capabilities before encountering records and settings.
 
 The **World** is the preferred spatial overview: agents and capability areas form a navigable map, while focused work still uses legible lists, forms, tables, and inspectors. Spatial presentation is a projection of real backend state, never a second state model.
+
+Phase 3.2 establishes the product interaction language rather than merely reskinning pages. A workspace overview should show multiple Agents and their real relationships to Knowledge, Channels, Conversations, handover/attention state and enabled domain systems. Selecting an Agent leads coherently through:
+
+```text
+Create -> Configure -> Give Knowledge -> Grant abilities/domain access
+       -> Test -> Publish -> Observe -> Improve
+```
+
+An Agent is represented as an identifiable operational actor, not only a prompt/model form. The overview is not a substitute for Agent, Knowledge, Inbox or domain detail screens; those remain the focused places for deep work.
 
 Principles:
 
@@ -28,6 +37,10 @@ Principles:
 - Use real persisted data. Never fabricate products, people, dates, IDs, metrics, delivery state, or provider health.
 - Avoid “AI slop”: decorative gradients, excessive cards, meaningless activity, faux intelligence, and motion without information.
 - Preserve user input and partial streamed output on recoverable errors.
+- Present capabilities in user language such as “can schedule an appointment”; do not require users to understand form engines, function schemas or capability registries.
+- Keep one visual owner for each fact. A relationship, count or status already clear in the World is linked rather than repeated in a filler card on the same view.
+- Make publish meaningful: expose real draft/published/paused state and derived blocking readiness facts without inventing completion or connection state.
+- Provide minimum guidance now through useful empty states, next-step suggestions, inline explanations, validation and actionable errors. Full guided onboarding remains a later phase.
 
 ## Interaction and accessibility
 
@@ -39,7 +52,9 @@ Product/source cards render only server-validated evidence. Connection status co
 
 ## World delivery boundary
 
-The World documents are an approved target specification. PixiJS, ELK, d3-force, Motion, or similar packages are not assumed to exist in the current app and must not be added until an approved implementation slice justifies them. A first slice must preserve conventional accessible navigation and prove both a knowledge-only workspace and a Commerce-enabled workspace.
+The World documents are an approved target specification and the detailed design reference for the phase 3.2 candidate. PixiJS, ELK, d3-force, Motion, or similar packages are not assumed to exist in the current app and must not be added until the phase is explicitly approved and the implementation slice justifies them. A first slice must preserve conventional accessible navigation and prove both a Knowledge-only workspace and a Commerce-enabled workspace.
+
+World interaction may use DOM/SVG, Canvas/WebGL or a hybrid when justified by measured complexity and performance. It must not imitate a 3D game, rotate/flip cards, add decorative floating panels or use generic AI-person imagery. Motion communicates selection, focus, activity or state change and respects reduced motion.
 
 ## Visual language
 

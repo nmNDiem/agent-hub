@@ -7,7 +7,7 @@ Catalog is an optional Commerce capability owning structured product presentatio
 ## CURRENT
 
 - Products, variants, generic options, locations, current inventory quantities, location price overrides, collections, images, size guides, and namespaced external references.
-- Manual management and CSV/XLS/XLSX `Analyze → Resolve → Diff → Commit` import.
+- Manual management and source-agnostic CSV/XLS/XLSX `Analyze → Resolve → Diff → Commit` import. The user supplies a file without first declaring a vendor; profiling and mapping use the file structure.
 - Tenant/location/collection-scoped search and typed agent read tools.
 
 Main data: catalog entities and persistent import staging/issues/mappings. Main surfaces: Catalog management/import and validated product cards in conversations.
@@ -24,10 +24,11 @@ Create or analyze input → resolve identity/mapping issues → review determini
 - Inventory `NULL` means unknown and differs from zero.
 - Multiple option filters must match one actual variant.
 - Import absence never implies deletion and import never fetches arbitrary remote image URLs.
+- Import identity and mapping must not depend on a Sapo, KiotViet, Shopify or other vendor label. A sample export may inform generic format handling but cannot turn into a vendor-only parser.
 
 ## APPROVED DIRECTION
 
-External catalog synchronization may add explicit reconciliation, freshness, recovery, and provider-isolated adapters. Operational inventory evolves separately under [`inventory.md`](inventory.md).
+Import may expand with encoding handling, stronger header/schema inference, validation/normalization, conflict resolution, remembered mappings and clearer staged diffs as concrete files prove the need. External catalog synchronization may add explicit reconciliation, freshness, recovery and provider-isolated adapters. A direct vendor connector is separate from file import. Operational inventory evolves separately under [`inventory.md`](inventory.md).
 
 ## NOT IMPLEMENTED
 

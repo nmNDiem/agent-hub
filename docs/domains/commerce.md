@@ -23,27 +23,27 @@ Current core flow: maintain/import Catalog → assign Catalog scope to an Agent 
 | Inventory availability | **CURRENT — LIMITED** | Inventory levels hold current quantity only; there is no stock ledger or auditable operational history |
 | Product/conversation analytics | **CURRENT — LIMITED** | Product impressions and existing operational conversation/lead measures exist; revenue, margin, sell-through, and purchasing analytics do not |
 | Generic Contact/lead | **CURRENT** | Contacts owns cross-channel identity, consent, lead state, linking, and merge history; a Contact is not automatically a Commerce Customer |
-| Inventory operations | **PLANNED — 4.1** | Inventory will own stock movements, transactionally derived balances, transfers, stocktakes, adjustments, and auditable history |
-| Orders and sales | **PLANNED — 4.2** | Orders will own order lifecycle, order items, immutable price snapshots, fulfillment state, idempotency, and returns foundation |
-| Pricing and promotions | **PLANNED — 4.2 / 4.4** | Commerce will own explicit price-list, discount, and promotion rules; Orders snapshot applied results and POS consumes the same rules |
-| Commerce Customer / CRM | **PLANNED — 4.2** | Commerce will own purchase-oriented profile/history, segmentation, and any justified loyalty state, with an explicit auditable link to generic Contact |
-| Suppliers and purchasing | **PLANNED — 4.3** | Purchasing will own suppliers, purchase orders, receipts, and operational supplier balances/records; receipts will post through Inventory |
-| POS and retail operations | **PLANNED — 4.4** | POS will provide checkout, barcode, cart, discount/promotion application, cashier/session, return/exchange, and location-aware workflows over shared Orders and Inventory |
-| Payments and invoicing integrations | **PLANNED — 4.5** | AgentHub will orchestrate provider-backed requests, records, verified webhooks, reconciliation, refunds, and electronic-invoice integration without default fund custody |
-| Commerce analytics and AI operations | **PLANNED — 4.6** | Analytics will derive revenue, margin, inventory health, sell-through, purchasing measures, alerts, and authorized insights from owning-domain records |
+| Inventory operations | **PLANNED — 5.1** | Inventory will own stock movements, transactionally derived balances, transfers, stocktakes, adjustments, and auditable history |
+| Orders and sales | **PLANNED — 5.2** | Orders will own order lifecycle, order items, immutable price snapshots, fulfillment state, idempotency, and returns foundation |
+| Pricing and promotions | **PLANNED — 5.2 / 5.4** | Commerce will own explicit price-list, discount, and promotion rules; Orders snapshot applied results and POS consumes the same rules |
+| Commerce Customer / CRM | **PLANNED — 5.2** | Commerce will own purchase-oriented profile/history, segmentation, and any justified loyalty state, with an explicit auditable link to generic Contact |
+| Suppliers and purchasing | **PLANNED — 5.3** | Purchasing will own suppliers, purchase orders, receipts, and operational supplier balances/records; receipts will post through Inventory |
+| POS and retail operations | **PLANNED — 5.4** | POS will provide checkout, barcode, cart, discount/promotion application, cashier/session, return/exchange, and location-aware workflows over shared Orders and Inventory |
+| Payments and invoicing integrations | **PLANNED — 5.5** | AgentHub will orchestrate provider-backed requests, records, verified webhooks, reconciliation, refunds, and electronic-invoice integration without default fund custody |
+| Commerce analytics and AI operations | **PLANNED — 5.6** | Analytics will derive revenue, margin, inventory health, sell-through, purchasing measures, alerts, and authorized insights from owning-domain records |
 
 No **PLANNED** row describes implemented entities, APIs, screens, services, or schema.
 
 ## Planned dependency order
 
-1. **4.1 — Inventory integrity and operations:** establish an append-only stock ledger and transactional inventory before any operational stock mutation, including transfers, stocktakes, adjustments, receipts, reservations, sale deductions, returns, and corrections as approved.
-2. **4.2 — Orders, customers, pricing, and fulfillment:** build idempotent Orders, price/promotion rules and snapshots, Commerce Customer purchase history/segmentation/loyalty foundations, fulfillment, and returns foundations on transactional Inventory.
-3. **4.3 — Suppliers and purchasing:** add supplier records, purchase orders, operational balances/records, and receipt workflows whose inventory changes and corrections use the same ledger.
-4. **4.4 — POS and retail operations:** add checkout, barcode, cart, cashier/session, location-aware sales, promotion/discount application, and return/exchange workflows by reusing Orders, Customers, Pricing, and Inventory truth.
-5. **4.5 — Payments and invoicing integrations:** introduce provider-backed payment requests/records, webhook verification, reconciliation, refund orchestration, and electronic-invoice integration when an approved sales workflow needs them.
-6. **4.6 — Commerce analytics and AI operations:** derive revenue, margin, inventory health, sell-through, purchasing analytics, alerts, and Agent/AI insights only after the relevant authoritative transactional data exists.
+1. **5.1 — Inventory integrity and operations:** establish an append-only stock ledger and transactional inventory before any operational stock mutation, including transfers, stocktakes, adjustments, receipts, reservations, sale deductions, returns, and corrections as approved.
+2. **5.2 — Orders, customers, pricing, and fulfillment:** build idempotent Orders, price/promotion rules and snapshots, Commerce Customer purchase history/segmentation/loyalty foundations, fulfillment, and returns foundations on transactional Inventory.
+3. **5.3 — Suppliers and purchasing:** add supplier records, purchase orders, operational balances/records, and receipt workflows whose inventory changes and corrections use the same ledger.
+4. **5.4 — POS and retail operations:** add checkout, barcode, cart, cashier/session, location-aware sales, promotion/discount application, and return/exchange workflows by reusing Orders, Customers, Pricing, and Inventory truth.
+5. **5.5 — Payments and invoicing integrations:** introduce provider-backed payment requests/records, webhook verification, reconciliation, refund orchestration, and electronic-invoice integration when an approved sales workflow needs them.
+6. **5.6 — Commerce analytics and AI operations:** derive revenue, margin, inventory health, sell-through, purchasing analytics, alerts, and Agent/AI insights only after the relevant authoritative transactional data exists.
 
-This order expresses dependency gates, not a requirement that every phase ship contiguously. Phase 4.3 can proceed after 4.1 independently of 4.4. Phase 4.5 can accompany the first approved payment-requiring Order or POS workflow once provider and reconciliation boundaries are defined. Every phase requires its own approved implementation packet.
+This order expresses dependency gates, not a requirement that every phase ship contiguously. Phase 5.3 can proceed after 5.1 independently of 5.4. Phase 5.5 can accompany the first approved payment-requiring Order or POS workflow once provider and reconciliation boundaries are defined. Every phase requires its own approved implementation packet.
 
 Effectful Agent actions are independently gated on typed action contracts, server-side authorization, input validation, idempotency, audit/attribution, failure behavior, and approval policy where required. Model output never directly mutates Commerce state.
 
@@ -109,7 +109,7 @@ Do not infer implementation authority for these capabilities from this domain ma
 ## Dependencies and conditional references
 
 - Current product facts belong to [`catalog.md`](catalog.md); stock evolution belongs to [`inventory.md`](inventory.md); communication identity remains in [`contacts.md`](contacts.md).
-- Load [`../architecture.md#platformcore-and-domain-capabilities`](../architecture.md#platformcore-and-domain-capabilities) only when changing the Platform/Commerce dependency boundary.
+- Load [`../architecture.md#platformcore-workflow-components-and-domain-systems`](../architecture.md#platformcore-workflow-components-and-domain-systems) only when changing the Platform/Commerce dependency boundary.
 - Load [`../compliance.md`](../compliance.md) only for its stated triggers, not for routine Catalog or Commerce-read work.
 
 ## Relevant code paths

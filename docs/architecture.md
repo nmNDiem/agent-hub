@@ -41,7 +41,7 @@ router or external adapter
 
 Use direct in-process service calls and one transaction where appropriate. Do not split domains into microservices or add distributed infrastructure without a measured requirement and approved task.
 
-## Platform/Core and domain capabilities
+## Platform/Core, workflow components and domain systems
 
 Conceptually:
 
@@ -53,16 +53,36 @@ Platform/Core
 ├── Knowledge
 ├── Conversations and Channels
 ├── Permissions
-├── Tool execution boundaries
+├── Action execution boundaries
 └── Audit / observability foundations
 
-Optional domain capabilities
+Business systems
 ├── Commerce (implemented Catalog; broader operations planned)
-├── CRM / Booking / Forms / Email / Calendar / Documents
-└── future approved domains
+├── future workflow-proven domains
+└── approved external systems
+
+Workflow components and integrations
+├── structured input / forms
+├── document generation and delivery
+├── email and calendar providers
+├── webhooks and typed API clients
+└── controlled automation over implemented actions
 ```
 
-This is a responsibility and dependency model, not a required folder/table layout. Platform/Core must function without Commerce. A domain may depend on platform tenancy, Agent tool contracts or Conversation context; generic platform behavior must not require that domain's records.
+This is a responsibility and dependency model, not a required folder/table or navigation layout. Platform/Core must function without Commerce. A domain may depend on platform tenancy, Agent action contracts or Conversation context; generic platform behavior must not require that domain's records.
+
+Forms, Documents, Email, Calendar, webhooks and similar components are not automatically peer domains. An appointment workflow may need an owning service for availability, resources and appointment state while using form, calendar and messaging components underneath. Architecture follows the authoritative state and business rules of a proven workflow, not the names of its implementation primitives.
+
+The relationship is always:
+
+```text
+Agent
+  -> authorized Action
+    -> owning Domain Service or approved External Service
+      -> authoritative state and result
+```
+
+Human operations and Agent Actions use the same owning domain state. Do not create a parallel chatbot subsystem for business mutations.
 
 ### Current ownership
 
@@ -117,11 +137,19 @@ validated actor/channel
 
 Model arguments are untrusted. The server injects workspace and permission scope. Domain services enforce business rules and transactions. The first effectful tool—not documentation alone—triggers the smallest implementation of per-Agent/revision authorization, execution audit, side-effect classification, approval policy and idempotency required by that use case.
 
-Tool identifiers should be stable and namespaced when composition becomes real, for example `knowledge.search`, `commerce.catalog.search` or `booking.reservation.create`. These names illustrate direction; they do not register or implement future tools.
+Effectful actions additionally define validation, confirmation/approval where needed, predictable failure state, retries only where safe, traceability and external-provider reconciliation. Model output never authorizes itself or bypasses the owning service.
+
+Tool identifiers should be stable and namespaced when composition becomes real, for example `knowledge.search`, `commerce.catalog.search` or `appointments.create`. These names illustrate direction; they do not register or implement future tools.
 
 Do not introduce a universal registry, plugin framework or workflow engine before a concrete feature needs it.
 
-## Knowledge/RAG boundary
+## Agent workspace projection
+
+The Agent-centric World is a read projection over existing authoritative state, never another state model. It may aggregate Agents, Knowledge assignments, Channel bindings, Conversation activity, handover/attention state and enabled domain relationships for one authorized workspace.
+
+When a multi-Agent overview would otherwise require per-Agent request loops, an approved phase may add one bounded server-composed read contract. It must derive from owning domains, preserve their authorization and freshness semantics, avoid copying sensitive content and expose honest unavailable/partial states. Configuration and mutations continue through their owning services and APIs.
+
+## Knowledge-RAG boundary
 
 ```text
 validated source
@@ -144,6 +172,8 @@ The normalized Conversation model remains generic even when one response contain
 ## External and regulated integrations
 
 Credentials remain server-side behind providers/vaults. AgentHub integrates with licensed payment, invoicing, signature/trust and other regulated providers where applicable. Verified external events update AgentHub records through domain services. Provider UI affordances never imply that AgentHub itself is a wallet, custodian, lender, trust provider or regulated intermediary.
+
+Add an integration only for a concrete workflow. Its approved packet defines ownership, authorization and credential handling, synchronization direction, webhook verification where needed, failure/retry behavior, reconnect/revocation behavior, reconciliation and operator-visible audit/state. Do not add empty Sapo, KiotViet, calendar, email, payment or invoicing provider classes in anticipation of future selection.
 
 ## Audit, approval and compliance direction
 

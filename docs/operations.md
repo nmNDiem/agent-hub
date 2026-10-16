@@ -84,7 +84,7 @@ the automated suite never sends a live or paid request:
 6. Verify exact opt-out (`stop`, `unsubscribe`, `dừng`, `hủy đăng ký`, `không nhận tin`) blocks
    automation, and exact opt-in (`start`, `subscribe`, `bắt đầu`, `đăng ký`, `nhận tin`) resumes it.
 7. Verify a normal response is not sent after 24 hours. Do not configure message tags, marketing
-   or proactive messaging for M1.2.
+   or proactive messaging for the completed Facebook delivery slice.
 8. Reauthorize with a new token for the same Page and confirm the old Vault secret is revoked;
    verify a token for a different Page is rejected. Finally test local-first revoke.
 

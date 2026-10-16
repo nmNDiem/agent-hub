@@ -10,6 +10,7 @@ Load this reference when persistence, schema, lifecycle, relationships or migrat
 - PostgreSQL owns authoritative business state. Qdrant is a rebuildable retrieval projection.
 - Use UTC timestamps, explicit lifecycle states, exact decimal money, and workspace-local time only for reporting boundaries.
 - Store provider IDs as opaque, provider-namespaced values. Store tokens and credentials only as hashes or protected secret references.
+- Prefer explicit archive/status/lifecycle semantics for entities referenced by operational history. Deleting a Product, Variant, Customer, Supplier or similar future record must not corrupt Orders, audit evidence or historical attribution.
 
 ## Current schema
 

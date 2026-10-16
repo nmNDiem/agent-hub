@@ -2,7 +2,7 @@
 
 ## Function and ownership
 
-An Agent is a workspace-owned assistant configuration: identity, instructions, assigned knowledge, allowed capabilities, published revision, and channel bindings. It is generic even though the current runtime and UI retain Commerce-oriented fields.
+An Agent is a workspace-owned operational actor: identity, instructions, assigned Knowledge, Conversations, Channels, allowed Actions/domain access, lifecycle state, published revision and handover relationships. It is generic even though the current runtime and UI retain Commerce-oriented fields and “Chatbot” wording.
 
 ## CURRENT
 
@@ -14,11 +14,11 @@ An Agent is a workspace-owned assistant configuration: identity, instructions, a
 
 The runtime uses a generic base policy. It exposes Catalog tools and Catalog-specific instructions only when the Agent's server-authorized scope currently contains readable products; Knowledge-only Agents receive neither and cannot emit product cards.
 
-Main data: agents, revisions, knowledge assignments, catalog scope joins, and channel bindings. Main surfaces: agent workbench, Playground, and publish/channel configuration.
+Main data: agents, revisions, knowledge assignments, catalog scope joins and channel bindings. Main surfaces: Agent workbench, Playground and publish/channel configuration. Conversation/handover state remains owned by Conversations even when projected around an Agent.
 
 ## Core flow
 
-Edit draft → validate referenced workspace resources → publish immutable revision → bind a supported channel → receive a normalized message → compose server-owned policy and authorized read tools → persist response/evidence and usage.
+Create identity → edit draft → assign Knowledge and current domain scope → test → validate referenced workspace resources → publish immutable revision → bind a supported Channel → receive a normalized message → compose server-owned policy and authorized read tools → persist response/evidence and usage → expose Conversation/handover state to operators.
 
 ## Invariants
 
@@ -28,15 +28,21 @@ Edit draft → validate referenced workspace resources → publish immutable rev
 - Public DTOs never contain secrets; rendered evidence is revalidated server-side.
 - Historical conversations keep their revision association.
 
-## IMPLEMENTED DIRECTION
+## APPROVED DIRECTION
 
-New Agent defaults and runtime composition no longer assume Commerce. Existing revisions remain compatible, while each execution derives Catalog availability from its server-authorized scope. Evaluation cases, feedback, regression comparison, controlled rollout, and broader capability-aware onboarding remain future work.
+New Agent defaults and runtime composition no longer assume Commerce. Existing revisions remain compatible, while each execution derives Catalog availability from its server-authorized scope.
 
-Before an effectful action exists, introduce a minimum typed action boundary: Agent → authorized action/tool → owning domain service → authoritative PostgreSQL state, with validation, idempotency, approval policy, and durable redacted execution evidence.
+The Agent workspace should let an operator understand who the Agent is, what it knows, where it works, with whom it is speaking, what it may do, what it is doing, what it has done and when a person must intervene. Phase 3.2 projects real state into a multi-Agent World and coherent Create → Configure → Knowledge/access → Test → Publish → Observe → Improve path while preserving focused screens and accessible navigation.
+
+Publish is not a decorative toggle. It selects an immutable executable revision. Readiness should be derived from real configuration—such as instructions, assigned Knowledge, valid Channel/provider state and future Action dependencies—and must distinguish blocking, optional, unavailable and unauthorized states. Full guided onboarding remains later work, but useful inline guidance is required earlier.
+
+Before an effectful action exists, introduce a minimum typed action boundary: Agent → authorized action/tool → owning domain or external service → authoritative state, with typed input/output, validation, server-derived workspace and Agent permission, confirmation/approval where needed, idempotency, execution status, predictable errors, safe retries, attribution, durable redacted evidence and external-state reconciliation where applicable.
+
+Evaluation suites, feedback, regression comparison and rollout evidence remain future phase 6.1 work. Quality tests specific to each new Agent capability remain part of that capability and are not deferred.
 
 ## NOT IMPLEMENTED
 
-No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, or autonomous payment/order/stock action exists.
+No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, effectful Agent Action, autonomous payment/order/stock action or Agent-centric World implementation exists.
 
 ## Change trigger
 
