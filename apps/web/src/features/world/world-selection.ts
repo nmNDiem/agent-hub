@@ -1,6 +1,5 @@
 import type { WorkspaceOverview } from "@/lib/api";
 
-export type WorldProjection = "system" | "agents";
 export type WorldSelectionKind = "agent" | "knowledge" | "channel" | "catalog" | "location" | "collection" | "activity";
 export type WorldSelectionState = "normal" | "active" | "attention" | "error" | "paused" | "disabled";
 

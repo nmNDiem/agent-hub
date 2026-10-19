@@ -1,7 +1,6 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FeedbackBanner } from "@/components/feedback-banner";
@@ -15,19 +14,16 @@ export function WorkspaceSystemBoundary({ children, workspaceSlug }: {
   children: React.ReactNode;
   workspaceSlug: string;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { me, workspace, error } = useWorkspace(workspaceSlug);
   const [overview, setOverview] = useState<WorkspaceOverview>();
   const [overviewError, setOverviewError] = useState<UiFeedback>();
   const [overviewLoading, setOverviewLoading] = useState(true);
-  const requestedDays: 7 | 30 = pathname.endsWith("/overview") && searchParams.get("days") === "30" ? 30 : 7;
 
-  const loadOverview = useCallback(async (days: 7 | 30 = requestedDays): Promise<void> => {
+  const loadOverview = useCallback(async (): Promise<void> => {
     if (!workspace) return;
     setOverviewLoading(true);
     try {
-      const result = await api.getWorkspaceOverview(workspace.id, days);
+      const result = await api.getWorkspaceOverview(workspace.id, 7);
       setOverview(result);
       setOverviewError(undefined);
     } catch (caught) {
@@ -38,9 +34,9 @@ export function WorkspaceSystemBoundary({ children, workspaceSlug }: {
     } finally {
       setOverviewLoading(false);
     }
-  }, [requestedDays, workspace]);
+  }, [workspace]);
 
-  useEffect(() => { void loadOverview(requestedDays); }, [loadOverview, requestedDays]);
+  useEffect(() => { void loadOverview(); }, [loadOverview]);
 
   const context = useMemo(() => me && workspace ? {
     me,

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { WorldInspector } from "@/features/world/world-inspector";
-import { agentSelection, type WorldProjection, type WorldSelection } from "@/features/world/world-selection";
+import { agentSelection, type WorldSelection } from "@/features/world/world-selection";
 import { WorldView } from "@/features/world/world-view";
 import { api, type WorkspaceOverview as WorkspaceOverviewData } from "@/lib/api";
 import { toUiError, type UiFeedback } from "@/lib/errors";
@@ -20,8 +20,6 @@ export function WorkspaceOverview() {
   const searchParams = useSearchParams();
   const system = useWorkspaceSystem();
   const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
-  const [days, setDays] = useState<7 | 30>(() => searchParams.get("days") === "30" ? 30 : 7);
-  const [projection, setProjection] = useState<WorldProjection>(() => searchParams.get("projection") === "agents" ? "agents" : "system");
   const [requestedAgentId] = useState(() => searchParams.get("agent"));
   const [fallbackOverview, setFallbackOverview] = useState<WorkspaceOverviewData>();
   const [selectedNode, setSelectedNode] = useState<WorldSelection>();
@@ -32,7 +30,7 @@ export function WorkspaceOverview() {
     if (!workspace || system) return;
     setFallbackLoading(true);
     try {
-      setFallbackOverview(await api.getWorkspaceOverview(workspace.id, days));
+      setFallbackOverview(await api.getWorkspaceOverview(workspace.id, 7));
       setFallbackFeedback(undefined);
     } catch (caught) {
       setFallbackFeedback(toUiError(caught, {
@@ -42,14 +40,14 @@ export function WorkspaceOverview() {
     } finally {
       setFallbackLoading(false);
     }
-  }, [days, system, workspace]);
+  }, [system, workspace]);
 
   useEffect(() => { void loadFallback(); }, [loadFallback]);
 
   const overview = system?.overview ?? fallbackOverview;
   const feedback = system?.overviewError ?? fallbackFeedback;
   const loading = system?.overviewLoading ?? fallbackLoading;
-  const currentOverview = overview && workspace && overview.workspace_id === workspace.id && overview.days === days
+  const currentOverview = overview && workspace && overview.workspace_id === workspace.id && overview.days === 7
     ? overview
     : undefined;
 
@@ -62,11 +60,9 @@ export function WorkspaceOverview() {
     });
   }, [currentOverview, requestedAgentId]);
 
-  function updateLocation(nextProjection: WorldProjection, nextDays = days, nextSelected = selectedNode): void {
+  function updateLocation(nextSelected?: WorldSelection): void {
     if (!workspace) return;
     const query = new URLSearchParams();
-    if (nextProjection !== "system") query.set("projection", nextProjection);
-    if (nextDays !== 7) query.set("days", String(nextDays));
     if (nextSelected?.kind === "agent") query.set("agent", nextSelected.agentPublicId);
     router.replace(`/app/${encodeURIComponent(workspace.slug)}/overview${query.size ? `?${query}` : ""}`, { scroll: false });
   }
@@ -79,27 +75,15 @@ export function WorkspaceOverview() {
     : [];
 
   return <div className="world-screen">
-    <header className="world-page-heading">
-      <h1>{projection === "system" ? "Hệ thống" : "Agents"}</h1>
-      <div className="world-heading-actions">
-        <div aria-label="Projection" className="world-projection-switch" role="group">
-          {(["system", "agents"] as const).map((value) => <button aria-pressed={projection === value} key={value} onClick={() => { setProjection(value); updateLocation(value); }} type="button">{value === "system" ? "Hệ thống" : "Agents"}</button>)}
-        </div>
-        <div aria-label="Khoảng thời gian" className="period-switch">
-          {([7, 30] as const).map((value) => <button aria-pressed={days === value} key={value} onClick={() => { setDays(value); updateLocation(projection, value); }} type="button">{value} ngày</button>)}
-        </div>
-      </div>
-    </header>
-
     {currentOverview?.capabilities.catalog.can_setup && <div className="commerce-setup-callout"><div><Boxes aria-hidden="true" size={20} /><span><strong>Commerce là tùy chọn</strong><small>Thiết lập Catalog khi Agent cần dùng dữ liệu sản phẩm.</small></span></div><Link href={`/app/${encodeURIComponent(workspace.slug)}/catalog`}>Thiết lập Commerce</Link></div>}
     {degradedDependencies.length > 0 && <div className="world-partial-state" role="status"><TriangleAlert aria-hidden="true" size={18} /><span>Một phần hệ thống chưa đầy đủ: {degradedDependencies.map(([name]) => name).join(", ")}.</span></div>}
 
-    {feedback && !currentOverview ? <section className="world-load-error"><FeedbackBanner feedback={feedback} /><button className="secondary-button" onClick={() => { if (system) void system.loadOverview(days); else void loadFallback(); }} type="button"><RefreshCw size={16} /> Thử lại</button></section>
+    {feedback && !currentOverview ? <section className="world-load-error"><FeedbackBanner feedback={feedback} /><button className="secondary-button" onClick={() => { if (system) void system.loadOverview(); else void loadFallback(); }} type="button"><RefreshCw size={16} /> Thử lại</button></section>
       : !currentOverview ? <section aria-live="polite" className="world-loading"><LoaderCircle aria-hidden="true" className="spinner" /><strong>Đang dựng hệ thống từ dữ liệu workspace…</strong><span>Agents, tri thức, kênh và hoạt động đang được tổng hợp.</span></section>
         : currentOverview.agents.length === 0 ? <section className="world-empty"><span><Bot aria-hidden="true" size={28} /></span><h2>Tạo Agent đầu tiên</h2><p>Agent là trung tâm kết nối tri thức, kênh và hội thoại trong workspace.</p><Link className="primary-button" href={`/app/${encodeURIComponent(workspace.slug)}/chatbots`}>Tạo Agent</Link></section>
-          : <WorldView onSelect={(node) => { setSelectedNode(node); updateLocation(projection, days, node); }} overview={currentOverview} projection={projection} selectedId={selectedNode?.id} />}
+          : <WorldView onSelect={(node) => { setSelectedNode(node); updateLocation(node); }} overview={currentOverview} selectedId={selectedNode?.id} />}
 
-    {selectedNode && currentOverview && <><button aria-label="Đóng bảng chi tiết" className="world-inspector-scrim" onClick={() => { setSelectedNode(undefined); updateLocation(projection, days, undefined); }} type="button" /><WorldInspector node={selectedNode} onClose={() => { setSelectedNode(undefined); updateLocation(projection, days, undefined); }} overview={currentOverview} /></>}
+    {selectedNode && currentOverview && <><button aria-label="Đóng bảng chi tiết" className="world-inspector-scrim" onClick={() => { setSelectedNode(undefined); updateLocation(); }} type="button" /><WorldInspector node={selectedNode} onClose={() => { setSelectedNode(undefined); updateLocation(); }} overview={currentOverview} /></>}
     {currentOverview?.agents_truncated && <p className="world-truncated-note">Đang hiển thị 50/{currentOverview.agent_total} Agents. Mở màn hình Agents để quản lý toàn bộ.</p>}
     <span aria-live="polite" className="sr-only">{loading ? "Đang cập nhật hệ thống" : "Hệ thống đã cập nhật"}</span>
   </div>;

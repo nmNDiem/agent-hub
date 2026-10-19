@@ -11,7 +11,7 @@ export type WorkspaceSystemContextValue = {
   overview?: WorkspaceOverview;
   overviewError?: UiFeedback;
   overviewLoading: boolean;
-  loadOverview: (days?: 7 | 30) => Promise<void>;
+  loadOverview: () => Promise<void>;
 };
 
 const WorkspaceSystemContext = createContext<WorkspaceSystemContextValue | undefined>(undefined);

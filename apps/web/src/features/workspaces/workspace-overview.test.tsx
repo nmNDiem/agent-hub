@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceOverview as WorkspaceOverviewData } from "@/lib/api";
@@ -99,23 +99,18 @@ describe("WorkspaceOverview", () => {
     render(<WorkspaceOverview />);
 
     expect(await screen.findByRole("button", { name: /Support Agent/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Hệ thống" })).toBeInTheDocument();
-    expect(screen.queryByText("Workspace này vận hành như thế nào?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "30 ngày" })).not.toBeInTheDocument();
     expect(screen.getByText("Thiết lập Commerce")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Catalog" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Dữ liệu kinh doanh" })).not.toBeInTheDocument();
     expect(mocks.getWorkspaceOverview).toHaveBeenCalledWith(workspace.id, 7);
-
-    fireEvent.click(screen.getByRole("button", { name: "30 ngày" }));
-    await waitFor(() => expect(mocks.getWorkspaceOverview).toHaveBeenCalledWith(workspace.id, 30));
   });
 
-  it("switches projection and opens the Agent inspector", async () => {
+  it("opens the Agent inspector", async () => {
     render(<WorkspaceOverview />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Agents" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Agents" })).toBeInTheDocument();
-    expect(screen.queryByText("Các Agent được cấu hình và phân phạm vi ra sao?")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /Support Agent/ }));
     expect(screen.getByRole("complementary", { name: "Chi tiết Support Agent" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Kiểm thử/ })).toBeInTheDocument();

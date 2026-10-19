@@ -7,7 +7,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { WorkspaceOverview } from "@/lib/api";
 
-import { agentSelection, relatedSelection, type WorldProjection, type WorldSelection, type WorldSelectionState } from "./world-selection";
+import { agentSelection, relatedSelection, type WorldSelection, type WorldSelectionState } from "./world-selection";
 
 type OverviewAgent = WorkspaceOverview["agents"][number];
 type RailResource = { id: number; name: string; agentIds: Set<string> };
@@ -79,13 +79,12 @@ function BusinessRail({ activeAgentId, agents, workspaceSlug }: {
   </aside>;
 }
 
-function AgentUnit({ agent, dimmed, onHover, onSelect, overview, projection, selectedId }: {
+function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
   agent: OverviewAgent;
   dimmed: boolean;
   onHover: (agentId?: string) => void;
   onSelect: (selection: WorldSelection) => void;
   overview: WorkspaceOverview;
-  projection: WorldProjection;
   selectedId?: string;
 }) {
   const primary = agentSelection(overview, agent);
@@ -137,17 +136,15 @@ function AgentUnit({ agent, dimmed, onHover, onSelect, overview, projection, sel
       <span className="world-agent-identity"><strong>{agent.name}</strong><small>{lifecycleLabel(agent)}</small>{agent.attention_reasons.length > 0 && <em>Cần chú ý</em>}</span>
     </button>
     <div className="world-agent-activity"><strong>{agent.conversations.total}</strong><span>hội thoại · {agent.conversations.pending} chờ · {agent.conversations.human_handling} cần người</span></div>
-    {projection === "agents" && agent.knowledge.items.length > 0 && <div className="world-knowledge-list">{agent.knowledge.items.slice(0, 3).map((item) => <span key={item.id}>{item.name}</span>)}</div>}
     <div className="world-agent-scope">
       {agent.catalog_scope.available ? <><button onClick={() => onSelect(catalog)} type="button">Catalog · {scopeLabel(agent.catalog_scope.collections)} bộ sưu tập</button><button onClick={() => onSelect(catalog)} type="button">{scopeLabel(agent.catalog_scope.locations)} địa điểm</button></> : <span>Không dùng dữ liệu kinh doanh</span>}
     </div>
   </article>;
 }
 
-export function WorldView({ onSelect, overview, projection, selectedId }: {
+export function WorldView({ onSelect, overview, selectedId }: {
   onSelect: (selection?: WorldSelection) => void;
   overview: WorkspaceOverview;
-  projection: WorldProjection;
   selectedId?: string;
 }) {
   const [hoveredAgentId, setHoveredAgentId] = useState<string>();
@@ -165,7 +162,6 @@ export function WorldView({ onSelect, overview, projection, selectedId }: {
           onHover={setHoveredAgentId}
           onSelect={onSelect}
           overview={overview}
-          projection={projection}
           selectedId={selectedId}
         />)}
       </div>
