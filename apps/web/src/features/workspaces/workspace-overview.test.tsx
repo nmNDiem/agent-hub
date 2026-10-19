@@ -102,6 +102,7 @@ describe("WorkspaceOverview", () => {
     expect(screen.getByText("Workspace này được kết nối như thế nào?")).toBeInTheDocument();
     expect(screen.getByText("Thiết lập Commerce")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Catalog" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Dữ liệu kinh doanh" })).not.toBeInTheDocument();
     expect(mocks.getWorkspaceOverview).toHaveBeenCalledWith(workspace.id, 7);
 
     fireEvent.click(screen.getByRole("button", { name: "30 ngày" }));
@@ -116,5 +117,38 @@ describe("WorkspaceOverview", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Support Agent/ }));
     expect(screen.getByRole("complementary", { name: "Chi tiết Support Agent" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Kiểm thử/ })).toBeInTheDocument();
+  });
+
+  it("shows the business rail only from authorized Catalog scope", async () => {
+    mocks.getWorkspaceOverview.mockResolvedValue({
+      ...overview,
+      capabilities: { catalog: { available: true, can_setup: false } },
+      agents: [{
+        ...overview.agents[0],
+        catalog_scope: {
+          available: true,
+          collections: {
+            total: 1,
+            truncated: false,
+            all_accessible: false,
+            items: [{ id: 11, name: "Liệu trình" }],
+          },
+          locations: {
+            total: 1,
+            truncated: false,
+            all_accessible: false,
+            items: [{ id: 22, name: "Quận 7" }],
+          },
+        },
+      }],
+    });
+
+    render(<WorkspaceOverview />);
+
+    expect(await screen.findByRole("complementary", { name: "Dữ liệu kinh doanh" })).toBeInTheDocument();
+    expect(screen.getByText("Liệu trình")).toBeInTheDocument();
+    expect(screen.getByText("Quận 7")).toBeInTheDocument();
+    expect(screen.queryByText(/đơn hàng/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lịch hẹn/i)).not.toBeInTheDocument();
   });
 });

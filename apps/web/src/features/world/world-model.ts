@@ -63,8 +63,8 @@ export function buildWorldModel(
   const edges: WorldEdge[] = [];
   const seen = new Set<string>();
   const columns = overview.agents.length > 1 ? 2 : 1;
-  const clusterWidth = 680;
-  const clusterHeight = 460;
+  const clusterWidth = 600;
+  const clusterHeight = 370;
 
   overview.agents.forEach((agent, index) => {
     const column = index % columns;
