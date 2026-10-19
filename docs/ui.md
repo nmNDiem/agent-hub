@@ -12,6 +12,8 @@ Agent workbench and Website preview copy is domain-neutral. It presents Knowledg
 
 The workspace entry is an Agent-centric World that is the full system interface, not a tab inside a dashboard shell. It uses one static responsive DOM grid whose Agent count per row follows the available viewport, with selection/focus and an overlay inspector. World begins directly beneath the global header without a duplicate title, projection switch or shallow time-window filter. A capability-aware launcher replaces the persistent sidebar: Catalog, Locations and Collections appear only when Commerce data exists, while authorized operators can reach an explicit optional Commerce setup action. Focused routes use concise title/action bars and the system breadcrumb; operational explanations stay beside the controls or data they qualify. Existing focused routes remain compatible—even where historical route identifiers still say `chatbots`—and open as contextual work views within the same route-level system boundary.
 
+The workspace visual language uses a pale blue operational canvas, white surfaces, navy text, restrained teal/blue accents, soft borders and low-elevation shadows. The same typography, control sizing, corner radius and focus treatment carry from the system header and launcher into focused forms, lists, tables and the World inspector; color continues to prioritize selection and exceptional state over decoration.
+
 ## Approved direction
 
 AgentHub should feel like an operational environment, not a database administration panel or generic CMS. Users should understand their workspace, agents, knowledge, channels, and enabled domain capabilities before encountering records and settings.
