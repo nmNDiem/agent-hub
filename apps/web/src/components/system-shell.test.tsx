@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { SystemShell } from "./system-shell";
@@ -45,5 +45,23 @@ describe("SystemShell", () => {
     expect(screen.getByText("Catalog")).toBeInTheDocument();
     expect(screen.getByText("Địa điểm")).toBeInTheDocument();
     expect(screen.getByText("Bộ sưu tập")).toBeInTheDocument();
+  });
+
+  it("closes the system launcher only when the pointer moves outside it", () => {
+    render(<SystemShell
+      overview={{ capabilities: { catalog: { available: false, can_setup: false } } }}
+      user={{ id: "user", email: "owner@example.com", email_verified: false }}
+      workspace={workspace}
+      workspaces={[workspace]}
+    ><div>Nội dung</div></SystemShell>);
+
+    const launcher = screen.getByText("Điều hành").closest("details") as HTMLDetailsElement;
+    launcher.open = true;
+
+    fireEvent.pointerDown(screen.getByText("Mở vùng chuyên trách"));
+    expect(launcher.open).toBe(true);
+
+    fireEvent.pointerDown(screen.getByRole("main"));
+    expect(launcher.open).toBe(false);
   });
 });

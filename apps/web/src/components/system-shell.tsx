@@ -3,7 +3,7 @@
 import { BarChart3, BookOpen, Bot, Boxes, ChevronDown, ChevronLeft, Grid2X2, LogOut, MapPin, MessageSquareText, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PalettePicker } from "@/components/palette-picker";
 import { api, type CurrentUser, type Workspace, type WorkspaceOverview } from "@/lib/api";
@@ -48,6 +48,7 @@ export function SystemShell({ children, overview, user, workspace, workspaces }:
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const launcherRef = useRef<HTMLDetailsElement>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const home = `/app/${encodeURIComponent(workspace.slug)}/overview`;
   const isSystemHome = pathname === home;
@@ -55,6 +56,18 @@ export function SystemShell({ children, overview, user, workspace, workspaces }:
   const availableLinks = focusLinks.filter(({ roles, capability }) => (
     (!roles || roles.includes(workspace.role)) && (!capability || catalogAvailable)
   ));
+
+  useEffect(() => {
+    function closeLauncherOnOutsidePointer(event: PointerEvent): void {
+      const launcher = launcherRef.current;
+      if (launcher?.open && event.target instanceof Node && !launcher.contains(event.target)) {
+        launcher.open = false;
+      }
+    }
+
+    document.addEventListener("pointerdown", closeLauncherOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeLauncherOnOutsidePointer);
+  }, []);
 
   async function logout(): Promise<void> {
     setLoggingOut(true);
@@ -78,7 +91,7 @@ export function SystemShell({ children, overview, user, workspace, workspaces }:
       </label>
       <nav aria-label="Điều hướng hệ thống" className="system-primary-nav">
         <Link aria-current={pathname.includes("/conversations") ? "page" : undefined} href={`/app/${encodeURIComponent(workspace.slug)}/conversations`}><MessageSquareText size={17} /> Inbox</Link>
-        <details className="system-launcher">
+        <details className="system-launcher" ref={launcherRef}>
           <summary><Grid2X2 aria-hidden="true" size={17} /> Điều hành</summary>
           <div className="system-launcher-panel">
             <header><strong>Mở vùng chuyên trách</strong><small>Dữ liệu và quyền vẫn thuộc domain sở hữu.</small></header>
