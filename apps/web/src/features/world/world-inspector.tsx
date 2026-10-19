@@ -4,7 +4,7 @@ import { ArrowRight, BookOpen, Boxes, MessageSquareText, Radio, TestTube2, X } f
 import Link from "next/link";
 
 import type { OverviewAttentionReason, WorkspaceOverview } from "@/lib/api";
-import type { WorldNode } from "./world-model";
+import type { WorldSelection } from "./world-selection";
 
 const attentionLabels: Record<OverviewAttentionReason, string> = {
   knowledge_stale: "Có kiến thức cần rà soát",
@@ -20,7 +20,7 @@ export function WorldInspector({
   overview,
   onClose,
 }: {
-  node?: WorldNode;
+  node?: WorldSelection;
   overview: WorkspaceOverview;
   onClose: () => void;
 }) {

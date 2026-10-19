@@ -10,13 +10,13 @@ Knowledge management distinguishes advisory freshness from ingestion health and 
 
 Agent workbench and Website preview copy is domain-neutral. It presents Knowledge or Catalog as alternative data sources and does not imply that a Knowledge-only Agent is a shopping assistant.
 
-The workspace entry is an Agent-centric World with System and Agents projections over authoritative overview data. It uses deterministic DOM/SVG layout, semantic zoom, selection/focus, a contextual inspector and a structured mobile/list alternative. Navigation uses server-computed capabilities: Catalog, Locations and Collections appear only when Commerce data exists, while authorized operators can reach an explicit optional Commerce setup action. Existing focused routes remain compatible even where historical route identifiers still say `chatbots`.
+The workspace entry is an Agent-centric World that is the full system interface, not a tab inside a dashboard shell. It uses a static responsive DOM grid whose Agent count per row follows the available viewport, with selection/focus and an overlay inspector. A compact system header and capability-aware launcher replace the persistent sidebar: Catalog, Locations and Collections appear only when Commerce data exists, while authorized operators can reach an explicit optional Commerce setup action. Existing focused routes remain compatible—even where historical route identifiers still say `chatbots`—and open as contextual work views within the same route-level system boundary.
 
 ## Approved direction
 
 AgentHub should feel like an operational environment, not a database administration panel or generic CMS. Users should understand their workspace, agents, knowledge, channels, and enabled domain capabilities before encountering records and settings.
 
-The **World** is the preferred spatial overview: agents and capability areas form a navigable map, while focused work still uses legible lists, forms, tables, and inspectors. Spatial presentation is a projection of real backend state, never a second state model.
+The **World** is the workspace system surface: agents and their enabled capabilities are visible together in a responsive, document-flow layout, while focused work uses legible lists, forms, tables, and inspectors. The presentation is a projection of real backend state, never a second state model or a draggable canvas.
 
 Phase 3.2 establishes the product interaction language rather than merely reskinning pages. A workspace overview should show multiple Agents and their real relationships to Knowledge, Channels, Conversations, handover/attention state and enabled domain systems. Selecting an Agent leads coherently through:
 
@@ -52,9 +52,9 @@ Product/source cards render only server-validated evidence. Connection status co
 
 ## World delivery boundary
 
-The World documents are an approved target specification and the detailed design reference for the phase 3.2 candidate. PixiJS, ELK, d3-force, Motion, or similar packages are not assumed to exist in the current app and must not be added until the phase is explicitly approved and the implementation slice justifies them. A first slice must preserve conventional accessible navigation and prove both a Knowledge-only workspace and a Commerce-enabled workspace.
+The World documents route design work to the active approved implementation packet. The current system-first interface deliberately uses semantic HTML and CSS Grid; it does not use Canvas/WebGL, authored graph coordinates, pan/zoom controls or a separate mobile rendering model. A single responsive DOM hierarchy must preserve conventional accessible navigation and support both Knowledge-only and Commerce-enabled workspaces.
 
-World interaction may use DOM/SVG, Canvas/WebGL or a hybrid when justified by measured complexity and performance. It must not imitate a 3D game, rotate/flip cards, add decorative floating panels or use generic AI-person imagery. Motion communicates selection, focus, activity or state change and respects reduced motion.
+The World must not imitate a 3D game, rotate/flip cards, add decorative floating panels or use generic AI-person imagery. Motion communicates selection, focus, activity or state change and respects reduced motion.
 
 ## Visual language
 

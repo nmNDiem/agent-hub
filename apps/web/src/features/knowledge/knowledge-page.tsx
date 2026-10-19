@@ -14,7 +14,6 @@ import {
 import { useParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
@@ -500,7 +499,7 @@ export function KnowledgePage() {
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải cửa hàng…</main>;
 
   return (
-    <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
+    <>
       <section className="page-heading catalog-heading">
         <div><p className="eyebrow">Nguồn grounding</p><h1>Tri thức</h1><p>Quản lý dữ liệu đã kiểm chứng mà chatbot được phép sử dụng.</p></div>
         {!canWrite && <span className="status-pill archived">Chỉ đọc</span>}
@@ -645,6 +644,6 @@ export function KnowledgePage() {
           )}
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

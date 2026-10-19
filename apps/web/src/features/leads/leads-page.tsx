@@ -4,7 +4,6 @@ import { Download, LoaderCircle, PhoneCall, Users } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { api, type Lead, type LeadStatus } from "@/lib/api";
 import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
@@ -121,7 +120,7 @@ export function LeadsPage() {
   if (workspaceError) return <main className="centered-state"><FeedbackBanner feedback={workspaceError} /></main>;
   if (!me || !workspace) return <main className="centered-state"><LoaderCircle className="spinner" aria-hidden="true" /> Đang tải cửa hàng…</main>;
 
-  return <AppShell user={me.user} workspace={workspace} workspaces={me.workspaces}>
+  return <>
     <div className="page-heading leads-heading">
       <div><p className="eyebrow"><Users aria-hidden="true" size={15} /> Liên hệ có đồng ý</p><h1>Khách tiềm năng</h1><p>Theo dõi yêu cầu callback đã có consent. Dữ liệu local pilot tự hết hạn sau 30 ngày.</p></div>
       {canManage && <button className="secondary-button" disabled={Boolean(busy)} onClick={() => void exportCsv()} type="button">{busy === "export" ? <LoaderCircle className="spinner" size={16} /> : <Download size={16} />} Xuất CSV</button>}
@@ -134,5 +133,5 @@ export function LeadsPage() {
         {nextCursor && <footer className="leads-footer"><button className="secondary-button" disabled={busy === "more"} onClick={() => void loadMore()} type="button">{busy === "more" && <LoaderCircle className="spinner" size={15} />} Tải thêm</button></footer>}
       </section>
     </>}
-  </AppShell>;
+  </>;
 }

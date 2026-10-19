@@ -99,7 +99,7 @@ describe("WorkspaceOverview", () => {
     render(<WorkspaceOverview />);
 
     expect(await screen.findByRole("button", { name: /Support Agent/ })).toBeInTheDocument();
-    expect(screen.getByText("Workspace này được kết nối như thế nào?")).toBeInTheDocument();
+    expect(screen.getByText("Workspace này vận hành như thế nào?")).toBeInTheDocument();
     expect(screen.getByText("Thiết lập Commerce")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Catalog" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Dữ liệu kinh doanh" })).not.toBeInTheDocument();

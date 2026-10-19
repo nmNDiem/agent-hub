@@ -14,7 +14,6 @@ import {
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { api, type AnalyticsBreakdown, type OperationalAnalytics } from "@/lib/api";
 import { toUiError, type UiFeedback } from "@/lib/errors";
@@ -120,7 +119,7 @@ export function AnalyticsPage() {
   if (workspaceError) return <main className="centered-state"><FeedbackBanner feedback={workspaceError} /></main>;
   if (!me || !workspace) return <main className="centered-state"><LoaderCircle className="spinner" aria-hidden="true" /> Đang tải cửa hàng…</main>;
 
-  return <AppShell user={me.user} workspace={workspace} workspaces={me.workspaces}>
+  return <>
     <div className="page-heading analytics-heading">
       <div><p className="eyebrow"><BarChart3 size={15} /> Vận hành đa kênh</p><h1>Phân tích</h1><p>Chỉ số từ sự kiện đã lưu trong timezone {workspace.timezone}; không ước tính chi phí hay doanh thu.</p></div>
       {canView && <div aria-label="Khoảng thời gian" className="period-switch">
@@ -158,5 +157,5 @@ export function AnalyticsPage() {
         <p className="analytics-note">Cohort gồm hội thoại có tin nhắn đến trong kỳ. Dữ liệu không có mẫu được hiển thị là “Chưa có dữ liệu”, không chuyển thành 0.</p>
       </>}
     </>}
-  </AppShell>;
+  </>;
 }

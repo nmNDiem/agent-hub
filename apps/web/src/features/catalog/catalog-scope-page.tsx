@@ -1,22 +1,19 @@
 "use client";
 
 import { Archive, Layers3, MapPin, Plus, Save } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
-  ApiError,
   type CatalogCollection,
   type Location,
   type LocationVariant,
-  type Me,
   type ProductSummary,
-  type Workspace,
 } from "@/lib/api";
 import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
+import { useWorkspace } from "@/lib/use-workspace";
 
 function value(form: FormData, key: string): string {
   return String(form.get(key) ?? "").trim();
@@ -24,9 +21,7 @@ function value(form: FormData, key: string): string {
 
 export function CatalogScopePage({ view }: { view: "locations" | "collections" }) {
   const params = useParams<{ workspaceSlug: string }>();
-  const router = useRouter();
-  const [me, setMe] = useState<Me>();
-  const [workspace, setWorkspace] = useState<Workspace>();
+  const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
   const [locations, setLocations] = useState<Location[]>([]);
   const [collections, setCollections] = useState<CatalogCollection[]>([]);
   const [products, setProducts] = useState<ProductSummary[]>([]);
@@ -38,36 +33,30 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
 
   useEffect(() => {
+    if (!workspace) return;
     let active = true;
-    api.getMe().then(async (profile) => {
-      const current = profile.workspaces.find((item) => item.slug === params.workspaceSlug);
-      if (!current) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy workspace.");
-      const [locationItems, collectionItems, productPage] = await Promise.all([
-        api.listLocations(current.id),
-        api.listCollections(current.id),
-        api.listProducts(current.id, { status: "active" }),
-      ]);
+    Promise.all([
+      api.listLocations(workspace.id),
+      api.listCollections(workspace.id),
+      api.listProducts(workspace.id, { status: "active" }),
+    ]).then(async ([locationItems, collectionItems, productPage]) => {
       if (!active) return;
-      setMe(profile);
-      setWorkspace(current);
       setLocations(locationItems);
       setCollections(collectionItems);
       setProducts(productPage.items);
       if (view === "locations" && locationItems[0]) {
         setSelectedLocation(locationItems[0]);
-        setVariants(await api.listLocationVariants(current.id, locationItems[0].id));
+        setVariants(await api.listLocationVariants(workspace.id, locationItems[0].id));
       }
     }).catch((caught: unknown) => {
       if (!active) return;
-      if (caught instanceof ApiError && caught.status === 401) {
-        router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
-      } else setPageFeedback(toUiError(caught, {
+      setPageFeedback(toUiError(caught, {
         operation: "catalog-scope.load",
         fallback: "Không thể tải phạm vi catalog.",
       }));
     });
     return () => { active = false; };
-  }, [params.workspaceSlug, router, view]);
+  }, [view, workspace]);
 
   async function reload() {
     if (!workspace) return;
@@ -167,13 +156,14 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
   }
 
   if (!me || !workspace) {
-    return <main className="center-state">{pageFeedback
-      ? <FeedbackBanner feedback={pageFeedback} />
+    const initialFeedback = workspaceError ?? pageFeedback;
+    return <main className="center-state">{initialFeedback
+      ? <FeedbackBanner feedback={initialFeedback} />
       : <p aria-live="polite">Đang tải catalog scope…</p>}</main>;
   }
 
   return (
-    <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
+    <>
       <header className="page-heading catalog-heading">
         <div><p className="eyebrow">Workspace catalog</p><h1>{view === "locations" ? "Locations" : "Collections"}</h1>
           <p>{view === "locations" ? "Quản lý nơi bán, tồn kho và giá override theo variant." : "Tổ chức master catalog thành các nhóm tái sử dụng."}</p></div>
@@ -212,6 +202,6 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
           {canWrite && <section className="catalog-list-card"><div className="card-heading"><div><h2>Tạo collection</h2><p>Nhóm products mà không duplicate master catalog.</p></div></div><form className="catalog-form" onSubmit={createCollection}><label>Tên<input name="name" required /></label><label>Mô tả<textarea name="description" rows={4} /></label><button className="primary-button" disabled={busy} type="submit"><Plus size={16} /> Tạo collection</button></form></section>}
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

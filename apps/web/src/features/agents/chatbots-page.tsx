@@ -16,7 +16,6 @@ import {
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { ChatbotPlayground } from "@/features/agents/chatbot-playground";
 import { FacebookChannelPanel } from "@/features/agents/facebook-channel-panel";
@@ -311,7 +310,7 @@ export function ChatbotsPage() {
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải workspace…</main>;
 
   return (
-    <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
+    <>
       <section className="page-heading chatbot-page-heading">
         <div><p className="eyebrow">Vận hành Agent</p><h1>Agents</h1><p>Cấu hình danh tính, kiến thức, phạm vi, kiểm thử và kênh triển khai.</p></div>
         <div className="chatbot-heading-actions">
@@ -362,6 +361,6 @@ export function ChatbotsPage() {
           {activeView === "zalo" && <ZaloChannelPanel canWrite={canWrite} key={selectedAgent.public_id} publicAgentId={selectedAgent.public_id} workspaceId={workspace.id} />}
         </>
       )}
-    </AppShell>
+    </>
   );
 }

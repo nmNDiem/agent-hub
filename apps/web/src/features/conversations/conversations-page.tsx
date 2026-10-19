@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import { api, type Agent, type ConversationDetail, type ConversationSummary, type InboxMember } from "@/lib/api";
 import { toUiError, type UiFeedback } from "@/lib/errors";
@@ -107,7 +106,7 @@ export function ConversationsPage() {
   const query = new URLSearchParams({ days: String(days) }); if (agentId) query.set("agent", agentId);
   const selected = detail?.conversation.public_id === params.conversationPublicId ? detail : undefined;
 
-  return <AppShell user={me.user} workspace={workspace} workspaces={me.workspaces}>
+  return <>
     <div className="page-heading"><div><p className="eyebrow"><MessageSquareText size={15} /> Website · Facebook · Zalo</p><h1>Inbox</h1><p>Tiếp quản, phân công và trả lời khách hàng trong một luồng vận hành.</p></div></div>
     {feedback && <FeedbackBanner feedback={feedback} />}
     <section className={`conversation-workspace ${params.conversationPublicId ? "has-selection" : ""}`}>
@@ -130,5 +129,5 @@ export function ConversationsPage() {
           <h2>Ghi chú</h2><div className="note-list">{selected.notes.map((item) => <article key={item.id}><strong>{item.author_email}</strong><p>{item.body}</p><time>{localDate(item.created_at)}</time></article>)}</div><form className="metadata-form" onSubmit={(event) => { event.preventDefault(); if (note.trim()) void mutate(async () => { await api.addConversationNote(workspace.id, selected.conversation.public_id, note); setNote(""); }); }}><textarea aria-label="Ghi chú nội bộ" maxLength={2000} onChange={(event) => setNote(event.target.value)} value={note} /><button disabled={busy}>Lưu ghi chú</button></form></aside></div>
       </>}</article>
     </section>
-  </AppShell>;
+  </>;
 }

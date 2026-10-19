@@ -15,22 +15,19 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
-  ApiError,
-  type Me,
   type ProductDetail,
   type ProductImage,
   type ProductSummary,
   type ProductVariant,
-  type Workspace,
 } from "@/lib/api";
 import { feedback, reportClientError, toUiError, type UiFeedback } from "@/lib/errors";
+import { useWorkspace } from "@/lib/use-workspace";
 import { CatalogImportWizard } from "./catalog-import-wizard";
 
 type ActionPanel = "create" | "import";
@@ -75,9 +72,7 @@ function imageName(image: ProductImage): string {
 
 export function CatalogPage() {
   const params = useParams<{ workspaceSlug: string }>();
-  const router = useRouter();
-  const [me, setMe] = useState<Me>();
-  const [workspace, setWorkspace] = useState<Workspace>();
+  const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -105,36 +100,23 @@ export function CatalogPage() {
   const variantImageCount = activeImages.length - commonImageCount;
 
   useEffect(() => {
+    if (!workspace) return;
     let active = true;
-    api.getMe().then(async (profile) => {
-      if (!active) return;
-      const current = profile.workspaces.find((item) => item.slug === params.workspaceSlug);
-      if (!current) {
-        setPageFeedback(feedback("error", "Không tìm thấy cửa hàng hoặc bạn không có quyền truy cập."));
-        setLoading(false);
-        return;
-      }
-      setMe(profile);
-      setWorkspace(current);
-      const result = await api.listProducts(current.id, { status: "active" });
+    api.listProducts(workspace.id, { status: "active" }).then((result) => {
       if (!active) return;
       setProducts(result.items);
       setNextCursor(result.next_cursor);
       setLoading(false);
     }).catch((caught: unknown) => {
       if (!active) return;
-      if (caught instanceof ApiError && caught.status === 401) {
-        router.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
-      } else {
-        setPageFeedback(toUiError(caught, {
-          operation: "catalog.load",
-          fallback: "Không thể tải catalog. Vui lòng thử lại.",
-        }));
-        setLoading(false);
-      }
+      setPageFeedback(toUiError(caught, {
+        operation: "catalog.load",
+        fallback: "Không thể tải catalog. Vui lòng thử lại.",
+      }));
+      setLoading(false);
     });
     return () => { active = false; };
-  }, [params.workspaceSlug, router]);
+  }, [workspace]);
 
   useEffect(() => {
     let active = true;
@@ -351,11 +333,12 @@ export function CatalogPage() {
     );
   }
 
+  if (workspaceError) return <main className="center-state"><FeedbackBanner feedback={workspaceError} /></main>;
+  if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải workspace…</main>;
   if (loading) return <main className="center-state" aria-live="polite">Đang tải catalog…</main>;
-  if (!me || !workspace) return <main className="center-state">{pageFeedback && <FeedbackBanner feedback={pageFeedback} />}</main>;
 
   return (
-    <AppShell user={me.user} workspaces={me.workspaces} workspace={workspace}>
+    <>
       <section className="page-heading catalog-heading">
         <div>
           <p className="eyebrow">Catalog / Sản phẩm</p>
@@ -547,6 +530,6 @@ export function CatalogPage() {
           </aside>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

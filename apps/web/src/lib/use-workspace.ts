@@ -5,14 +5,17 @@ import { useEffect, useState } from "react";
 
 import { api, ApiError, type Me, type Workspace } from "@/lib/api";
 import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
+import { useWorkspaceSystem } from "@/lib/workspace-system-context";
 
 export function useWorkspace(workspaceSlug: string) {
+  const system = useWorkspaceSystem();
   const router = useRouter();
   const [me, setMe] = useState<Me>();
   const [workspace, setWorkspace] = useState<Workspace>();
   const [error, setError] = useState<UiFeedback>();
 
   useEffect(() => {
+    if (system) return;
     let active = true;
     api.getMe().then((data) => {
       if (!active) return;
@@ -39,7 +42,9 @@ export function useWorkspace(workspaceSlug: string) {
       }
     });
     return () => { active = false; };
-  }, [router, workspaceSlug]);
+  }, [router, system, workspaceSlug]);
 
-  return { me, workspace, error };
+  return system
+    ? { me: system.me, workspace: system.workspace, error: undefined }
+    : { me, workspace, error };
 }

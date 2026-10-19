@@ -16,7 +16,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppShell } from "@/components/app-shell";
 import { FeedbackBanner } from "@/components/feedback-banner";
 import {
   api,
@@ -199,7 +198,7 @@ export function ContactsPage() {
     || (selected?.contact.assigned_member_id !== null
       && selected?.contact.assigned_member_id === currentMember?.id);
 
-  return <AppShell user={me.user} workspace={workspace} workspaces={me.workspaces}>
+  return <>
     <div className="page-heading contacts-heading">
       <div>
         <p className="eyebrow"><Users size={15} /> Website · Facebook · Zalo</p>
@@ -261,5 +260,5 @@ export function ContactsPage() {
         </>}
       </article>
     </section>
-  </AppShell>;
+  </>;
 }
