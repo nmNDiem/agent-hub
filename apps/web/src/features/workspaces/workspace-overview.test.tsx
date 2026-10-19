@@ -110,8 +110,16 @@ describe("WorkspaceOverview", () => {
     expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
     expect(screen.getByRole("button", { name: "1 nguồn" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Website: Website Mộc & Mây" })).toHaveTextContent("Website Mộc & Mây");
-    expect(screen.getByText("9 hội thoại · 1 chờ")).toBeInTheDocument();
+    expect(screen.getByText("9 hội thoại")).toBeInTheDocument();
+    expect(screen.getByText("1 chờ")).toHaveClass("world-agent-waiting");
     expect(screen.getByText("1 cần người")).toHaveClass("world-agent-handoff");
+    const legend = screen.getByRole("group", { name: "Chú thích hệ thống" });
+    expect(within(legend).getByText("Chat")).toBeInTheDocument();
+    expect(within(legend).getByText("Chờ")).toBeInTheDocument();
+    expect(within(legend).getByText("Cần người")).toBeInTheDocument();
+    expect(within(legend).getByText("Kênh").querySelector("svg")).toBeInTheDocument();
+    expect(within(legend).getByText("Tri thức").querySelector("svg")).toBeInTheDocument();
+    expect(within(legend).getByText("Phạm vi dữ liệu").querySelector("svg")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "30 ngày" })).not.toBeInTheDocument();
@@ -141,6 +149,20 @@ describe("WorkspaceOverview", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Support Agent" })).not.toBeInTheDocument();
     expect(agentButton).toHaveFocus();
+  });
+
+  it("keeps an empty waiting count visually quiet", async () => {
+    mocks.getWorkspaceOverview.mockResolvedValue({
+      ...overview,
+      agents: [{
+        ...overview.agents[0],
+        conversations: { ...overview.agents[0].conversations, pending: 0 },
+      }],
+    });
+
+    render(<WorkspaceOverview />);
+
+    expect(await screen.findByText("0 chờ")).not.toHaveClass("world-agent-waiting");
   });
 
   it("shows the business rail only from authorized Catalog scope", async () => {

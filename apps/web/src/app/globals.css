@@ -1008,7 +1008,7 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.025em; }
 .world-empty .primary-button { padding: 0 18px; text-decoration: none; }
 .system-world { min-height: calc(100dvh - 64px); display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid #cdd2c8; color: #14181f; }
 .system-world.has-business-data { grid-template-columns: minmax(0, 1fr) minmax(250px, 20vw); }
-.world-agent-field { min-width: 0; padding: 20px; background-color: #eceee8; background-image: radial-gradient(#cdd2c8 1px, transparent 1px); background-size: 18px 18px; }
+.world-agent-field { --world-chat: #3b4252; --world-waiting: #e0a100; --world-human: #c62828; min-width: 0; padding: 20px; background-color: #eceee8; background-image: radial-gradient(#cdd2c8 1px, transparent 1px); background-size: 18px 18px; }
 .world-agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 15px; align-items: start; max-width: 1405px; }
 .world-agent-unit { --world-core-x: 160px; --world-ring-size: 84px; --world-ring-half: 42px; --world-halo-half: 50px; position: relative; min-width: 0; min-height: 200px; }
 .world-agent-unit button { font: inherit; }
@@ -1042,7 +1042,17 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.025em; }
 .world-agent-unit.state-normal .world-conversation-ring { background: repeating-conic-gradient(#9aa3b2 0 5deg, transparent 5deg 12deg) !important; }
 .world-agent-activity { display: grid; gap: 2px; margin-top: 3px; color: #5b6472; }
 .world-agent-activity span { font-size: 11px; white-space: nowrap; }
-.world-agent-activity em { color: #c62828; font-size: 11px; font-style: normal; font-weight: 600; }
+.world-agent-conversations { display: flex; align-items: center; gap: 4px; }
+.world-agent-conversations .world-agent-waiting { color: var(--world-waiting); font-weight: 700; }
+.world-agent-activity em { color: var(--world-human); font-size: 11px; font-style: normal; font-weight: 600; }
+.world-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 18px; padding-top: 13px; border-top: 1px solid hsl(220 15% 12% / 10%); color: #5b6472; }
+.world-legend > span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.world-legend svg { color: #3b4252; stroke-width: 1.9; }
+.world-legend-color { width: 10px; height: 10px; display: inline-block; border-radius: 50%; background: currentColor; }
+.world-legend-color.is-chat { color: var(--world-chat); }
+.world-legend-color.is-waiting { color: var(--world-waiting); }
+.world-legend-color.is-human { color: var(--world-human); }
+.world-legend > .world-legend-separator { width: 1px; height: 16px; display: block; background: hsl(220 15% 12% / 14%); }
 .world-agent-scope { position: absolute; left: calc(var(--world-core-x) - 44px); top: 148px; display: flex; flex-wrap: wrap; gap: 5px; max-width: calc(100% - var(--world-core-x) + 44px); }
 .world-agent-scope button, .world-agent-scope > span { min-height: 22px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid #b8bfcc; border-radius: 11px; color: #4b5563; background: #fff; font-size: 9px; font-weight: 700; white-space: nowrap; }
 .world-agent-scope svg { flex: 0 0 auto; }
@@ -1105,6 +1115,8 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.025em; }
   .world-screen { min-height: calc(100dvh - 112px); }
   .world-loading, .world-empty, .world-load-error, .system-world { min-height: calc(100dvh - 112px); }
   .world-agent-field { padding: 20px 14px; }
+  .world-legend { gap: 9px 13px; }
+  .world-legend > .world-legend-separator { display: none; }
   .world-agent-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .world-business-rail { padding: 22px 14px; }
   .world-business-rail section { display: block; width: 100%; margin-right: 0; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Boxes, Globe2, MapPin, MessageCircle, MessagesSquare } from "lucide-react";
+import { ArrowRight, BookOpen, Boxes, Globe2, MapPin, MessageCircle, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -43,7 +43,7 @@ function conversationRing(agent: OverviewAgent): CSSProperties {
   const humanEnd = human / total * 100;
   const pendingEnd = humanEnd + pending / total * 100;
   const openEnd = pendingEnd + open / total * 100;
-  return { background: `conic-gradient(#c62828 0 ${humanEnd}%, #e0a100 ${humanEnd}% ${pendingEnd}%, #3b4252 ${pendingEnd}% ${openEnd}%, #d7dbe2 ${openEnd}% 100%)` };
+  return { background: `conic-gradient(var(--world-human) 0 ${humanEnd}%, var(--world-waiting) ${humanEnd}% ${pendingEnd}%, var(--world-chat) ${pendingEnd}% ${openEnd}%, #d7dbe2 ${openEnd}% 100%)` };
 }
 
 function scopeLabel(scope: OverviewAgent["catalog_scope"]["collections"] | OverviewAgent["catalog_scope"]["locations"]): string {
@@ -142,7 +142,11 @@ function AgentUnit({ agent, onHover, onSelect, overview, selectedId }: {
         <strong>{agent.name}</strong>
         <small>{lifecycleLabel(agent)}</small>
         <span className="world-agent-activity">
-          <span>{agent.conversations.total} hội thoại · {agent.conversations.pending} chờ</span>
+          <span className="world-agent-conversations">
+            <span>{agent.conversations.total} hội thoại</span>
+            <span aria-hidden="true">·</span>
+            <span className={agent.conversations.pending > 0 ? "world-agent-waiting" : undefined}>{agent.conversations.pending} chờ</span>
+          </span>
           {agent.conversations.human_handling > 0 && <em className="world-agent-handoff">{agent.conversations.human_handling} cần người</em>}
         </span>
       </span>
@@ -174,6 +178,15 @@ export function WorldView({ onSelect, overview, selectedId }: {
           overview={overview}
           selectedId={selectedId}
         />)}
+      </div>
+      <div aria-label="Chú thích hệ thống" className="world-legend" role="group">
+        <span><i aria-hidden="true" className="world-legend-color is-chat" />Chat</span>
+        <span><i aria-hidden="true" className="world-legend-color is-waiting" />Chờ</span>
+        <span><i aria-hidden="true" className="world-legend-color is-human" />Cần người</span>
+        <span className="world-legend-separator" aria-hidden="true" />
+        <span><ArrowRight aria-hidden="true" size={15} />Kênh</span>
+        <span><BookOpen aria-hidden="true" size={14} />Tri thức</span>
+        <span><Boxes aria-hidden="true" size={14} />Phạm vi dữ liệu</span>
       </div>
     </div>
     {catalogAgents.length > 0 && <BusinessRail activeAgentId={activeAgentId} agents={catalogAgents} workspaceSlug={overview.workspace_slug} />}
