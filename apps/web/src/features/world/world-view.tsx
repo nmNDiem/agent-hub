@@ -133,9 +133,12 @@ function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
     <button className={`world-knowledge-bubble state-${knowledge.state}`} onClick={() => onSelect(knowledge)} type="button"><BookOpen aria-hidden="true" size={14} /><span>{agent.knowledge.total > 0 ? `${agent.knowledge.total} nguồn tri thức` : "Chưa có tri thức"}</span></button>
     <button aria-label={`${agent.name}, ${lifecycleLabel(agent)}`} aria-pressed={selectedId === primary.id} className="world-agent-core" onClick={() => onSelect(primary)} type="button">
       <span className="world-conversation-ring" style={conversationRing(agent)}><span className="world-core-mark" /></span>
-      <span className="world-agent-identity"><strong>{agent.name}</strong><small>{lifecycleLabel(agent)}</small>{agent.attention_reasons.length > 0 && <em>Cần chú ý</em>}</span>
+      <span className="world-agent-identity"><strong>{agent.name}</strong><small>{lifecycleLabel(agent)}</small></span>
     </button>
-    <div className="world-agent-activity"><strong>{agent.conversations.total}</strong><span>hội thoại · {agent.conversations.pending} chờ · {agent.conversations.human_handling} cần người</span></div>
+    <div className="world-agent-activity">
+      <span><strong>{agent.conversations.total}</strong> hội thoại · {agent.conversations.pending} chờ</span>
+      {agent.conversations.human_handling > 0 && <em className="world-agent-handoff">{agent.conversations.human_handling} cần người</em>}
+    </div>
     <div className="world-agent-scope">
       {agent.catalog_scope.available ? <><button onClick={() => onSelect(catalog)} type="button">Catalog · {scopeLabel(agent.catalog_scope.collections)} bộ sưu tập</button><button onClick={() => onSelect(catalog)} type="button">{scopeLabel(agent.catalog_scope.locations)} địa điểm</button></> : <span>Không dùng dữ liệu kinh doanh</span>}
     </div>

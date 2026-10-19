@@ -15,7 +15,7 @@ export type WorldSelection = {
 
 type AgentSelectionSource = Pick<
   WorkspaceOverview["agents"][number],
-  "attention_reasons" | "lifecycle_state" | "name" | "public_id"
+  "lifecycle_state" | "name" | "public_id"
 >;
 
 export function agentSelection(
@@ -24,11 +24,7 @@ export function agentSelection(
 ): WorldSelection {
   const state: WorldSelectionState = agent.lifecycle_state === "paused"
     ? "paused"
-    : agent.attention_reasons.includes("knowledge_failed")
-      ? "error"
-      : agent.attention_reasons.length > 0
-        ? "attention"
-        : agent.lifecycle_state === "published" ? "active" : "normal";
+    : agent.lifecycle_state === "published" ? "active" : "normal";
   return {
     id: `agent:${agent.public_id}`,
     kind: "agent",

@@ -1024,6 +1024,8 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.025em; }
 .world-knowledge-bubble::after { content: ""; position: absolute; left: 31px; top: 27px; height: 36px; border-left: 1px solid #b8bfcc; }
 .world-knowledge-bubble.state-error { color: #9d2020; border-color: #c62828; }
 .world-knowledge-bubble.state-attention { color: #8a5a00; border-color: #e0a100; }
+.world-knowledge-bubble.state-error::after { border-color: #c62828; }
+.world-knowledge-bubble.state-attention::after { border-color: #e0a100; }
 .world-agent-core { position: absolute; left: 134px; top: 80px; width: calc(100% - 134px); min-height: 94px; display: flex; align-items: center; gap: 14px; padding: 12px 12px; border: 0; color: #14181f; background: transparent; text-align: left; cursor: pointer; }
 .world-agent-core[aria-pressed="true"]::before { content: ""; position: absolute; inset: 0; border: 1px solid #14181f; border-radius: 48px; box-shadow: 0 0 0 5px hsl(220 15% 12% / 7%); }
 .world-conversation-ring { width: 66px; height: 66px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 50%; transform: rotate(-90deg); }
@@ -1031,17 +1033,15 @@ h2 { margin-bottom: 8px; font-size: 20px; letter-spacing: -.025em; }
 .world-core-mark { position: absolute; width: 38px; height: 38px; display: block; border-radius: 50%; background: #3b4252; transform: rotate(90deg); }
 .world-core-mark::before { content: ""; position: absolute; inset: 10px; border: 2px solid #fff; border-radius: 50%; }
 .world-agent-identity { min-width: 0; display: block; }
-.world-agent-identity strong, .world-agent-identity small, .world-agent-identity em { display: block; }
+.world-agent-identity strong, .world-agent-identity small { display: block; }
 .world-agent-identity strong { overflow: hidden; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .world-agent-identity small { margin-top: 3px; color: #5b6472; font-size: 11px; }
-.world-agent-identity em { margin-top: 5px; color: #8a5a00; font-size: 10px; font-style: normal; font-weight: 800; }
-.world-agent-unit.state-error .world-core-mark { background: #c62828; }
-.world-agent-unit.state-attention .world-core-mark { background: #e0a100; }
 .world-agent-unit.state-paused .world-conversation-ring { filter: grayscale(1); opacity: .65; }
 .world-agent-unit.state-normal .world-conversation-ring { padding: 4px; background: repeating-conic-gradient(#9aa3b2 0 5deg, transparent 5deg 12deg) !important; }
-.world-agent-activity { position: absolute; left: 150px; top: 178px; display: flex; align-items: baseline; gap: 6px; color: #5b6472; }
+.world-agent-activity { position: absolute; left: 150px; top: 178px; display: grid; gap: 2px; color: #5b6472; }
 .world-agent-activity strong { color: #14181f; font-size: 13px; }
 .world-agent-activity span { font-size: 10px; }
+.world-agent-activity em { color: #9d2020; font-size: 10px; font-style: normal; font-weight: 700; }
 .world-agent-scope { position: absolute; left: 134px; top: 216px; display: flex; flex-wrap: wrap; gap: 6px; }
 .world-agent-scope button, .world-agent-scope > span { min-height: 24px; display: inline-flex; align-items: center; padding: 0 9px; border: 1px solid #b8bfcc; border-radius: 12px; color: #4b5563; background: #fff; font-size: 9px; font-weight: 700; }
 .world-agent-scope button { cursor: pointer; }
@@ -1275,15 +1275,6 @@ textarea:focus {
   gap: clamp(22px, 2.4vw, 34px);
 }
 
-.world-agent-unit {
-  min-height: 308px;
-  border: 1px solid hsl(0 0% 100% / 78%);
-  border-radius: 24px;
-  background: hsl(0 0% 100% / 58%);
-  box-shadow: 0 16px 42px hsl(214 58% 36% / 7%);
-  backdrop-filter: blur(5px);
-}
-
 .world-agent-unit.is-muted {
   opacity: .36;
   filter: saturate(.62);
@@ -1496,7 +1487,6 @@ textarea:focus {
   .world-screen { min-height: calc(100dvh - 116px); }
   .world-loading, .world-empty, .world-load-error, .system-world { min-height: calc(100dvh - 116px); }
   .world-agent-field { padding: 20px 12px; }
-  .world-agent-unit { border-radius: 20px; }
   .world-inspector-scrim { inset: 0; }
   .world-inspector { top: 0; border-radius: 0; }
 }

@@ -98,7 +98,9 @@ describe("WorkspaceOverview", () => {
   it("renders the authoritative knowledge-only World and contextual navigation", async () => {
     render(<WorkspaceOverview />);
 
-    expect(await screen.findByRole("button", { name: /Support Agent/ })).toBeInTheDocument();
+    const agentButton = await screen.findByRole("button", { name: /Support Agent/ });
+    expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
+    expect(screen.getByText("1 cần người")).toHaveClass("world-agent-handoff");
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "30 ngày" })).not.toBeInTheDocument();
