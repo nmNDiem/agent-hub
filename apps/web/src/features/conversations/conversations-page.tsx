@@ -107,7 +107,7 @@ export function ConversationsPage() {
   const selected = detail?.conversation.public_id === params.conversationPublicId ? detail : undefined;
 
   return <>
-    <div className="page-heading"><div><p className="eyebrow"><MessageSquareText size={15} /> Website · Facebook · Zalo</p><h1>Inbox</h1><p>Tiếp quản, phân công và trả lời khách hàng trong một luồng vận hành.</p></div></div>
+    <div className="page-heading"><h1>Inbox</h1></div>
     {feedback && <FeedbackBanner feedback={feedback} />}
     <section className={`conversation-workspace ${params.conversationPublicId ? "has-selection" : ""}`}>
       <aside className="conversation-list card-surface"><header><div><strong>Hội thoại</strong><span>{items.length} mục</span></div><div className="conversation-filters inbox-filters">

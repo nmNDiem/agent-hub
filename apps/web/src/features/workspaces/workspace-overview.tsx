@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Boxes, LoaderCircle, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
+import { Bot, Boxes, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -80,7 +80,7 @@ export function WorkspaceOverview() {
 
   return <div className="world-screen">
     <header className="world-page-heading">
-      <div><p className="eyebrow"><Sparkles size={15} /> Workspace system</p><h1>{workspace.display_name}</h1><p>{projection === "system" ? "Workspace này vận hành như thế nào?" : "Các Agent được cấu hình và phân phạm vi ra sao?"}</p></div>
+      <h1>{projection === "system" ? "Hệ thống" : "Agents"}</h1>
       <div className="world-heading-actions">
         <div aria-label="Projection" className="world-projection-switch" role="group">
           {(["system", "agents"] as const).map((value) => <button aria-pressed={projection === value} key={value} onClick={() => { setProjection(value); updateLocation(value); }} type="button">{value === "system" ? "Hệ thống" : "Agents"}</button>)}

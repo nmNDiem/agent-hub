@@ -165,8 +165,7 @@ export function CatalogScopePage({ view }: { view: "locations" | "collections" }
   return (
     <>
       <header className="page-heading catalog-heading">
-        <div><p className="eyebrow">Workspace catalog</p><h1>{view === "locations" ? "Locations" : "Collections"}</h1>
-          <p>{view === "locations" ? "Quản lý nơi bán, tồn kho và giá override theo variant." : "Tổ chức master catalog thành các nhóm tái sử dụng."}</p></div>
+        <h1>{view === "locations" ? "Locations" : "Collections"}</h1>
       </header>
       {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}
       {view === "locations" ? (

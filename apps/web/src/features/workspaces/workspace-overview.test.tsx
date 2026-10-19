@@ -99,7 +99,8 @@ describe("WorkspaceOverview", () => {
     render(<WorkspaceOverview />);
 
     expect(await screen.findByRole("button", { name: /Support Agent/ })).toBeInTheDocument();
-    expect(screen.getByText("Workspace này vận hành như thế nào?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Hệ thống" })).toBeInTheDocument();
+    expect(screen.queryByText("Workspace này vận hành như thế nào?")).not.toBeInTheDocument();
     expect(screen.getByText("Thiết lập Commerce")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Catalog" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Dữ liệu kinh doanh" })).not.toBeInTheDocument();
@@ -113,7 +114,8 @@ describe("WorkspaceOverview", () => {
     render(<WorkspaceOverview />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Agents" }));
-    expect(screen.getByText("Các Agent được cấu hình và phân phạm vi ra sao?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Agents" })).toBeInTheDocument();
+    expect(screen.queryByText("Các Agent được cấu hình và phân phạm vi ra sao?")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /Support Agent/ }));
     expect(screen.getByRole("complementary", { name: "Chi tiết Support Agent" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Kiểm thử/ })).toBeInTheDocument();

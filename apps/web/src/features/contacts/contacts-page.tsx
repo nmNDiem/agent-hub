@@ -200,11 +200,7 @@ export function ContactsPage() {
 
   return <>
     <div className="page-heading contacts-heading">
-      <div>
-        <p className="eyebrow"><Users size={15} /> Website · Facebook · Zalo</p>
-        <h1>Khách hàng</h1>
-        <p>Một hồ sơ consent-aware và timeline thống nhất cho mọi kênh liên hệ.</p>
-      </div>
+      <h1>Khách hàng</h1>
       {canAdmin && <button className="secondary-button" disabled={busy} onClick={() => void exportContacts()} type="button"><Download size={16} /> Xuất CSV</button>}
     </div>
     {feedback && <FeedbackBanner feedback={feedback} />}

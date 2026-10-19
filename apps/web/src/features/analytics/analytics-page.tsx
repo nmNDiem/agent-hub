@@ -121,7 +121,7 @@ export function AnalyticsPage() {
 
   return <>
     <div className="page-heading analytics-heading">
-      <div><p className="eyebrow"><BarChart3 size={15} /> Vận hành đa kênh</p><h1>Phân tích</h1><p>Chỉ số từ sự kiện đã lưu trong timezone {workspace.timezone}; không ước tính chi phí hay doanh thu.</p></div>
+      <h1>Phân tích</h1>
       {canView && <div aria-label="Khoảng thời gian" className="period-switch">
         {([7, 30] as const).map((value) => <button aria-pressed={days === value} key={value} onClick={() => { setLoading(true); setDays(value); }} type="button">{value} ngày</button>)}
       </div>}
@@ -130,6 +130,7 @@ export function AnalyticsPage() {
       <section aria-label="Bộ lọc phân tích" className="analytics-filters card-surface">
         <label>Kênh<select onChange={(event) => { setLoading(true); setChannel(event.target.value as Channel | ""); }} value={channel}><option value="">Tất cả kênh</option><option value="web">Website</option><option value="facebook">Facebook</option><option value="zalo">Zalo</option></select></label>
         <label>Chatbot<select onChange={(event) => { setLoading(true); setAgentPublicId(event.target.value); }} value={agentPublicId}><option value="">Tất cả chatbot</option>{report?.agent_options.map((agent) => <option key={agent.public_id} value={agent.public_id}>{agent.name}</option>)}</select></label>
+        <small>Chỉ số từ sự kiện đã lưu · {workspace.timezone} · Không ước tính chi phí hay doanh thu</small>
       </section>
       {feedback ? <FeedbackBanner feedback={feedback} /> : loading || !report ? <section aria-live="polite" className="overview-loading"><LoaderCircle className="spinner" /> Đang tổng hợp dữ liệu…</section> : <>
         <section aria-label="Chỉ số vận hành" className="overview-kpis analytics-kpis">

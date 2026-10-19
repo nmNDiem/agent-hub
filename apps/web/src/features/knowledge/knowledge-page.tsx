@@ -501,7 +501,7 @@ export function KnowledgePage() {
   return (
     <>
       <section className="page-heading catalog-heading">
-        <div><p className="eyebrow">Nguồn grounding</p><h1>Tri thức</h1><p>Quản lý dữ liệu đã kiểm chứng mà chatbot được phép sử dụng.</p></div>
+        <h1>Tri thức</h1>
         {!canWrite && <span className="status-pill archived">Chỉ đọc</span>}
       </section>
       {pageFeedback && <FeedbackBanner feedback={pageFeedback} />}

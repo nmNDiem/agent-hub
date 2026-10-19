@@ -340,24 +340,17 @@ export function CatalogPage() {
   return (
     <>
       <section className="page-heading catalog-heading">
-        <div>
-          <p className="eyebrow">Catalog / Sản phẩm</p>
-          <h1>Danh mục sản phẩm</h1>
-          <p>Quản lý sản phẩm, biến thể, giá và tồn kho tại một nơi.</p>
-        </div>
+        <h1>Danh mục sản phẩm</h1>
         {canWrite && (
           <div className="catalog-heading-actions">
-            <div>
-              <button
-                aria-expanded={actionPanel === "import"}
-                className="secondary-button catalog-action-button"
-                onClick={() => setActionPanel((current) => current === "import" ? undefined : "import")}
-                type="button"
-              >
-                <FileSpreadsheet aria-hidden="true" size={18} /> Nhập từ file
-              </button>
-              <small>CSV, XLS, XLSX · Phân tích trước khi nhập</small>
-            </div>
+            <button
+              aria-expanded={actionPanel === "import"}
+              className="secondary-button catalog-action-button"
+              onClick={() => setActionPanel((current) => current === "import" ? undefined : "import")}
+              type="button"
+            >
+              <FileSpreadsheet aria-hidden="true" size={18} /> Nhập từ file
+            </button>
             <button
               aria-expanded={actionPanel === "create"}
               className="primary-button compact-button"

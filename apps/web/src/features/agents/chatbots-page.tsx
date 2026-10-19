@@ -312,7 +312,7 @@ export function ChatbotsPage() {
   return (
     <>
       <section className="page-heading chatbot-page-heading">
-        <div><p className="eyebrow">Vận hành Agent</p><h1>Agents</h1><p>Cấu hình danh tính, kiến thức, phạm vi, kiểm thử và kênh triển khai.</p></div>
+        <h1>Agents</h1>
         <div className="chatbot-heading-actions">
           {!canWrite && <span className="status-pill archived">Chỉ đọc</span>}
           {canWrite && <button className="secondary-button" onClick={() => setShowCreate((current) => !current)} type="button">{showCreate ? <X size={16} /> : <Plus size={16} />}{showCreate ? "Đóng" : "Tạo Agent"}</button>}
