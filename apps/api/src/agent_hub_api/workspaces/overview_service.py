@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agent_hub_api.agents.schemas import AgentIcon
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.identity.models import User
 from agent_hub_api.workspaces.overview_repository import (
@@ -206,6 +207,8 @@ class WorkspaceOverviewService:
                 OverviewAgent(
                     public_id=agent.public_id,
                     name=agent.name,
+                    icon=cast(AgentIcon, agent.icon),
+                    color=agent.color,
                     lifecycle_state=cast(Literal["draft", "published", "paused"], agent.status),
                     updated_at=agent.updated_at,
                     active_revision=(

@@ -104,7 +104,12 @@ def test_overview_is_tenant_scoped_and_projects_real_agent_relationships(
 
     created = owner_a.post(
         f"/api/v1/workspaces/{workspace_a['id']}/agents",
-        json={"name": "Support Agent", "default_locale": "vi"},
+        json={
+            "name": "Support Agent",
+            "default_locale": "vi",
+            "icon": "headphones",
+            "color": "#2F5BEA",
+        },
         headers=csrf_headers(owner_a),
     )
     assert created.status_code == 201, created.text
@@ -229,6 +234,8 @@ def test_overview_is_tenant_scoped_and_projects_real_agent_relationships(
     assert payload["capabilities"]["catalog"] == {"available": False, "can_setup": True}
     assert payload["agent_total"] == 1
     assert payload["agents"][0]["public_id"] == str(public_agent_id)
+    assert payload["agents"][0]["icon"] == "headphones"
+    assert payload["agents"][0]["color"] == "#2F5BEA"
     assert payload["agents"][0]["knowledge"]["items"][0]["name"] == "Support policy"
     assert payload["agents"][0]["channels"]["web"]["total"] == 1
     assert payload["agents"][0]["website_readiness"]["can_publish"] is True

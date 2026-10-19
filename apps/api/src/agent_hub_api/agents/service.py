@@ -14,6 +14,7 @@ from agent_hub_api.agents.schemas import (
     AgentCatalogScopeRequest,
     AgentCatalogScopeResponse,
     AgentCreateRequest,
+    AgentIcon,
     AgentListResponse,
     AgentResponse,
     AgentStatus,
@@ -81,6 +82,8 @@ class AgentService:
         return AgentResponse(
             public_id=agent.public_id,
             name=agent.name,
+            icon=cast(AgentIcon, agent.icon),
+            color=agent.color,
             greeting=agent.greeting,
             safe_instructions=agent.safe_instructions,
             default_locale=agent.default_locale,
@@ -137,6 +140,8 @@ class AgentService:
                     public_id=new_uuid_v7(),
                     workspace_id=workspace_id,
                     name=payload.name,
+                    icon=payload.icon,
+                    color=payload.color,
                     greeting=greeting,
                     safe_instructions=safe_instructions,
                     default_locale=payload.default_locale,
@@ -164,7 +169,7 @@ class AgentService:
             agent = await self._agent(workspace_id, public_id)
             for field in payload.model_fields_set:
                 value = getattr(payload, field)
-                if field in {"name", "default_locale"} and value is None:
+                if field in {"name", "default_locale", "icon", "color"} and value is None:
                     raise ApiError(
                         status.HTTP_422_UNPROCESSABLE_CONTENT,
                         "VALIDATION_ERROR",

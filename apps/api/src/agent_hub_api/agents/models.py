@@ -30,6 +30,11 @@ class Agent(Base):
             "status IN ('draft','published','paused')",
             name="ck_agents_status",
         ),
+        CheckConstraint(
+            "icon IN ('message-circle','bot','headphones','sparkles','shopping-bag',"
+            "'calendar-days','briefcase-business','heart-handshake')",
+            name="ck_agents_icon",
+        ),
         Index("ix_agents_workspace_status_created", "workspace_id", "status", "created_at"),
     )
 
@@ -37,6 +42,8 @@ class Agent(Base):
     public_id: Mapped[UUID] = mapped_column(unique=True)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     name: Mapped[str] = mapped_column(String(160))
+    icon: Mapped[str] = mapped_column(String(32), default="message-circle")
+    color: Mapped[str] = mapped_column(String(7), default="#0E8A8C")
     greeting: Mapped[str | None] = mapped_column(Text(), nullable=True)
     safe_instructions: Mapped[str | None] = mapped_column(Text(), nullable=True)
     default_locale: Mapped[str] = mapped_column(String(16), default="vi")

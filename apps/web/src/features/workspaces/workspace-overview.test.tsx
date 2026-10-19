@@ -60,6 +60,8 @@ const overview = {
   agents: [{
     public_id: "01992f3c-4436-7000-8000-000000000010",
     name: "Support Agent",
+    icon: "headphones",
+    color: "#2F5BEA",
     lifecycle_state: "published",
     updated_at: "2026-10-16T00:00:00Z",
     active_revision: { id: 1, revision_no: 1, published_at: "2026-10-16T00:00:00Z" },
@@ -108,6 +110,10 @@ describe("WorkspaceOverview", () => {
 
     const agentButton = await screen.findByRole("button", { name: /Support Agent/ });
     expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
+    expect(agentButton.querySelector(".world-core-mark")).toHaveStyle({
+      backgroundColor: "#2F5BEA",
+    });
+    expect(agentButton.querySelector(".world-core-mark svg")).toHaveClass("lucide-headphones");
     expect(screen.getByRole("button", { name: "1 nguồn" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Website: Website Mộc & Mây" })).toHaveTextContent("Website Mộc & Mây");
     expect(screen.getByText("9 hội thoại")).toBeInTheDocument();

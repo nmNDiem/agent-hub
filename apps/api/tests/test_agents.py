@@ -100,6 +100,8 @@ def test_agent_creation_supplies_editable_defaults_when_optional_copy_is_omitted
         assert created.status_code == 201, created.text
         payload = created.json()
         assert payload["default_locale"] == "vi"
+        assert payload["icon"] == "message-circle"
+        assert payload["color"] == "#0E8A8C"
         assert payload["greeting"].startswith("Xin chào!")
         assert "người dùng" in payload["safe_instructions"]
         assert "bán hàng" not in payload["safe_instructions"]
@@ -139,6 +141,8 @@ def test_agent_api_persists_scope_and_enforces_workspace_and_role(
             f"/api/v1/workspaces/{workspace_a['id']}/agents",
             json={
                 "name": "Shop assistant",
+                "icon": "shopping-bag",
+                "color": "#2f5bea",
                 "greeting": "Xin chào",
                 "safe_instructions": "Only use verified catalog facts.",
             },
@@ -148,6 +152,8 @@ def test_agent_api_persists_scope_and_enforces_workspace_and_role(
         agent = created.json()
         assert UUID(agent["public_id"]).version == 7
         assert agent["status"] == "draft"
+        assert agent["icon"] == "shopping-bag"
+        assert agent["color"] == "#2F5BEA"
         assert agent["catalog_scope"] == {"location_ids": None, "collection_ids": None}
 
         scoped = owner_a.put(
@@ -212,6 +218,22 @@ def test_agent_api_persists_scope_and_enforces_workspace_and_role(
             headers=csrf_headers(owner_a),
         )
         assert invalid_status_write.status_code == 422
+
+        updated_appearance = owner_a.patch(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}",
+            json={"icon": "headphones", "color": "#7a4fd6"},
+            headers=csrf_headers(owner_a),
+        )
+        assert updated_appearance.status_code == 200
+        assert updated_appearance.json()["icon"] == "headphones"
+        assert updated_appearance.json()["color"] == "#7A4FD6"
+
+        invalid_appearance = owner_a.patch(
+            f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}",
+            json={"icon": "arbitrary-svg", "color": "red"},
+            headers=csrf_headers(owner_a),
+        )
+        assert invalid_appearance.status_code == 422
 
         empty_scope = owner_a.put(
             f"/api/v1/workspaces/{workspace_a['id']}/agents/{agent['public_id']}"

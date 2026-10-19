@@ -17,6 +17,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { FeedbackBanner } from "@/components/feedback-banner";
+import {
+  AGENT_ICON_OPTIONS,
+  AgentGlyph,
+  agentGlyphColor,
+} from "@/features/agents/agent-appearance";
 import { ChatbotPlayground } from "@/features/agents/chatbot-playground";
 import { FacebookChannelPanel } from "@/features/agents/facebook-channel-panel";
 import { WebChannelPanel } from "@/features/agents/web-channel-panel";
@@ -24,15 +29,19 @@ import { ZaloChannelPanel } from "@/features/agents/zalo-channel-panel";
 import {
   api,
   type Agent,
+  type AgentIcon,
   type CatalogCollection,
   type KnowledgeBase,
   type Location,
 } from "@/lib/api";
 import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 import { useWorkspace } from "@/lib/use-workspace";
+import { useWorkspaceSystem } from "@/lib/workspace-system-context";
 
 type AgentDraft = {
   name: string;
+  icon: AgentIcon;
+  color: string;
   greeting: string;
   safeInstructions: string;
   defaultLocale: string;
@@ -46,6 +55,8 @@ type AgentDraft = {
 function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
   return {
     name: agent.name,
+    icon: agent.icon,
+    color: agent.color,
     greeting: agent.greeting ?? "",
     safeInstructions: agent.safe_instructions ?? "",
     defaultLocale: agent.default_locale,
@@ -61,6 +72,7 @@ export function ChatbotsPage() {
   const params = useParams<{ workspaceSlug: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const system = useWorkspaceSystem();
   const [requestedAgentId] = useState(() => searchParams.get("agent") ?? undefined);
   const { me, workspace, error: workspaceError } = useWorkspace(params.workspaceSlug);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -82,6 +94,7 @@ export function ChatbotsPage() {
   );
   const canWrite = workspace?.role === "owner" || workspace?.role === "admin";
   const selectedAgent = agents.find((item) => item.public_id === selectedId);
+  const selectedDraft = draftAgentId === selectedAgent?.public_id ? draft : undefined;
 
   function selectAvailableAgent(items: Agent[], preferredId?: string) {
     const nextId = preferredId && items.some((item) => item.public_id === preferredId)
@@ -195,6 +208,7 @@ export function ChatbotsPage() {
       formElement.reset();
       setShowCreate(false);
       selectAgent(created.public_id);
+      await system?.loadOverview();
       setPageFeedback(feedback("success", "Đã tạo Agent. Bạn có thể cấu hình và thử ngay bây giờ."));
     } catch (caught) {
       setPageFeedback(toUiError(caught, {
@@ -216,6 +230,8 @@ export function ChatbotsPage() {
     try {
       await api.updateAgent(workspace.id, selectedAgent.public_id, {
         name: draft.name,
+        icon: draft.icon,
+        color: draft.color,
         greeting: draft.greeting || null,
         safe_instructions: draft.safeInstructions || null,
         default_locale: draft.defaultLocale,
@@ -235,7 +251,10 @@ export function ChatbotsPage() {
       setDirty(false);
       setSavedNotice(true);
       try {
-        await loadAgents(workspace.id, selectedAgent.public_id);
+        await Promise.all([
+          loadAgents(workspace.id, selectedAgent.public_id),
+          system?.loadOverview() ?? Promise.resolve(),
+        ]);
       } catch (caught) {
         setSavedNotice(false);
         const refreshError = toUiError(caught, {
@@ -289,6 +308,7 @@ export function ChatbotsPage() {
         nextAgentId ? `${path}?agent=${encodeURIComponent(nextAgentId)}` : path,
         { scroll: false },
       );
+      await system?.loadOverview();
       setPageFeedback(feedback("success", "Đã xóa Agent."));
     } catch (caught) {
       setPageFeedback(toUiError(caught, {
@@ -326,7 +346,15 @@ export function ChatbotsPage() {
       {!loading && selectedAgent && (
         <>
           <section className="chatbot-agent-strip">
-            <span className="agent-avatar" aria-hidden="true"><Bot size={18} /></span>
+            <span
+              className="agent-avatar"
+              style={{
+                backgroundColor: selectedDraft?.color ?? selectedAgent.color,
+                color: agentGlyphColor(selectedDraft?.color ?? selectedAgent.color),
+              }}
+            >
+              <AgentGlyph icon={selectedDraft?.icon ?? selectedAgent.icon} size={19} />
+            </span>
             <div className="chatbot-agent-copy"><strong>{selectedAgent.name}</strong><small>{selectedAgent.status === "published" ? "Đã phát hành" : selectedAgent.status === "paused" ? "Đã tạm dừng" : "Bản nháp"} · {draft?.knowledgeBaseIds.length ?? 0} nguồn tri thức · Catalog dùng khi có dữ liệu phù hợp</small></div>
             <div className="chatbot-agent-actions">
               {dirty && <span className="status-pill pending">Có thay đổi chưa lưu</span>}
@@ -345,7 +373,34 @@ export function ChatbotsPage() {
                 <form onSubmit={saveAgent}>
                   <div className="card-heading agent-config-heading"><div><h2>Cấu hình</h2><p>Thay đổi áp dụng cho bản nháp sau khi lưu</p></div>{dirty && <span className="status-pill pending">Chưa lưu</span>}</div>
                   <div className="agent-config-sections">
-                    <fieldset className="agent-fieldset" disabled={!canWrite}><legend>Danh tính và hành vi</legend><label>Tên<input maxLength={160} onChange={(event) => updateDraft({ name: event.target.value })} required value={draft.name} /></label><label>Ngôn ngữ<select onChange={(event) => updateDraft({ defaultLocale: event.target.value })} value={draft.defaultLocale}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label><label className="full-field">Lời chào<textarea maxLength={2000} onChange={(event) => updateDraft({ greeting: event.target.value })} rows={3} value={draft.greeting} /></label><label className="full-field">Tính cách và phong cách trả lời<small className="agent-field-help">Agent mới đã có cấu hình thân thiện để dùng ngay. Bạn có thể chỉnh cách xưng hô, độ dài và phong cách hỗ trợ tại đây.</small><textarea maxLength={10000} onChange={(event) => updateDraft({ safeInstructions: event.target.value })} placeholder="Ví dụ: Xưng hô gần gũi, trả lời ngắn gọn và luôn hỏi thêm nhu cầu của người dùng." rows={5} value={draft.safeInstructions} /></label></fieldset>
+                    <fieldset className="agent-fieldset" disabled={!canWrite}>
+                      <legend>Danh tính và hành vi</legend>
+                      <label>Tên<input maxLength={160} onChange={(event) => updateDraft({ name: event.target.value })} required value={draft.name} /></label>
+                      <label>Ngôn ngữ<select onChange={(event) => updateDraft({ defaultLocale: event.target.value })} value={draft.defaultLocale}><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+                      <div className="agent-appearance-field full-field">
+                        <span className="agent-appearance-label">Biểu tượng và màu sắc</span>
+                        <div aria-label="Chọn biểu tượng Agent" className="agent-icon-options" role="group">
+                          {AGENT_ICON_OPTIONS.map((option) => <button
+                            aria-label={option.label}
+                            aria-pressed={draft.icon === option.key}
+                            key={option.key}
+                            onClick={() => updateDraft({ icon: option.key })}
+                            title={option.label}
+                            type="button"
+                          ><AgentGlyph icon={option.key} size={18} /></button>)}
+                        </div>
+                        <label className="agent-color-field">
+                          <span>Màu lõi Agent</span>
+                          <span className="agent-color-control">
+                            <input aria-label="Màu lõi Agent" onChange={(event) => updateDraft({ color: event.target.value.toUpperCase() })} type="color" value={draft.color} />
+                            <code>{draft.color}</code>
+                            <i aria-hidden="true" style={{ backgroundColor: draft.color, color: agentGlyphColor(draft.color) }}><AgentGlyph icon={draft.icon} size={20} /></i>
+                          </span>
+                        </label>
+                      </div>
+                      <label className="full-field">Lời chào<textarea maxLength={2000} onChange={(event) => updateDraft({ greeting: event.target.value })} rows={3} value={draft.greeting} /></label>
+                      <label className="full-field">Tính cách và phong cách trả lời<small className="agent-field-help">Agent mới đã có cấu hình thân thiện để dùng ngay. Bạn có thể chỉnh cách xưng hô, độ dài và phong cách hỗ trợ tại đây.</small><textarea maxLength={10000} onChange={(event) => updateDraft({ safeInstructions: event.target.value })} placeholder="Ví dụ: Xưng hô gần gũi, trả lời ngắn gọn và luôn hỏi thêm nhu cầu của người dùng." rows={5} value={draft.safeInstructions} /></label>
+                    </fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MessageSquareText aria-hidden="true" size={17} /> Nguồn tri thức</legend><p className="fieldset-help">Chỉ dữ liệu đã ingestion thành công mới được runtime truy xuất.</p><div className="scope-options">{knowledgeBases.map((base) => <label className="check-option" key={base.id}><input checked={draft.knowledgeBaseIds.includes(base.id)} onChange={() => toggleId("knowledgeBaseIds", base.id)} type="checkbox" /><span><strong>{base.name}</strong><small>{base.document_count} tài liệu · {base.kind}</small></span></label>)}{knowledgeBases.length === 0 && <p className="muted-copy">Chưa có kho tri thức.</p>}</div></fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MapPin aria-hidden="true" size={17} /> Phạm vi location</legend><label className="check-option"><input checked={draft.allLocations} onChange={(event) => updateDraft({ allLocations: event.target.checked })} type="checkbox" /><span><strong>Tất cả location đang hoạt động</strong><small>Tự động bao gồm location mới.</small></span></label>{!draft.allLocations && <div className="scope-options">{locations.map((location) => <label className="check-option" key={location.id}><input checked={draft.locationIds.includes(location.id)} onChange={() => toggleId("locationIds", location.id)} type="checkbox" /><span>{location.name}</span></label>)}</div>}</fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><Boxes aria-hidden="true" size={17} /> Phạm vi collection</legend><label className="check-option"><input checked={draft.allCollections} onChange={(event) => updateDraft({ allCollections: event.target.checked })} type="checkbox" /><span><strong>Tất cả collection đang hoạt động</strong><small>Tự động bao gồm collection mới.</small></span></label>{!draft.allCollections && <div className="scope-options">{collections.map((collection) => <label className="check-option" key={collection.id}><input checked={draft.collectionIds.includes(collection.id)} onChange={() => toggleId("collectionIds", collection.id)} type="checkbox" /><span>{collection.name}</span></label>)}</div>}</fieldset>

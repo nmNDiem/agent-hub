@@ -49,6 +49,8 @@ const workspace = {
 const agent = {
   public_id: "01992f3c-4436-7000-8000-000000000010",
   name: "Trợ lý",
+  icon: "message-circle" as const,
+  color: "#0E8A8C",
   greeting: "Xin chào",
   safe_instructions: null,
   default_locale: "vi",
@@ -142,6 +144,10 @@ describe("ChatbotsPage", () => {
     fireEvent.change(await screen.findByLabelText(/Tính cách và phong cách trả lời/), {
       target: { value: "Thân thiện" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Bán hàng" }));
+    fireEvent.change(screen.getByLabelText("Màu lõi Agent"), {
+      target: { value: "#2f5bea" },
+    });
     fireEvent.click(screen.getByText("FAQ").closest("label")!.querySelector("input")!);
     fireEvent.click(screen.getByLabelText(/Tất cả location đang hoạt động/));
     fireEvent.click(screen.getByText("Hà Nội").closest("label")!.querySelector("input")!);
@@ -150,7 +156,11 @@ describe("ChatbotsPage", () => {
     await waitFor(() => expect(mocks.updateAgent).toHaveBeenCalledWith(
       workspace.id,
       agent.public_id,
-      expect.objectContaining({ safe_instructions: "Thân thiện" }),
+      expect.objectContaining({
+        safe_instructions: "Thân thiện",
+        icon: "shopping-bag",
+        color: "#2F5BEA",
+      }),
     ));
     expect(mocks.replaceAgentCatalogScope).toHaveBeenCalledWith(
       workspace.id,

@@ -297,9 +297,21 @@ export type KnowledgeDiagnostic = {
   reason_codes: string[];
 };
 
+export type AgentIcon =
+  | "message-circle"
+  | "bot"
+  | "headphones"
+  | "sparkles"
+  | "shopping-bag"
+  | "calendar-days"
+  | "briefcase-business"
+  | "heart-handshake";
+
 export type Agent = {
   public_id: string;
   name: string;
+  icon: AgentIcon;
+  color: string;
   greeting: string | null;
   safe_instructions: string | null;
   default_locale: string;
@@ -601,6 +613,8 @@ export type WorkspaceOverview = {
   agents: Array<{
     public_id: string;
     name: string;
+    icon: AgentIcon;
+    color: string;
     lifecycle_state: "draft" | "published" | "paused";
     updated_at: string;
     active_revision: { id: number; revision_no: number; published_at: string } | null;
@@ -1137,7 +1151,10 @@ export const api = {
   }),
   listAgents: (workspaceId: string) =>
     request<{ items: Agent[] }>(`/api/v1/workspaces/${workspaceId}/agents`),
-  createAgent: (workspaceId: string, payload: Pick<Agent, "name" | "default_locale">) =>
+  createAgent: (
+    workspaceId: string,
+    payload: Pick<Agent, "name" | "default_locale"> & Partial<Pick<Agent, "icon" | "color">>,
+  ) =>
     request<Agent>(`/api/v1/workspaces/${workspaceId}/agents`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -1147,7 +1164,10 @@ export const api = {
   updateAgent: (
     workspaceId: string,
     publicAgentId: string,
-    payload: Partial<Pick<Agent, "name" | "greeting" | "safe_instructions" | "default_locale">>,
+    payload: Partial<Pick<
+      Agent,
+      "name" | "icon" | "color" | "greeting" | "safe_instructions" | "default_locale"
+    >>,
   ) => request<Agent>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

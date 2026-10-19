@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from agent_hub_api.agents.schemas import AgentIcon
+
 DependencyState = Literal["ready", "partial", "stale", "unavailable"]
 AttentionReason = Literal[
     "knowledge_stale",
@@ -120,6 +122,8 @@ class OverviewConversationActivity(BaseModel):
 class OverviewAgent(BaseModel):
     public_id: UUID
     name: str
+    icon: AgentIcon
+    color: str
     lifecycle_state: Literal["draft", "published", "paused"]
     updated_at: datetime
     active_revision: OverviewPublishedRevision | None

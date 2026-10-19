@@ -5,6 +5,18 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 AgentStatus = Literal["draft", "published", "paused"]
+AgentIcon = Literal[
+    "message-circle",
+    "bot",
+    "headphones",
+    "sparkles",
+    "shopping-bag",
+    "calendar-days",
+    "briefcase-business",
+    "heart-handshake",
+]
+DEFAULT_AGENT_ICON: AgentIcon = "message-circle"
+DEFAULT_AGENT_COLOR = "#0E8A8C"
 
 
 def normalize_optional_text(value: str | None) -> str | None:
@@ -18,6 +30,8 @@ class AgentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=160)
+    icon: AgentIcon = DEFAULT_AGENT_ICON
+    color: str = Field(default=DEFAULT_AGENT_COLOR, pattern=r"^#[0-9A-Fa-f]{6}$")
     greeting: str | None = Field(default=None, max_length=2_000)
     safe_instructions: str | None = Field(default=None, max_length=10_000)
     default_locale: str = Field(default="vi", min_length=2, max_length=16)
@@ -45,11 +59,18 @@ class AgentCreateRequest(BaseModel):
             raise ValueError("Locale must contain only alphanumeric subtags")
         return normalized
 
+    @field_validator("color")
+    @classmethod
+    def normalize_color(cls, value: str) -> str:
+        return value.upper()
+
 
 class AgentUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = Field(default=None, min_length=1, max_length=160)
+    icon: AgentIcon | None = None
+    color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     greeting: str | None = Field(default=None, max_length=2_000)
     safe_instructions: str | None = Field(default=None, max_length=10_000)
     default_locale: str | None = Field(default=None, min_length=2, max_length=16)
@@ -81,6 +102,11 @@ class AgentUpdateRequest(BaseModel):
             raise ValueError("Locale must contain only alphanumeric subtags")
         return normalized
 
+    @field_validator("color")
+    @classmethod
+    def normalize_color(cls, value: str | None) -> str | None:
+        return value.upper() if value is not None else None
+
 
 class AgentCatalogScopeRequest(BaseModel):
     """Null selects every active entity; an empty list explicitly selects none."""
@@ -108,6 +134,8 @@ class AgentCatalogScopeResponse(BaseModel):
 class AgentResponse(BaseModel):
     public_id: UUID
     name: str
+    icon: AgentIcon
+    color: str
     greeting: str | None
     safe_instructions: str | None
     default_locale: str

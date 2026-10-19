@@ -18,6 +18,8 @@ const workspaceId = "01992f3c-4436-7000-8000-000000000001";
 const agent: Agent = {
   public_id: "01992f3c-4436-7000-8000-000000000010",
   name: "Trợ lý thời trang",
+  icon: "message-circle",
+  color: "#0E8A8C",
   greeting: null,
   safe_instructions: "Trả lời ngắn gọn.",
   default_locale: "vi",
