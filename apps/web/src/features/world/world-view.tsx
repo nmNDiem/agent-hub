@@ -24,6 +24,12 @@ function channelIcon(provider: "web" | "facebook" | "zalo"): ReactNode {
   return <MessageCircle size={13} />;
 }
 
+function channelLabel(provider: "web" | "facebook" | "zalo"): string {
+  if (provider === "web") return "Website";
+  if (provider === "facebook") return "Facebook";
+  return "Zalo";
+}
+
 function channelState(channel: OverviewAgent["channels"]["web"]["items"][number]): WorldSelectionState {
   if (!channel.enabled || channel.lifecycle_state === "revoked") return "disabled";
   return ["unknown", "healthy"].includes(channel.health_state) ? "normal" : "error";
@@ -79,9 +85,8 @@ function BusinessRail({ activeAgentId, agents, workspaceSlug }: {
   </aside>;
 }
 
-function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
+function AgentUnit({ agent, onHover, onSelect, overview, selectedId }: {
   agent: OverviewAgent;
-  dimmed: boolean;
   onHover: (agentId?: string) => void;
   onSelect: (selection: WorldSelection) => void;
   overview: WorkspaceOverview;
@@ -110,7 +115,7 @@ function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
   });
 
   return <article
-    className={`world-agent-unit state-${primary.state}${dimmed ? " is-muted" : ""}`}
+    className={`world-agent-unit state-${primary.state}`}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onHover(undefined); }}
     onFocus={() => onHover(agent.public_id)}
     onMouseEnter={() => onHover(agent.public_id)}
@@ -127,20 +132,23 @@ function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
           state,
           route: `/app/${encodeURIComponent(overview.workspace_slug)}/chatbots?agent=${encodeURIComponent(agent.public_id)}&view=channels`,
         });
-        return <button className={state === "error" || state === "disabled" ? "has-error" : ""} key={`${channel.provider}:${channel.id}`} onClick={() => onSelect(selection)} type="button">{channelIcon(channel.provider)}<span>{channel.display_name}</span></button>;
+        return <button aria-label={`${channelLabel(channel.provider)}: ${channel.display_name}`} className={state === "error" || state === "disabled" ? "has-error" : ""} key={`${channel.provider}:${channel.id}`} onClick={() => onSelect(selection)} title={channel.display_name} type="button">{channelIcon(channel.provider)}<span>{channel.display_name}</span></button>;
       })}
     </div>
     <button className={`world-knowledge-bubble state-${knowledge.state}`} onClick={() => onSelect(knowledge)} type="button"><BookOpen aria-hidden="true" size={14} /><span>{agent.knowledge.total > 0 ? `${agent.knowledge.total} nguồn` : "Chưa có tri thức"}</span></button>
     <button aria-label={`${agent.name}, ${lifecycleLabel(agent)}`} aria-pressed={selectedId === primary.id} className="world-agent-core" onClick={() => onSelect(primary)} type="button">
       <span className="world-conversation-ring" style={conversationRing(agent)}><span className="world-core-mark" /></span>
-      <span className="world-agent-identity"><strong>{agent.name}</strong><small>{lifecycleLabel(agent)}</small></span>
+      <span className="world-agent-identity">
+        <strong>{agent.name}</strong>
+        <small>{lifecycleLabel(agent)}</small>
+        <span className="world-agent-activity">
+          <span>{agent.conversations.total} hội thoại · {agent.conversations.pending} chờ</span>
+          {agent.conversations.human_handling > 0 && <em className="world-agent-handoff">{agent.conversations.human_handling} cần người</em>}
+        </span>
+      </span>
     </button>
-    <div className="world-agent-activity">
-      <span><strong>{agent.conversations.total}</strong> hội thoại · {agent.conversations.pending} chờ</span>
-      {agent.conversations.human_handling > 0 && <em className="world-agent-handoff">{agent.conversations.human_handling} cần người</em>}
-    </div>
     <div className="world-agent-scope">
-      {agent.catalog_scope.available ? <><button onClick={() => onSelect(catalog)} type="button">Catalog · {scopeLabel(agent.catalog_scope.collections)} bộ sưu tập</button><button onClick={() => onSelect(catalog)} type="button">{scopeLabel(agent.catalog_scope.locations)} địa điểm</button></> : <span>Không dùng dữ liệu kinh doanh</span>}
+      {agent.catalog_scope.available ? <><button onClick={() => onSelect(catalog)} type="button"><Boxes aria-hidden="true" size={12} />{scopeLabel(agent.catalog_scope.collections)} bộ sưu tập</button><button onClick={() => onSelect(catalog)} type="button"><MapPin aria-hidden="true" size={12} />{scopeLabel(agent.catalog_scope.locations)} địa điểm</button></> : <span>Không dùng dữ liệu kinh doanh</span>}
     </div>
   </article>;
 }
@@ -160,7 +168,6 @@ export function WorldView({ onSelect, overview, selectedId }: {
       <div className="world-agent-grid">
         {overview.agents.map((agent) => <AgentUnit
           agent={agent}
-          dimmed={Boolean(activeAgentId && activeAgentId !== agent.public_id)}
           key={agent.public_id}
           onHover={setHoveredAgentId}
           onSelect={onSelect}

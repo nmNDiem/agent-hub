@@ -65,7 +65,15 @@ const overview = {
     active_revision: { id: 1, revision_no: 1, published_at: "2026-10-16T00:00:00Z" },
     knowledge: { total: 1, truncated: false, items: [{ id: 3, name: "Policy", kind: "policy", state: "ready" }] },
     channels: {
-      web: { total: 0, truncated: false, items: [] },
+      web: { total: 1, truncated: false, items: [{
+        id: 7,
+        provider: "web",
+        display_name: "Website Mộc & Mây",
+        lifecycle_state: "active",
+        health_state: "healthy",
+        enabled: true,
+        active_revision_id: 1,
+      }] },
       facebook: { total: 0, truncated: false, items: [] },
       zalo: { total: 0, truncated: false, items: [] },
     },
@@ -101,6 +109,8 @@ describe("WorkspaceOverview", () => {
     const agentButton = await screen.findByRole("button", { name: /Support Agent/ });
     expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
     expect(screen.getByRole("button", { name: "1 nguồn" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Website: Website Mộc & Mây" })).toHaveTextContent("Website Mộc & Mây");
+    expect(screen.getByText("9 hội thoại · 1 chờ")).toBeInTheDocument();
     expect(screen.getByText("1 cần người")).toHaveClass("world-agent-handoff");
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
@@ -134,35 +144,46 @@ describe("WorkspaceOverview", () => {
   });
 
   it("shows the business rail only from authorized Catalog scope", async () => {
+    const scopedAgent = {
+      ...overview.agents[0],
+      catalog_scope: {
+        available: true,
+        collections: {
+          total: 1,
+          truncated: false,
+          all_accessible: false,
+          items: [{ id: 11, name: "Liệu trình" }],
+        },
+        locations: {
+          total: 1,
+          truncated: false,
+          all_accessible: false,
+          items: [{ id: 22, name: "Quận 7" }],
+        },
+      },
+    };
     mocks.getWorkspaceOverview.mockResolvedValue({
       ...overview,
       capabilities: { catalog: { available: true, can_setup: false } },
-      agents: [{
+      agents: [scopedAgent, {
         ...overview.agents[0],
-        catalog_scope: {
-          available: true,
-          collections: {
-            total: 1,
-            truncated: false,
-            all_accessible: false,
-            items: [{ id: 11, name: "Liệu trình" }],
-          },
-          locations: {
-            total: 1,
-            truncated: false,
-            all_accessible: false,
-            items: [{ id: 22, name: "Quận 7" }],
-          },
-        },
+        public_id: "01992f3c-4436-7000-8000-000000000011",
+        name: "Sales Agent",
       }],
     });
 
     render(<WorkspaceOverview />);
 
     expect(await screen.findByRole("complementary", { name: "Dữ liệu kinh doanh" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1 đã chọn bộ sưu tập" }).querySelector("svg")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1 đã chọn địa điểm" }).querySelector("svg")).toBeInTheDocument();
     expect(screen.getByText("Liệu trình")).toBeInTheDocument();
     expect(screen.getByText("Quận 7")).toBeInTheDocument();
     expect(screen.queryByText(/đơn hàng/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/lịch hẹn/i)).not.toBeInTheDocument();
+
+    const agentUnits = document.querySelectorAll(".world-agent-unit");
+    fireEvent.mouseEnter(agentUnits[0]);
+    expect(agentUnits[1]).not.toHaveClass("is-muted");
   });
 });
