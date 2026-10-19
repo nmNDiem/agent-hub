@@ -100,6 +100,7 @@ describe("WorkspaceOverview", () => {
 
     const agentButton = await screen.findByRole("button", { name: /Support Agent/ });
     expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
+    expect(screen.getByRole("button", { name: "1 nguồn" })).toBeInTheDocument();
     expect(screen.getByText("1 cần người")).toHaveClass("world-agent-handoff");
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();

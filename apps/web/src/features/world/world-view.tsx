@@ -130,7 +130,7 @@ function AgentUnit({ agent, dimmed, onHover, onSelect, overview, selectedId }: {
         return <button className={state === "error" || state === "disabled" ? "has-error" : ""} key={`${channel.provider}:${channel.id}`} onClick={() => onSelect(selection)} type="button">{channelIcon(channel.provider)}<span>{channel.display_name}</span></button>;
       })}
     </div>
-    <button className={`world-knowledge-bubble state-${knowledge.state}`} onClick={() => onSelect(knowledge)} type="button"><BookOpen aria-hidden="true" size={14} /><span>{agent.knowledge.total > 0 ? `${agent.knowledge.total} nguồn tri thức` : "Chưa có tri thức"}</span></button>
+    <button className={`world-knowledge-bubble state-${knowledge.state}`} onClick={() => onSelect(knowledge)} type="button"><BookOpen aria-hidden="true" size={14} /><span>{agent.knowledge.total > 0 ? `${agent.knowledge.total} nguồn` : "Chưa có tri thức"}</span></button>
     <button aria-label={`${agent.name}, ${lifecycleLabel(agent)}`} aria-pressed={selectedId === primary.id} className="world-agent-core" onClick={() => onSelect(primary)} type="button">
       <span className="world-conversation-ring" style={conversationRing(agent)}><span className="world-core-mark" /></span>
       <span className="world-agent-identity"><strong>{agent.name}</strong><small>{lifecycleLabel(agent)}</small></span>
