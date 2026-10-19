@@ -1,109 +1,72 @@
 # AgentHub World — Acceptance Criteria
 
-Status: **APPROVED DIRECTION.** These criteria apply to an approved World implementation task; they do not describe current product behavior.
+Status: **CURRENT — aligned with Phase 3.2.1 system-first workspace interface.**
 
-The first World prototype is accepted only when all mandatory criteria below are met.
+These criteria apply to the static responsive World delivered by Phase 3.2.1. They supersede the earlier canvas prototype criteria for projections, pan, zoom, camera focus and semantic zoom.
 
 ## 1. Information architecture
 
-- [ ] Default screen communicates workspace structure without requiring a KPI dashboard.
-- [ ] Every visible object belongs to the documented domain grammar.
-- [ ] Every visible edge has a meaningful relationship defined in the current projection.
-- [ ] The screen has one clear primary question.
-- [ ] The same fact is not duplicated across canvas, toolbar and inspector.
-- [ ] Healthy state remains visually quiet.
-- [ ] Exceptional state receives stronger emphasis than normal state.
+- [x] The default screen communicates workspace structure without requiring a KPI dashboard.
+- [x] Every visible object belongs to the documented domain grammar and every visible relationship has a product meaning.
+- [x] The same fact is not duplicated across World, the system header and the inspector.
+- [x] Healthy state remains visually quiet; exceptional state receives stronger emphasis.
+- [x] World begins directly below the global header without a duplicate page hero or shallow filter toolbar.
 
 ## 2. Structural model
 
-Using `fixtures/world-demo.ts` as the Commerce-enabled scenario:
+- [x] Agents are the primary system units.
+- [x] Assigned Knowledge, enabled Channels and aggregate conversation activity remain attributable to an Agent.
+- [x] Conversation activity is aggregated; individual conversations are not rendered as World objects.
+- [x] A Knowledge-only workspace renders coherently without Commerce controls or placeholders.
+- [x] A Commerce-enabled workspace renders only server-authorized Catalog, collection and location scope.
+- [x] Optional Commerce setup is explicit without presenting Commerce as a core requirement.
 
-- [ ] Sales Agent is shown as a primary cluster anchor.
-- [ ] Website, Facebook and Zalo are shown as channel gateways connected to Sales Agent.
-- [ ] Product Knowledge and Policy Knowledge are shown as knowledge assigned to Sales Agent.
-- [ ] Catalog scope exposes Women collection and HCM Q1 / HCM Q7 locations at the appropriate semantic level.
-- [ ] Support Agent exists as a second cluster and remains spatially distinguishable.
-- [ ] Conversation activity is aggregated; 184 actual conversation nodes are not rendered.
-- [ ] A knowledge-only scenario renders coherently with no Catalog, Inventory, Orders or Customers controls/nodes.
-- [ ] An absent capability leaves no empty projection or placeholder.
+## 3. Navigation
 
-## 3. Navigation and projections
+- [x] World is the workspace home and is not duplicated as a navigation tab.
+- [x] Inbox is directly reachable from the system header.
+- [x] Other authorized focused workflows are reachable through the contextual launcher or World relationships.
+- [x] Catalog, Locations and Collections launcher entries appear only when the capability exists.
+- [x] Focused screens provide a clear return to the system and existing deep links remain compatible.
 
-- [ ] Global navigation does not duplicate World projections as redundant routes.
-- [ ] World includes relevant core projections; Catalog and Customers controls appear only when their capabilities exist.
-- [ ] System is the default projection.
-- [ ] Switching projections changes visibility/emphasis, not just color.
-- [ ] Projection switching preserves context where practical.
+## 4. Responsive layout
 
-## 4. Pan, zoom and semantic zoom
+- [x] One semantic DOM hierarchy is used at every viewport; there is no separate mobile renderer.
+- [x] Agent units flow through CSS Grid without authored coordinates.
+- [x] The number of Agent columns follows available width.
+- [x] The optional business-data rail moves below the Agent field when horizontal space is insufficient.
+- [x] The layout remains usable at 1440, 1024, 768, 390 and 320 pixels without horizontal page overflow.
+- [x] No camera, pan, zoom, fit or projection controls are present.
 
-- [ ] Canvas pans smoothly.
-- [ ] Canvas zooms smoothly.
-- [ ] Minimum and maximum zoom are bounded.
-- [ ] Semantic Level A hides secondary detail.
-- [ ] Semantic Level B shows primary structure.
-- [ ] Semantic Level C reveals agent composition.
-- [ ] Zooming does not merely scale all labels and objects uniformly.
+## 5. Selection and inspector
 
-## 5. Selection and focus
+- [x] Selecting or focusing an Agent emphasizes only its meaningful relationships without reordering the layout.
+- [x] Selection opens an overlay DOM inspector and does not resize the World layout.
+- [x] The inspector shows only relevant detail and routes configuration work to the owning focused screen.
+- [x] Escape and the close control dismiss the inspector and return focus to the invoking control.
+- [x] Keyboard focus remains within the modal inspector while it is open.
 
-- [ ] Selecting an agent emphasizes only meaningful direct relationships.
-- [ ] Selection does not globally scramble the layout.
-- [ ] Selecting an object opens a contextual DOM inspector when appropriate.
-- [ ] Clicking empty canvas clears selection.
-- [ ] Focusing an agent animates camera toward its cluster.
-- [ ] Escape/back returns to prior context.
+## 6. Visual grammar and state
 
-## 6. Inspector
+- [x] Agent, Knowledge, Channel, Catalog, collection and location use stable distinguishable forms.
+- [x] Agent representation does not use employee avatars, 3D perspective, rotate/flip effects or decorative game treatment.
+- [x] Capability absence, empty data, degraded dependencies and authorization remain distinct states.
+- [x] Essential state is communicated with text or semantics in addition to color.
+- [x] Motion is limited to interaction/state feedback and respects `prefers-reduced-motion`.
 
-- [ ] Inspector is React DOM, not rendered inside Pixi.
-- [ ] Inspector does not repeat facts already owned by the canvas unless decomposing them.
-- [ ] Inspector does not contain empty generic sections.
-- [ ] Agent inspector exposes runtime breakdown only when agent is selected.
-- [ ] Configuration actions are placed in inspector/detail surface, not floating randomly on canvas.
+## 7. Performance and accessibility
 
-## 7. Visual grammar
+- [x] No layout simulation or continuous animation runs in the background.
+- [x] World uses semantic HTML controls with visible focus treatment and accessible names.
+- [x] The inspector is exposed as a labelled modal dialog and is keyboard operable.
+- [x] Loading, empty, degraded and error states remain understandable to assistive technology.
+- [x] The system remains understandable without opening the inspector first.
 
-- [ ] Agent, knowledge, channel, catalog, collection and location are visually distinguishable by stable grammar.
-- [ ] Shapes/icons are reused consistently across the product.
-- [ ] No employee avatar representation for agents.
-- [ ] No 3D perspective.
-- [ ] No rotate/flip effects.
-- [ ] No card wall.
-- [ ] No permanent rainbow/neon treatment on every node/edge.
+## 8. Anti-slop gate
 
-## 8. Activity
+- [x] Every visible object, relationship and metric has a clear product reason to exist.
+- [x] No removable repeated metric or decorative-only panel remains.
+- [x] No fabricated product, person, activity, provider-health or business data is shown.
+- [x] World remains a read projection of authoritative server state.
 
-- [ ] Runtime activity is represented as aggregate state and/or capped particles.
-- [ ] Ambient activity can be disabled via reduced motion.
-- [ ] Activity effects do not obscure structural relationships.
-- [ ] One degraded/error example is visible and clearly tied to the affected object.
-
-## 9. Performance
-
-- [ ] No force simulation runs continuously after layout settles.
-- [ ] Camera movement does not trigger full React application re-render.
-- [ ] Prototype remains smooth with the canonical fixture.
-- [ ] Layout positions are cached/stabilized.
-
-## 10. Accessibility
-
-- [ ] Projection controls are native DOM controls.
-- [ ] Inspector is keyboard reachable.
-- [ ] Selected object identity/state is exposed accessibly.
-- [ ] Essential state is not conveyed by color alone.
-- [ ] `prefers-reduced-motion` is honored.
-
-## 11. Anti-slop gate
-
-Before merge, reviewer must confirm all statements:
-
-- [ ] Every visible object has a clear product reason to exist.
-- [ ] Every visible edge has a clear relationship reason to exist.
-- [ ] No removable repeated metric remains on the screen.
-- [ ] No element exists only to make the UI look more professional.
-- [ ] No decorative animation remains when removing it would improve clarity.
-- [ ] The canvas still makes sense when all ambient animation is disabled.
-- [ ] The page remains understandable without reading the inspector first.
-
-Any unchecked item fails the UI review.
+Any unchecked applicable item fails the Phase 3.2.1 UI review.

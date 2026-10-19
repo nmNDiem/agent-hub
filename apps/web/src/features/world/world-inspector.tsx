@@ -2,6 +2,7 @@
 
 import { ArrowRight, BookOpen, Boxes, MessageSquareText, Radio, TestTube2, X } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useId, useRef } from "react";
 
 import type { OverviewAttentionReason, WorkspaceOverview } from "@/lib/api";
 import type { WorldSelection } from "./world-selection";
@@ -24,15 +25,56 @@ export function WorldInspector({
   overview: WorkspaceOverview;
   onClose: () => void;
 }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
+  const labelId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    closeButtonRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = inspectorRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, []);
+
   if (!node) return null;
   const agent = overview.agents.find((item) => item.public_id === node.agentPublicId);
   if (!agent) return null;
   const base = `/app/${encodeURIComponent(overview.workspace_slug)}`;
 
-  return <aside aria-label={`Chi tiết ${node.label}`} className="world-inspector">
+  return <aside aria-labelledby={labelId} aria-modal="true" className="world-inspector" ref={inspectorRef} role="dialog">
     <header>
-      <div><p>{node.kind === "agent" ? "Agent" : node.subtitle ?? node.kind}</p><h2>{node.label}</h2></div>
-      <button aria-label="Đóng bảng chi tiết" onClick={onClose} type="button"><X size={18} /></button>
+      <div><p>{node.kind === "agent" ? "Agent" : node.subtitle ?? node.kind}</p><h2 id={labelId}>{node.label}</h2></div>
+      <button aria-label="Đóng bảng chi tiết" onClick={onClose} ref={closeButtonRef} type="button"><X size={18} /></button>
     </header>
     {node.kind === "agent" && <>
       {agent.attention_reasons.length > 0 && <section className="inspector-attention">

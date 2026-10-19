@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceOverview as WorkspaceOverviewData } from "@/lib/api";
@@ -111,9 +111,23 @@ describe("WorkspaceOverview", () => {
   it("opens the Agent inspector", async () => {
     render(<WorkspaceOverview />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /Support Agent/ }));
-    expect(screen.getByRole("complementary", { name: "Chi tiết Support Agent" })).toBeInTheDocument();
+    const agentButton = await screen.findByRole("button", { name: /Support Agent/ });
+    agentButton.focus();
+    fireEvent.click(agentButton);
+    const inspector = screen.getByRole("dialog", { name: "Support Agent" });
+    expect(inspector).toBeInTheDocument();
+    const closeButton = within(inspector).getByRole("button", { name: "Đóng bảng chi tiết" });
+    expect(closeButton).toHaveFocus();
     expect(screen.getByRole("link", { name: /Kiểm thử/ })).toBeInTheDocument();
+
+    const inspectorLinks = within(inspector).getAllByRole("link");
+    inspectorLinks[inspectorLinks.length - 1].focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Support Agent" })).not.toBeInTheDocument();
+    expect(agentButton).toHaveFocus();
   });
 
   it("shows the business rail only from authorized Catalog scope", async () => {
