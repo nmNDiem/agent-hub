@@ -46,14 +46,15 @@ function ActivityChart({ report }: { report: OperationalAnalytics }) {
     ),
     [report.activity],
   );
+  const labelStep = report.activity.length > 14 ? 5 : report.activity.length > 7 ? 2 : 1;
   return <>
     <div aria-hidden="true" className="analytics-bars">
-      {report.activity.map((item) => <div className="analytics-bar-day" key={item.date}>
+      {report.activity.map((item, index) => <div className="analytics-bar-day" key={item.date}>
         <div className="analytics-bar-pair">
           <i className="analytics-bar-inbound" style={{ height: `${Math.max((item.inbound_messages / maximum) * 100, item.inbound_messages ? 4 : 0)}%` }} />
           <i className="analytics-bar-reply" style={{ height: `${Math.max((item.completed_replies / maximum) * 100, item.completed_replies ? 4 : 0)}%` }} />
         </div>
-        <small>{item.date.slice(5)}</small>
+        <small>{index % labelStep === 0 || index === report.activity.length - 1 ? item.date.slice(5) : ""}</small>
       </div>)}
     </div>
     <div aria-hidden="true" className="analytics-legend">

@@ -120,6 +120,31 @@ describe("AnalyticsPage", () => {
     expect(screen.getAllByText("Chưa có dữ liệu")).toHaveLength(2);
   });
 
+  it("keeps long activity ranges readable without shrinking every date label", async () => {
+    const activity = Array.from({ length: 30 }, (_, index) => ({
+      date: `2026-10-${String(index + 1).padStart(2, "0")}`,
+      conversations: index + 1,
+      inbound_messages: index + 2,
+      completed_replies: index + 1,
+    }));
+    mocks.getAnalytics.mockResolvedValue({ ...report, days: 30, activity });
+
+    render(<AnalyticsPage />);
+
+    await screen.findByText("10-01");
+    const labels = [...document.querySelectorAll<HTMLElement>(".analytics-bar-day small")];
+    expect(labels).toHaveLength(30);
+    expect(labels.filter((label) => label.textContent).map((label) => label.textContent)).toEqual([
+      "10-01",
+      "10-06",
+      "10-11",
+      "10-16",
+      "10-21",
+      "10-26",
+      "10-30",
+    ]);
+  });
+
   it("shows forbidden without requesting analytics for a member", async () => {
     mocks.getMe.mockResolvedValue(me("member"));
     render(<AnalyticsPage />);
