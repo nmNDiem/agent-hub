@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import type { WorkspaceOverview } from "@/lib/api";
-import { AgentGlyph, agentGlyphColor } from "@/features/agents/agent-appearance";
+import { AGENT_GLYPH_COLOR, AgentGlyph } from "@/features/agents/agent-appearance";
 
 import { agentSelection, relatedSelection, type WorldSelection, type WorldSelectionState } from "./world-selection";
 
@@ -141,7 +141,7 @@ function AgentUnit({ agent, onHover, onSelect, overview, selectedId }: {
       <span className="world-conversation-ring" style={conversationRing(agent)}>
         <span
           className="world-core-mark"
-          style={{ backgroundColor: agent.color, color: agentGlyphColor(agent.color) }}
+          style={{ backgroundColor: agent.color, color: AGENT_GLYPH_COLOR }}
         >
           <AgentGlyph icon={agent.icon} size={25} />
         </span>

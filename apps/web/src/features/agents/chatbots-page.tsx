@@ -18,9 +18,9 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { FeedbackBanner } from "@/components/feedback-banner";
 import {
+  AGENT_GLYPH_COLOR,
   AGENT_ICON_OPTIONS,
   AgentGlyph,
-  agentGlyphColor,
 } from "@/features/agents/agent-appearance";
 import { ChatbotPlayground } from "@/features/agents/chatbot-playground";
 import { FacebookChannelPanel } from "@/features/agents/facebook-channel-panel";
@@ -350,7 +350,7 @@ export function ChatbotsPage() {
               className="agent-avatar"
               style={{
                 backgroundColor: selectedDraft?.color ?? selectedAgent.color,
-                color: agentGlyphColor(selectedDraft?.color ?? selectedAgent.color),
+                color: AGENT_GLYPH_COLOR,
               }}
             >
               <AgentGlyph icon={selectedDraft?.icon ?? selectedAgent.icon} size={19} />
@@ -394,7 +394,7 @@ export function ChatbotsPage() {
                           <span className="agent-color-control">
                             <input aria-label="Màu lõi Agent" onChange={(event) => updateDraft({ color: event.target.value.toUpperCase() })} type="color" value={draft.color} />
                             <code>{draft.color}</code>
-                            <i aria-hidden="true" style={{ backgroundColor: draft.color, color: agentGlyphColor(draft.color) }}><AgentGlyph icon={draft.icon} size={20} /></i>
+                            <i aria-hidden="true" style={{ backgroundColor: draft.color, color: AGENT_GLYPH_COLOR }}><AgentGlyph icon={draft.icon} size={20} /></i>
                           </span>
                         </label>
                       </div>

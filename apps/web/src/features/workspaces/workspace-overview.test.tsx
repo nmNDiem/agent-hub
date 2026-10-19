@@ -112,6 +112,7 @@ describe("WorkspaceOverview", () => {
     expect(agentButton.closest(".world-agent-unit")).toHaveClass("state-active");
     expect(agentButton.querySelector(".world-core-mark")).toHaveStyle({
       backgroundColor: "#2F5BEA",
+      color: "#FFFFFF",
     });
     expect(agentButton.querySelector(".world-core-mark svg")).toHaveClass("lucide-headphones");
     expect(screen.getByRole("button", { name: "1 nguồn" })).toBeInTheDocument();
