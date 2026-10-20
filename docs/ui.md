@@ -42,6 +42,8 @@ Principles:
 - Avoid “AI slop”: decorative gradients, excessive cards, meaningless activity, faux intelligence, and motion without information.
 - Preserve user input and partial streamed output on recoverable errors.
 - Present capabilities in user language such as “can schedule an appointment”; do not require users to understand form engines, function schemas or capability registries.
+- Keep structured customer workflows conversational. Customers answer in ordinary language; the Agent carries context forward, may understand several configured values from one reply and asks only for information that is missing or materially ambiguous. Never expose field keys/JSON, force a rigid one-question-per-field sequence or repeat questions for information already supplied.
+- Aim for the fluency, context awareness and initiative of capable staff without deceptive human impersonation. The Agent need not repeatedly announce automation, but it must not invent a human identity, falsely claim to be human or evade a direct identity question; use honest disclosure where required and human handover when ambiguity cannot be resolved safely.
 - Keep one visual owner for each fact. A relationship, count or status already clear in the World is linked rather than repeated in a filler card on the same view.
 - Make publish meaningful: expose real draft/published/paused state and derived blocking readiness facts without inventing completion or connection state.
 - Provide minimum guidance now through useful empty states, next-step suggestions, inline explanations, validation and actionable errors. Full guided onboarding remains a later phase.

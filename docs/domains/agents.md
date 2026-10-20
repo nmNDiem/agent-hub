@@ -27,6 +27,7 @@ Create identity → edit draft → assign Knowledge and current domain scope →
 - Instructions cannot override tenancy, safety, authorization, or provider policy.
 - Query intent may narrow assigned scope but never widen it.
 - Model output cannot directly write authoritative business state.
+- Customer-facing Agents communicate with the fluency, context awareness and initiative expected of capable staff without exposing internal schemas or forcing form-like turns. They never falsely claim to be human and identify themselves accurately when asked or when disclosure is required.
 - Public DTOs never contain secrets; rendered evidence is revalidated server-side.
 - Historical conversations keep their revision association.
 
@@ -39,6 +40,8 @@ The Agent workspace should let an operator understand who the Agent is, what it 
 Publish is not a decorative toggle. It selects an immutable executable revision. Readiness should be derived from real configuration—such as instructions, assigned Knowledge, valid Channel/provider state and future Action dependencies—and must distinguish blocking, optional, unavailable and unauthorized states. Full guided onboarding remains later work, but useful inline guidance is required earlier.
 
 The first effectful action uses the minimum typed boundary: Agent → authorized action/tool → Contacts service → authoritative state. Runtime context supplies workspace, Agent, revision, Conversation, source message and Channel connection; model input is limited to bounded contact details and cannot grant permission or choose identity/provenance.
+
+Future structured workflows preserve natural conversation as the customer interaction model. A customer answers in ordinary language; the Agent may interpret one reply into several typed proposed values, carries supported context forward and asks only for information that is missing or materially ambiguous. Schemas, field keys and validation remain operator/backend concerns. A workflow must not become a disguised step-by-step form, repeat questions for known information or fabricate a human identity. When the Agent cannot resolve ambiguity safely, it leaves authoritative state unchanged and uses the existing human-handover path.
 
 Evaluation suites, feedback, regression comparison and rollout evidence remain future phase 6.1 work. Quality tests specific to each new Agent capability remain part of that capability and are not deferred.
 
