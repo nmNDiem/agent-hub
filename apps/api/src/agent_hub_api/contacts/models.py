@@ -188,15 +188,168 @@ class FollowUpActionExecution(Base):
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
     action_id: Mapped[UUID] = mapped_column(unique=True)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
-    action_identifier: Mapped[str] = mapped_column(
-        String(64), default="contacts.follow_up.request"
-    )
+    action_identifier: Mapped[str] = mapped_column(String(64), default="contacts.follow_up.request")
     agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     revision_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     source_message_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
     contact_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
     lead_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(24), default="executing")
+    safe_outcome: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    safe_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    replay_count: Mapped[int] = mapped_column(Integer(), default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class IntakeSubmission(Base):
+    __tablename__ = "contact_intake_submissions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id"],
+            ["agents.workspace_id", "agents.id"],
+            name="fk_intake_submissions_workspace_agent",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id", "revision_id"],
+            ["agent_revisions.workspace_id", "agent_revisions.agent_id", "agent_revisions.id"],
+            name="fk_intake_submissions_workspace_revision",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_intake_submissions_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "source_message_id"],
+            ["conversation_messages.workspace_id", "conversation_messages.id"],
+            name="fk_intake_submissions_workspace_message",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["contacts.workspace_id", "contacts.id"],
+            name="fk_intake_submissions_workspace_contact",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "lead_id"],
+            ["leads.workspace_id", "leads.id"],
+            name="fk_intake_submissions_workspace_lead",
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_intake_submissions_workspace_id"),
+        UniqueConstraint("conversation_id", name="uq_intake_submissions_conversation"),
+        CheckConstraint("state = 'completed'", name="ck_intake_submissions_state"),
+        CheckConstraint(
+            "length(definition_hash) = 64", name="ck_intake_submissions_definition_hash"
+        ),
+        CheckConstraint("length(request_hash) = 64", name="ck_intake_submissions_request_hash"),
+        Index(
+            "ix_intake_submissions_workspace_lead",
+            "workspace_id",
+            "lead_id",
+            "submitted_at",
+        ),
+        Index("ix_intake_submissions_retention", "retention_until", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    public_id: Mapped[UUID] = mapped_column(unique=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    revision_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    source_message_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    contact_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    lead_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    purpose: Mapped[str] = mapped_column(String(240))
+    disclosure_version: Mapped[str] = mapped_column(String(64))
+    definition_hash: Mapped[str] = mapped_column(String(64))
+    definition_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
+    answers_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
+    request_hash: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(16), default="completed")
+    retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class IntakeActionExecution(Base):
+    __tablename__ = "intake_action_executions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id"],
+            ["agents.workspace_id", "agents.id"],
+            name="fk_intake_executions_workspace_agent",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id", "revision_id"],
+            ["agent_revisions.workspace_id", "agent_revisions.agent_id", "agent_revisions.id"],
+            name="fk_intake_executions_workspace_revision",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_intake_executions_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "source_message_id"],
+            ["conversation_messages.workspace_id", "conversation_messages.id"],
+            name="fk_intake_executions_workspace_message",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["contacts.workspace_id", "contacts.id"],
+            name="fk_intake_executions_workspace_contact",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "lead_id"],
+            ["leads.workspace_id", "leads.id"],
+            name="fk_intake_executions_workspace_lead",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "submission_id"],
+            ["contact_intake_submissions.workspace_id", "contact_intake_submissions.id"],
+            name="fk_intake_executions_workspace_submission",
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_intake_executions_workspace_id"),
+        UniqueConstraint("source_message_id", name="uq_intake_executions_source_message"),
+        UniqueConstraint(
+            "workspace_id", "idempotency_key", name="uq_intake_executions_idempotency"
+        ),
+        CheckConstraint(
+            "action_identifier = 'contacts.intake.submit'",
+            name="ck_intake_executions_action",
+        ),
+        CheckConstraint("length(request_hash) = 64", name="ck_intake_executions_hash"),
+        CheckConstraint(
+            "state IN ('executing','succeeded','failed_retryable','failed_terminal')",
+            name="ck_intake_executions_state",
+        ),
+        CheckConstraint("replay_count >= 0", name="ck_intake_executions_replay_count"),
+        Index(
+            "ix_intake_executions_workspace_conversation",
+            "workspace_id",
+            "conversation_id",
+            "created_at",
+        ),
+        Index("ix_intake_executions_retention", "retention_until", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    action_id: Mapped[UUID] = mapped_column(unique=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    action_identifier: Mapped[str] = mapped_column(String(64), default="contacts.intake.submit")
+    agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    revision_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    source_message_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    contact_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    lead_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    submission_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(128))
     request_hash: Mapped[str] = mapped_column(String(64))
     state: Mapped[str] = mapped_column(String(24), default="executing")

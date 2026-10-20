@@ -14,17 +14,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agent_hub_api.agents.models import Agent, AgentRevision
-from agent_hub_api.channels.models import (
-    ChannelAgentBinding,
-    ChannelConnection,
-    ChannelThreadMapping,
+from agent_hub_api.channels.models import ChannelAgentBinding, ChannelConnection
+from agent_hub_api.contacts.models import Contact, FollowUpActionExecution
+from agent_hub_api.contacts.reachability import (
+    ReachableContactValues,
+    resolve_reachable_contact,
 )
-from agent_hub_api.contacts.models import Contact, ContactIdentity, FollowUpActionExecution
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.identifiers import new_uuid_v7
 from agent_hub_api.leads.models import Lead
-from agent_hub_api.widget.models import WidgetDomain, WidgetSession
 
 FOLLOW_UP_ACTION_ID = "contacts.follow_up.request"
 _SOURCE_MESSAGE_MAX_AGE = timedelta(minutes=15)
@@ -269,9 +268,7 @@ class FollowUpActionService:
 
         lead = (
             await session.scalars(
-                select(Lead)
-                .where(Lead.conversation_id == conversation.id)
-                .with_for_update()
+                select(Lead).where(Lead.conversation_id == conversation.id).with_for_update()
             )
         ).one_or_none()
         if lead is not None:
@@ -293,9 +290,7 @@ class FollowUpActionService:
                 replayed=True,
             )
 
-        normalized_email = (
-            str(payload.email).casefold() if payload.email is not None else None
-        )
+        normalized_email = str(payload.email).casefold() if payload.email is not None else None
         lead = Lead(
             workspace_id=context.workspace_id,
             conversation_id=conversation.id,
@@ -337,149 +332,20 @@ class FollowUpActionService:
         payload: FollowUpActionInput,
         now: datetime,
     ) -> Contact | None:
-        retention_until = now + timedelta(days=self.settings.lead_retention_days)
-        if context.channel == "web":
-            if conversation.session_id is None:
-                return None
-            widget_session = await session.get(WidgetSession, conversation.session_id)
-            if (
-                widget_session is None
-                or widget_session.workspace_id != context.workspace_id
-                or widget_session.agent_id != context.agent_id
-                or widget_session.revision_id != context.revision_id
-                or widget_session.channel_id != context.channel_connection_id
-                or widget_session.revoked_at is not None
-                or _aware(widget_session.expires_at) <= now
-            ):
-                return None
-            allowed_origin = await session.scalar(
-                select(WidgetDomain.id).where(
-                    WidgetDomain.workspace_id == context.workspace_id,
-                    WidgetDomain.channel_id == context.channel_connection_id,
-                    WidgetDomain.normalized_origin == widget_session.normalized_origin,
-                )
-            )
-            if allowed_origin is None:
-                return None
-            contact = (
-                await session.get(Contact, conversation.contact_id, with_for_update=True)
-                if conversation.contact_id is not None
-                else None
-            )
-            if contact is None:
-                contact = Contact(
-                    public_id=new_uuid_v7(),
-                    workspace_id=context.workspace_id,
-                    display_name=payload.name,
-                    retention_until=retention_until,
-                )
-                session.add(contact)
-                await session.flush()
-                conversation.contact_id = contact.id
-            elif (
-                contact.workspace_id != context.workspace_id
-                or contact.lifecycle_state != "active"
-            ):
-                return None
-            elif payload.name is not None and contact.display_name is None:
-                contact.display_name = payload.name
-            await self._add_website_identities(session, contact, payload, retention_until, now)
-        else:
-            if (
-                connection.lifecycle_state != "active"
-                or connection.health_state != "healthy"
-                or conversation.contact_id is None
-            ):
-                return None
-            thread = (
-                await session.scalars(
-                    select(ChannelThreadMapping).where(
-                        ChannelThreadMapping.workspace_id == context.workspace_id,
-                        ChannelThreadMapping.connection_id == connection.id,
-                        ChannelThreadMapping.conversation_id == conversation.id,
-                    )
-                )
-            ).one_or_none()
-            window_hours = (
-                self.settings.zalo_response_window_hours
-                if context.channel == "zalo"
-                else self.settings.facebook_response_window_hours
-            )
-            if (
-                thread is None
-                or thread.automation_state != "opted_in"
-                or thread.last_inbound_at is None
-                or _aware(thread.last_inbound_at) < now - timedelta(hours=window_hours)
-            ):
-                return None
-            identity = await session.scalar(
-                select(ContactIdentity.id).where(
-                    ContactIdentity.workspace_id == context.workspace_id,
-                    ContactIdentity.contact_id == conversation.contact_id,
-                    ContactIdentity.connection_id == connection.id,
-                    ContactIdentity.provider == context.channel,
-                    ContactIdentity.identity_type == "channel",
-                    ContactIdentity.verification_state == "provider_asserted",
-                )
-            )
-            if identity is None:
-                return None
-            contact = await session.get(Contact, conversation.contact_id, with_for_update=True)
-            if (
-                contact is None
-                or contact.workspace_id != context.workspace_id
-                or contact.lifecycle_state != "active"
-            ):
-                return None
-            if payload.name is not None and contact.display_name is None:
-                contact.display_name = payload.name
-        if _aware(contact.retention_until) < retention_until:
-            contact.retention_until = retention_until
-        contact.updated_at = now
-        return contact
-
-    async def _add_website_identities(
-        self,
-        session: AsyncSession,
-        contact: Contact,
-        payload: FollowUpActionInput,
-        retention_until: datetime,
-        now: datetime,
-    ) -> None:
-        values = (
-            ("email", str(payload.email).casefold() if payload.email is not None else None),
-            ("phone", payload.phone),
+        return await resolve_reachable_contact(
+            session,
+            self.settings,
+            context,
+            conversation,
+            connection,
+            ReachableContactValues(
+                name=payload.name,
+                email=(str(payload.email).casefold() if payload.email is not None else None),
+                phone=payload.phone,
+            ),
+            website_consent_text_version="conversation-explicit-follow-up-v1",
+            now=now,
         )
-        for identity_type, value in values:
-            if value is None:
-                continue
-            identity = (
-                await session.scalars(
-                    select(ContactIdentity).where(
-                        ContactIdentity.workspace_id == contact.workspace_id,
-                        ContactIdentity.contact_id == contact.id,
-                        ContactIdentity.provider == "website",
-                        ContactIdentity.identity_type == identity_type,
-                        ContactIdentity.normalized_value == value,
-                    )
-                )
-            ).one_or_none()
-            if identity is None:
-                session.add(
-                    ContactIdentity(
-                        workspace_id=contact.workspace_id,
-                        contact_id=contact.id,
-                        provider="website",
-                        identity_type=identity_type,
-                        normalized_value=value,
-                        verification_state="consented",
-                        consent_at=now,
-                        consent_text_version="conversation-explicit-follow-up-v1",
-                        retention_until=retention_until,
-                    )
-                )
-            elif _aware(identity.retention_until) < retention_until:
-                identity.retention_until = retention_until
 
     @staticmethod
     def _compatible(lead: Lead, payload: FollowUpActionInput) -> bool:

@@ -56,6 +56,8 @@ const agent = {
   default_locale: "vi",
   status: "draft" as const,
   follow_up_action_enabled: false,
+  intake_action_enabled: false,
+  intake_definition: null,
   catalog_scope: { location_ids: null, collection_ids: null },
   created_at: "2026-09-30T00:00:00Z",
   updated_at: "2026-09-30T00:00:00Z",
@@ -175,6 +177,34 @@ describe("ChatbotsPage", () => {
       agent.public_id,
       [5],
     );
+  });
+
+  it("configures structured intake without presenting a customer form", async () => {
+    render(<ChatbotsPage />);
+    await screen.findByRole("combobox", { name: "Đổi Agent" });
+
+    fireEvent.click(screen.getByRole("checkbox", {
+      name: /Cho phép Agent ghi nhận thông tin có cấu trúc/,
+    }));
+    expect(screen.getByText(/Khách không phải điền biểu mẫu/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Mục đích sử dụng"), {
+      target: { value: "Tư vấn đúng nhu cầu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu cấu hình" }));
+
+    await waitFor(() => expect(mocks.updateAgent).toHaveBeenCalledWith(
+      workspace.id,
+      agent.public_id,
+      expect.objectContaining({
+        intake_action_enabled: true,
+        intake_definition: expect.objectContaining({
+          purpose: "Tư vấn đúng nhu cầu",
+          fields: expect.arrayContaining([
+            expect.objectContaining({ semantic: "email", required: true }),
+          ]),
+        }),
+      }),
+    ));
   });
 
   it("creates a ready-to-use chatbot from only its name", async () => {

@@ -8,13 +8,15 @@ A Contact is a workspace-level identity and customer-service relationship assemb
 
 - Website callback consent creates a contact identity and lead linked to trusted conversation/session ownership.
 - An explicit conversational follow-up request can create or reuse one Lead per Conversation through the Contacts-owned `contacts.follow_up.request` service. Website requires email or phone; Facebook/Zalo use the already verified, connection-scoped provider Contact identity without fabricated Website data.
+- A published Agent may finalize one complete immutable structured-intake submission per Conversation through `contacts.intake.submit`. The service validates stable keys and typed values against the revision snapshot; Website requires submitted email or phone and Facebook/Zalo reuse only verified provider identity.
+- Structured-intake Leads begin at human-owned `pending_review`. Owner/admin operators may version-safely choose `qualified` or `not_qualified` with actor/time attribution; model output and answers cannot set qualification.
 - Narrow action execution evidence records server-bound Agent revision, Conversation, source message, request hash, safe outcome/status and timing without copying messages, PII, provider IDs, prompts or raw tool arguments.
 - First verified Facebook/Zalo inbound creates a distinct connection-namespaced provider identity.
 - Search, cursor pagination, shared tags, assignment, role-aware detail, notes, conversation/lead history, and bounded CSV export.
 - Exact normalized email/phone duplicate suggestions plus owner/admin, reasoned, version-checked, auditable, reversible logical merge.
 - Purpose-based expiry of PII, identities, notes, tags, assignment, and merge reasons while content-free audit facts may remain.
 
-Main data: contacts, identities, leads, notes, shared tag links, contact audit events, and merge events. Main surfaces: Contacts and Inbox-to-contact navigation.
+Main data: contacts, identities, leads, finalized intake submissions, action-specific execution evidence, notes, shared tag links, contact audit events, and merge events. Main surfaces: Contacts, Leads and Inbox-to-contact navigation.
 
 ## Core flow
 

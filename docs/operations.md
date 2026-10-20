@@ -37,10 +37,11 @@ isolated development PostgreSQL/Storage/Qdrant resources; secrets remain server-
   asyncpg to Transaction Pooler port `6543` without separately validating prepared statements,
   transaction semantics and migration tooling.
 - Logs contain request ID, method, route template, status and duration only—never raw URL/query, headers, bodies, messages, images, tokens, object keys or PII.
-- Local retention: Website session/transcript 24 hours, unattached image 30 minutes, attached image one hour and Lead 30 days. Redacted follow-up execution evidence uses the shorter applicable Conversation/Lead expiry and is deleted before its referenced message/Lead.
+- Local retention: Website session/transcript 24 hours, unattached image 30 minutes, attached image one hour and Lead 30 days. Redacted follow-up/intake execution evidence and finalized intake answers use the shorter applicable Conversation/Lead expiry; cleanup deletes evidence before submission and owning message/Lead references.
 - Run a bounded idempotent cleanup pass with `pnpm ops:retention`. It revokes database access before Storage deletion; failed deletion remains retryable.
 - Knowledge ingestion exposes retryable, terminal, exhausted, lease-expired and projection-drift recovery states. Dashboard retry/rebuild actions retain actor, bounded reason and idempotency evidence; normal logs and metrics use IDs/codes/counts and never include source, query or chunk text.
 - Follow-up operations use safe IDs, action state, replay counts and bounded error codes only. They do not log customer messages, email/phone, provider identities, prompts or raw tool input. Privacy/compliance review of conversational disclosure and evidence is required before production enablement.
+- Intake operations follow the same safe telemetry rule: IDs, field counts, states and bounded codes only, never answer values or definition copy. Review allowed categories, purpose/disclosure copy, role access, export and retention before production enablement.
 
 PostgreSQL owns relational state, Supabase Storage owns uploaded objects and Qdrant is derived/rebuildable. Restore rehearsal uses synthetic data in an isolated non-production target.
 

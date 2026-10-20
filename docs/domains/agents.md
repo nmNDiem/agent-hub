@@ -10,6 +10,7 @@ An Agent is a workspace-owned operational actor: identity, instructions, assigne
 - Immutable published revisions, publish/pause/archive behavior, authenticated Playground, Website publication, and social-channel bindings.
 - A bounded OpenAI runtime with knowledge retrieval and capability-aware typed Catalog read tools.
 - An opt-in `contacts.follow_up.request` action for real published Website/Facebook/Zalo conversations. The permission is snapshotted into each immutable revision and rechecked on the live Agent so disable takes effect immediately; Playground never receives the effectful tool.
+- One optional, bounded structured-intake definition and the `contacts.intake.submit` action. Server-generated field/option keys, purpose, disclosure version and enablement are snapshotted into the immutable revision; the live Agent can disable execution immediately and Playground never receives the tool.
 - Owner/admin Knowledge diagnostics may resolve an Agent's current Knowledge assignment server-side but do not call the chat model, create conversations, publish revisions or change bindings.
 - Server-validated source/product evidence and usage accounting.
 - A bounded multi-Agent World projection with lifecycle, published revision, assigned Knowledge, Channel, Catalog scope, Conversation activity and safe attention summaries. The World links back to existing focused mutation surfaces.
@@ -41,7 +42,7 @@ Publish is not a decorative toggle. It selects an immutable executable revision.
 
 The first effectful action uses the minimum typed boundary: Agent → authorized action/tool → Contacts service → authoritative state. Runtime context supplies workspace, Agent, revision, Conversation, source message and Channel connection; model input is limited to bounded contact details and cannot grant permission or choose identity/provenance.
 
-Future structured workflows preserve natural conversation as the customer interaction model. A customer answers in ordinary language; the Agent may interpret one reply into several typed proposed values, carries supported context forward and asks only for information that is missing or materially ambiguous. Schemas, field keys and validation remain operator/backend concerns. A workflow must not become a disguised step-by-step form, repeat questions for known information or fabricate a human identity. When the Agent cannot resolve ambiguity safely, it leaves authoritative state unchanged and uses the existing human-handover path.
+Structured intake preserves natural conversation as the customer interaction model. A customer answers in ordinary language; the Agent may interpret one reply into several typed proposed values, carries supported context forward, asks only for information that is missing or materially ambiguous, summarizes naturally and submits only after clear acceptance. Schemas, field keys and validation remain operator/backend concerns. It must not become a disguised step-by-step form, repeat questions for known information or fabricate a human identity. When ambiguity cannot be resolved safely, it leaves authoritative state unchanged and uses the existing human-handover path.
 
 Evaluation suites, feedback, regression comparison and rollout evidence remain future phase 6.1 work. Quality tests specific to each new Agent capability remain part of that capability and are not deferred.
 

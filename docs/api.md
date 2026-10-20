@@ -81,6 +81,7 @@ Provider response windows, opt-out state, content limits and message classes are
 
 - Inbox endpoints provide stable-cursor lists/details, workspace members, per-member read state, assignment, handling mode, workflow status, notes/tags and idempotent human replies.
 - Contact endpoints provide scoped list/detail timeline, state/assignment, notes/tags, logical merge/reversal and bounded CSV export. Members remain limited to unassigned/self-assigned records; elevated operations require owner/admin.
+- Lead endpoints provide owner/admin lists and formula-safe export, `GET /leads/{lead_id}` for authorized intake answers, and version-checked `PATCH /leads/{lead_id}/qualification` for the human `qualified | not_qualified` decision. Conversation and Contact projections expose purpose/status only, not answer values.
 - Mutations require CSRF, role checks and optimistic conflict protection or appropriate row locking.
 - `GET /api/v1/workspaces/{workspace_id}/analytics` is owner/admin-only, supports bounded day/channel/Agent filters, returns its UTC period/workspace timezone and represents unavailable measures as `null`.
 - These responses contain no raw provider details, conversation content or contact PII beyond the authorized purpose.
@@ -94,7 +95,7 @@ Provider response windows, opt-out state, content limits and message classes are
 
 ## Domain actions
 
-The implemented `contacts.follow_up.request` action is an internal typed runtime contract, not a public arbitrary-tool endpoint. The server binds workspace, Agent/revision, Conversation, source message and Channel connection; the Contacts service independently revalidates them, hashes normalized bounded input, provides compatible replay, rejects conflicts and records redacted execution state in the same transaction as Contact/Lead mutation. Agent configuration DTOs expose `follow_up_action_enabled`, while Lead, Contact timeline and Conversation detail DTOs expose only safe provenance and outcome fields.
+The implemented `contacts.follow_up.request` and `contacts.intake.submit` actions are internal typed runtime contracts, not public arbitrary-tool endpoints. The server binds workspace, Agent/revision, Conversation, source message and Channel connection; the Contacts service independently revalidates them, hashes normalized bounded input, provides compatible replay, rejects conflicts and records redacted execution state in the same transaction as Contact/Lead/submission mutation. Agent configuration DTOs expose both permissions and the validated intake definition; only authorized Lead detail returns intake answers.
 
 Future effectful actions must keep the same owning-domain discipline and separately define authorization, approval where required, idempotency/concurrency, safe errors and reconciliation for ambiguous external effects.
 

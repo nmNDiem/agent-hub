@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -69,6 +70,12 @@ class Lead(Base):
             "followup_status IN ('new','contacted','closed')",
             name="ck_leads_followup_status",
         ),
+        CheckConstraint(
+            "qualification_status IS NULL OR qualification_status IN "
+            "('pending_review','qualified','not_qualified')",
+            name="ck_leads_qualification_status",
+        ),
+        CheckConstraint("qualification_version >= 0", name="ck_leads_qualification_version"),
         CheckConstraint("length(request_hash) = 64", name="ck_leads_request_hash"),
         Index(
             "ix_leads_workspace_status_created",
@@ -79,6 +86,13 @@ class Lead(Base):
         ),
         Index("ix_leads_retention", "retention_until", "id"),
         Index("ix_leads_workspace_contact", "workspace_id", "contact_id", "id"),
+        Index(
+            "ix_leads_workspace_qualification",
+            "workspace_id",
+            "qualification_status",
+            "created_at",
+            "id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -98,6 +112,15 @@ class Lead(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128))
     request_hash: Mapped[str] = mapped_column(String(64))
     followup_status: Mapped[str] = mapped_column(String(16), default="new")
+    qualification_status: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    qualification_version: Mapped[int] = mapped_column(Integer(), default=0)
+    qualification_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    qualification_updated_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    qualification_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import cast
@@ -19,6 +21,9 @@ from agent_hub_api.agents.schemas import (
     AgentResponse,
     AgentStatus,
     AgentUpdateRequest,
+    IntakeChoiceOption,
+    IntakeDefinition,
+    IntakeFieldDefinition,
 )
 from agent_hub_api.catalog.models import CatalogCollection, Location
 from agent_hub_api.catalog.read_models import AuthorizedCatalogScope
@@ -47,6 +52,53 @@ _DEFAULT_AGENT_COPY: dict[str, tuple[str, str]] = {
 def _default_agent_copy(locale: str) -> tuple[str, str]:
     language = locale.casefold().split("-", maxsplit=1)[0]
     return _DEFAULT_AGENT_COPY.get(language, _DEFAULT_AGENT_COPY["en"])
+
+
+def _stored_intake(value: dict[str, object] | None) -> IntakeDefinition | None:
+    return IntakeDefinition.model_validate(value) if value is not None else None
+
+
+def _materialize_intake(
+    definition: IntakeDefinition,
+    current: IntakeDefinition | None,
+) -> IntakeDefinition:
+    current_fields = (
+        {field.key: field for field in current.fields if field.key is not None}
+        if current is not None
+        else {}
+    )
+    fields: list[IntakeFieldDefinition] = []
+    for field in definition.fields:
+        if field.key is not None and field.key not in current_fields:
+            raise ValueError("Intake field keys are server-generated")
+        field_key = field.key or new_uuid_v7()
+        current_field = current_fields.get(field_key)
+        current_options = {
+            option.key: option
+            for option in (current_field.options if current_field is not None else [])
+            if option.key is not None
+        }
+        options: list[IntakeChoiceOption] = []
+        for option in field.options:
+            if option.key is not None and option.key not in current_options:
+                raise ValueError("Intake option keys are server-generated")
+            options.append(option.model_copy(update={"key": option.key or new_uuid_v7()}))
+        fields.append(field.model_copy(update={"key": field_key, "options": options}))
+    disclosure_canonical = json.dumps(
+        {"purpose": definition.purpose, "disclosure": definition.disclosure},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    disclosure_version = (
+        "intake-v1-" + hashlib.sha256(disclosure_canonical.encode()).hexdigest()[:16]
+    )
+    return IntakeDefinition(
+        purpose=definition.purpose,
+        disclosure=definition.disclosure,
+        disclosure_version=disclosure_version,
+        fields=fields,
+    )
 
 
 class AgentService:
@@ -89,6 +141,8 @@ class AgentService:
             default_locale=agent.default_locale,
             status=cast(AgentStatus, agent.status),
             follow_up_action_enabled=agent.follow_up_action_enabled,
+            intake_action_enabled=agent.intake_action_enabled,
+            intake_definition=_stored_intake(agent.intake_definition_json),
             catalog_scope=AgentCatalogScopeResponse(
                 location_ids=None if agent.all_locations else location_ids,
                 collection_ids=None if agent.all_collections else collection_ids,
@@ -124,16 +178,24 @@ class AgentService:
         self, user: User, workspace_id: UUID, payload: AgentCreateRequest
     ) -> AgentResponse:
         default_greeting, default_personality = _default_agent_copy(payload.default_locale)
-        greeting = (
-            payload.greeting
-            if "greeting" in payload.model_fields_set
-            else default_greeting
-        )
+        greeting = payload.greeting if "greeting" in payload.model_fields_set else default_greeting
         safe_instructions = (
             payload.safe_instructions
             if "safe_instructions" in payload.model_fields_set
             else default_personality
         )
+        try:
+            intake_definition = (
+                _materialize_intake(payload.intake_definition, None)
+                if payload.intake_definition is not None
+                else None
+            )
+        except ValueError as exc:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "INVALID_INTAKE_DEFINITION",
+                "Cấu hình thu thập thông tin không hợp lệ.",
+            ) from exc
         try:
             async with self.session.begin():
                 await self._authorize(user, workspace_id, write=True)
@@ -147,6 +209,12 @@ class AgentService:
                     safe_instructions=safe_instructions,
                     default_locale=payload.default_locale,
                     follow_up_action_enabled=payload.follow_up_action_enabled,
+                    intake_action_enabled=payload.intake_action_enabled,
+                    intake_definition_json=(
+                        intake_definition.model_dump(mode="json")
+                        if intake_definition is not None
+                        else None
+                    ),
                     created_by_user_id=user.id,
                 )
                 self.session.add(agent)
@@ -169,15 +237,50 @@ class AgentService:
         async with self.session.begin():
             await self._authorize(user, workspace_id, write=True)
             agent = await self._agent(workspace_id, public_id)
+            current_intake = _stored_intake(agent.intake_definition_json)
+            next_intake = current_intake
+            if "intake_definition" in payload.model_fields_set:
+                if payload.intake_definition is None:
+                    next_intake = None
+                else:
+                    try:
+                        next_intake = _materialize_intake(payload.intake_definition, current_intake)
+                    except ValueError as exc:
+                        raise ApiError(
+                            status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            "INVALID_INTAKE_DEFINITION",
+                            "Cấu hình thu thập thông tin không hợp lệ.",
+                        ) from exc
+            next_intake_enabled = (
+                payload.intake_action_enabled
+                if "intake_action_enabled" in payload.model_fields_set
+                else agent.intake_action_enabled
+            )
+            if next_intake_enabled and next_intake is None:
+                raise ApiError(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "INTAKE_DEFINITION_REQUIRED",
+                    "Hãy cấu hình thông tin cần thu thập trước khi bật.",
+                )
             for field in payload.model_fields_set:
                 value = getattr(payload, field)
-                if field in {
-                    "name",
-                    "default_locale",
-                    "icon",
-                    "color",
-                    "follow_up_action_enabled",
-                } and value is None:
+                if field == "intake_definition":
+                    agent.intake_definition_json = (
+                        next_intake.model_dump(mode="json") if next_intake is not None else None
+                    )
+                    continue
+                if (
+                    field
+                    in {
+                        "name",
+                        "default_locale",
+                        "icon",
+                        "color",
+                        "follow_up_action_enabled",
+                        "intake_action_enabled",
+                    }
+                    and value is None
+                ):
                     raise ApiError(
                         status.HTTP_422_UNPROCESSABLE_CONTENT,
                         "VALIDATION_ERROR",

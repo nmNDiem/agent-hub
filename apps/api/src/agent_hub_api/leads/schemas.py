@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 LeadStatus = Literal["new", "contacted", "closed"]
+QualificationStatus = Literal["pending_review", "qualified", "not_qualified"]
 
 
 def contact_consent_version(retention_days: int) -> str:
@@ -62,6 +63,14 @@ class LeadCaptureResponse(BaseModel):
     retention_until: datetime
 
 
+class LeadIntakeSummary(BaseModel):
+    public_id: UUID
+    purpose: str
+    submitted_at: datetime
+    action_status: Literal["succeeded", "failed_retryable", "failed_terminal"]
+    action_replayed: bool = False
+
+
 class LeadResponse(BaseModel):
     id: int
     conversation_public_id: UUID
@@ -78,6 +87,11 @@ class LeadResponse(BaseModel):
     consent_at: datetime | None
     consent_text_version: str | None
     followup_status: LeadStatus
+    qualification_status: QualificationStatus | None
+    qualification_version: int
+    qualification_reason: str | None
+    qualification_updated_at: datetime | None
+    intake: LeadIntakeSummary | None = None
     retention_until: datetime
     created_at: datetime
     updated_at: datetime
@@ -92,3 +106,35 @@ class LeadStatusRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     followup_status: LeadStatus
+
+
+class LeadIntakeAnswer(BaseModel):
+    field_key: UUID
+    label: str
+    value: str | list[str]
+
+
+class LeadIntakeDetail(LeadIntakeSummary):
+    disclosure_version: str
+    answers: list[LeadIntakeAnswer]
+
+
+class LeadDetailResponse(BaseModel):
+    lead: LeadResponse
+    intake: LeadIntakeDetail | None
+
+
+class LeadQualificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    qualification_status: Literal["qualified", "not_qualified"]
+    qualification_version: int = Field(ge=1)
+    reason: str | None = Field(default=None, max_length=500)
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def clean_reason(cls, value: object) -> object:
+        if isinstance(value, str):
+            cleaned = " ".join(value.split())
+            return cleaned or None
+        return value

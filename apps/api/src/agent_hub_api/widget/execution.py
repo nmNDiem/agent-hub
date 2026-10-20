@@ -79,4 +79,12 @@ async def resolve_revision_execution_context(
             and agent.status == "published"
             and agent.follow_up_action_enabled
         ),
+        intake_action_enabled=(
+            revision.intake_action_enabled
+            and revision.intake_definition_json is not None
+            and agent is not None
+            and agent.status == "published"
+            and agent.intake_action_enabled
+        ),
+        intake_definition=revision.intake_definition_json,
     )

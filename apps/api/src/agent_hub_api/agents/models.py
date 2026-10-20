@@ -51,6 +51,10 @@ class Agent(Base):
     all_locations: Mapped[bool] = mapped_column(Boolean(), default=True)
     all_collections: Mapped[bool] = mapped_column(Boolean(), default=True)
     follow_up_action_enabled: Mapped[bool] = mapped_column(Boolean(), default=False)
+    intake_action_enabled: Mapped[bool] = mapped_column(Boolean(), default=False)
+    intake_definition_json: Mapped[dict[str, object] | None] = mapped_column(
+        JSON_DOCUMENT, nullable=True
+    )
     created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -135,6 +139,10 @@ class AgentRevision(Base):
     knowledge_base_ids_json: Mapped[list[int]] = mapped_column(JSON_DOCUMENT)
     widget_config_json: Mapped[dict[str, object]] = mapped_column(JSON_DOCUMENT)
     follow_up_action_enabled: Mapped[bool] = mapped_column(Boolean(), default=False)
+    intake_action_enabled: Mapped[bool] = mapped_column(Boolean(), default=False)
+    intake_definition_json: Mapped[dict[str, object] | None] = mapped_column(
+        JSON_DOCUMENT, nullable=True
+    )
     config_hash: Mapped[str] = mapped_column(String(64))
     created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

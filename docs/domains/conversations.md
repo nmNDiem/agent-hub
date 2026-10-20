@@ -13,6 +13,7 @@ Conversations normalize Website, Facebook, and Zalo threads into one AI/human op
 - Role-aware access: owner/admin see the workspace; members see unassigned or self-assigned threads and may claim unassigned work.
 - Safe product/source evidence is stored in message response JSON; there is no separate message-evidence table.
 - Conversation detail may project the latest safe follow-up-request provenance and current Lead state. The action source is a persisted current inbound visitor message, while Conversation ownership, AI handling mode and lifecycle are revalidated before mutation.
+- Conversation detail may project the intake purpose, submission time and human qualification state, but not submitted answer values. Intake execution uses the current persisted inbound visitor message and fails closed after takeover, expiry, stale evidence or disabled/broken Channel state.
 - The workspace World projects bounded per-Agent activity and handover counts for 7/30-day windows, applying the same member assignment visibility as Inbox.
 
 Main data: conversations/messages, read states, notes/tags, conversation audit events, channel mappings/jobs/deliveries, and Website sessions. Main surface: Inbox and scoped visitor transcript.

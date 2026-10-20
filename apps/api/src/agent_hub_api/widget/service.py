@@ -117,6 +117,8 @@ class WidgetAdminService:
                     knowledge_base_ids_json=cast(list[int], snapshot["knowledge_base_ids"]),
                     widget_config_json=cast(dict[str, object], snapshot["widget"]),
                     follow_up_action_enabled=agent.follow_up_action_enabled,
+                    intake_action_enabled=agent.intake_action_enabled,
+                    intake_definition_json=agent.intake_definition_json,
                     config_hash=config_hash,
                     created_by_user_id=user.id,
                 )
@@ -158,6 +160,8 @@ class WidgetAdminService:
             "catalog_scope": catalog_scope,
             "knowledge_base_ids": await self.repository.knowledge_base_ids(agent),
             "follow_up_action_enabled": agent.follow_up_action_enabled,
+            "intake_action_enabled": agent.intake_action_enabled,
+            "intake_definition": agent.intake_definition_json,
             "widget": {
                 "brand_color": channel.brand_color,
                 "launcher_position": channel.launcher_position,
@@ -198,9 +202,7 @@ class WidgetAdminService:
             can_publish=has_origin and (has_catalog_scope or has_knowledge),
         )
 
-    async def _response(
-        self, agent: Agent, channel: WebsiteChannel | None
-    ) -> WidgetConfigResponse:
+    async def _response(self, agent: Agent, channel: WebsiteChannel | None) -> WidgetConfigResponse:
         domains = await self.repository.domains(channel) if channel is not None else []
         knowledge_ids = await self.repository.knowledge_base_ids(agent)
         catalog_scope = await self._catalog_scope(agent)

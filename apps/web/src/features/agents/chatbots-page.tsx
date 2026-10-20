@@ -3,6 +3,8 @@
 import {
   Bot,
   Boxes,
+  ChevronDown,
+  ChevronUp,
   Globe2,
   LoaderCircle,
   MapPin,
@@ -34,6 +36,9 @@ import {
   type CatalogCollection,
   type KnowledgeBase,
   type Location,
+  type IntakeDefinition,
+  type IntakeField,
+  type IntakeFieldSemantic,
 } from "@/lib/api";
 import { feedback, toUiError, type UiFeedback } from "@/lib/errors";
 import { useWorkspace } from "@/lib/use-workspace";
@@ -52,7 +57,63 @@ type AgentDraft = {
   collectionIds: number[];
   knowledgeBaseIds: number[];
   followUpActionEnabled: boolean;
+  intakeActionEnabled: boolean;
+  intakeDefinition: IntakeDefinition;
 };
+
+const intakeSemantics: Array<{ value: IntakeFieldSemantic; label: string }> = [
+  { value: "name", label: "Tên khách" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Số điện thoại" },
+  { value: "service_category", label: "Nhóm dịch vụ" },
+  { value: "service_area", label: "Khu vực" },
+  { value: "preferred_date", label: "Ngày mong muốn" },
+  { value: "preference", label: "Ưu tiên" },
+  { value: "context", label: "Bối cảnh" },
+];
+
+function fieldFor(semantic: IntakeFieldSemantic): IntakeField {
+  const names: Record<IntakeFieldSemantic, string> = {
+    name: "Tên của bạn",
+    email: "Email liên hệ",
+    phone: "Số điện thoại",
+    service_category: "Dịch vụ quan tâm",
+    service_area: "Khu vực cần hỗ trợ",
+    preferred_date: "Ngày mong muốn",
+    preference: "Ưu tiên của bạn",
+    context: "Thông tin cần lưu ý",
+  };
+  const kinds: Record<IntakeFieldSemantic, IntakeField["kind"]> = {
+    name: "short_text",
+    email: "email",
+    phone: "phone",
+    service_category: "single_choice",
+    service_area: "short_text",
+    preferred_date: "date",
+    preference: "long_text",
+    context: "long_text",
+  };
+  return {
+    key: null,
+    semantic,
+    label: names[semantic],
+    help_text: null,
+    kind: kinds[semantic],
+    required: semantic === "email",
+    options: semantic === "service_category"
+      ? [{ key: null, label: "Tư vấn" }, { key: null, label: "Báo giá" }]
+      : [],
+  };
+}
+
+function defaultIntakeDefinition(): IntakeDefinition {
+  return {
+    purpose: "Tư vấn và liên hệ lại theo nhu cầu của khách",
+    disclosure: "Mình xin phép ghi nhận các thông tin này để đội ngũ tư vấn hỗ trợ bạn tốt hơn nhé.",
+    disclosure_version: null,
+    fields: [fieldFor("name"), fieldFor("email"), fieldFor("context")],
+  };
+}
 
 function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
   return {
@@ -68,6 +129,8 @@ function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
     collectionIds: agent.catalog_scope.collection_ids ?? [],
     knowledgeBaseIds,
     followUpActionEnabled: agent.follow_up_action_enabled,
+    intakeActionEnabled: agent.intake_action_enabled,
+    intakeDefinition: agent.intake_definition ?? defaultIntakeDefinition(),
   };
 }
 
@@ -226,6 +289,24 @@ export function ChatbotsPage() {
   async function saveAgent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workspace || !selectedAgent || !draft || !dirty) return;
+    if (draft.intakeActionEnabled) {
+      const hasReachableContact = draft.intakeDefinition.fields.some(
+        (field) => field.semantic === "email" || field.semantic === "phone",
+      );
+      const invalidChoice = draft.intakeDefinition.fields.some(
+        (field) => (field.kind === "single_choice" || field.kind === "multiple_choice")
+          && field.options.length < 2,
+      );
+      if (!hasReachableContact || invalidChoice) {
+        setPageFeedback(feedback(
+          "error",
+          !hasReachableContact
+            ? "Cần ít nhất một mục email hoặc số điện thoại để có thể liên hệ khách Website."
+            : "Mỗi mục lựa chọn cần ít nhất hai phương án.",
+        ));
+        return;
+      }
+    }
     setBusy("save");
     setSavedNotice(false);
     setPageFeedback(undefined);
@@ -239,6 +320,8 @@ export function ChatbotsPage() {
         safe_instructions: draft.safeInstructions || null,
         default_locale: draft.defaultLocale,
         follow_up_action_enabled: draft.followUpActionEnabled,
+        intake_action_enabled: draft.intakeActionEnabled,
+        intake_definition: draft.intakeDefinition,
       });
       completedWrites += 1;
       await api.replaceAgentCatalogScope(workspace.id, selectedAgent.public_id, {
@@ -330,6 +413,29 @@ export function ChatbotsPage() {
     updateDraft({ [field]: values.includes(id) ? values.filter((item) => item !== id) : [...values, id] });
   }
 
+  function updateIntakeDefinition(update: Partial<IntakeDefinition>) {
+    if (!draft) return;
+    updateDraft({ intakeDefinition: { ...draft.intakeDefinition, ...update } });
+  }
+
+  function updateIntakeField(index: number, update: Partial<IntakeField>) {
+    if (!draft) return;
+    updateIntakeDefinition({
+      fields: draft.intakeDefinition.fields.map((field, fieldIndex) =>
+        fieldIndex === index ? { ...field, ...update } : field
+      ),
+    });
+  }
+
+  function moveIntakeField(index: number, offset: -1 | 1) {
+    if (!draft) return;
+    const fields = [...draft.intakeDefinition.fields];
+    const nextIndex = index + offset;
+    if (nextIndex < 0 || nextIndex >= fields.length) return;
+    [fields[index], fields[nextIndex]] = [fields[nextIndex], fields[index]];
+    updateIntakeDefinition({ fields });
+  }
+
   if (workspaceError) return <main className="center-state"><FeedbackBanner feedback={workspaceError} onRetry={() => location.reload()} /></main>;
   if (!me || !workspace) return <main className="center-state" aria-live="polite">Đang tải workspace…</main>;
 
@@ -411,6 +517,83 @@ export function ChatbotsPage() {
                         <input checked={draft.followUpActionEnabled} onChange={(event) => updateDraft({ followUpActionEnabled: event.target.checked })} type="checkbox" />
                         <span><strong>Cho phép Agent ghi nhận yêu cầu liên hệ</strong><small>Chỉ chạy trong hội thoại Website, Facebook hoặc Zalo đã xuất bản khi khách yêu cầu rõ ràng. Bật cần xuất bản revision mới; tắt sẽ chặn thực thi ngay sau khi lưu. Playground không tạo Lead.</small></span>
                       </label>
+                    </fieldset>
+                    <fieldset className="agent-fieldset" disabled={!canWrite}>
+                      <legend><MessageSquareText aria-hidden="true" size={17} /> Thu thập thông tin qua hội thoại</legend>
+                      <label className="check-option full-field">
+                        <input
+                          checked={draft.intakeActionEnabled}
+                          onChange={(event) => updateDraft({ intakeActionEnabled: event.target.checked })}
+                          type="checkbox"
+                        />
+                        <span>
+                          <strong>Cho phép Agent ghi nhận thông tin có cấu trúc</strong>
+                          <small>Agent vẫn trò chuyện tự nhiên như nhân viên: tự hiểu câu trả lời tự do, điền nhiều mục từ một tin nhắn và chỉ hỏi phần còn thiếu hoặc chưa rõ. Khách không phải điền biểu mẫu hay trả lời theo cú pháp. Playground không tạo Lead.</small>
+                        </span>
+                      </label>
+                      {draft.intakeActionEnabled && <div className="intake-config full-field">
+                        <label>Mục đích sử dụng
+                          <input
+                            maxLength={240}
+                            onChange={(event) => updateIntakeDefinition({ purpose: event.target.value })}
+                            required
+                            value={draft.intakeDefinition.purpose}
+                          />
+                        </label>
+                        <label>Lời giải thích với khách
+                          <textarea
+                            maxLength={500}
+                            onChange={(event) => updateIntakeDefinition({ disclosure: event.target.value })}
+                            required
+                            rows={2}
+                            value={draft.intakeDefinition.disclosure}
+                          />
+                        </label>
+                        <p className="fieldset-help">Không thu thập mật khẩu, OTP, dữ liệu thanh toán, giấy tờ định danh, sinh trắc học hoặc hồ sơ sức khỏe.</p>
+                        <div className="intake-field-list">
+                          {draft.intakeDefinition.fields.map((field, index) => <div className="intake-field-row" key={field.key ?? `${field.semantic}-${index}`}>
+                            <div className="intake-field-controls">
+                              <label>Loại thông tin
+                                <select
+                                  onChange={(event) => updateIntakeField(index, fieldFor(event.target.value as IntakeFieldSemantic))}
+                                  value={field.semantic}
+                                >
+                                  {intakeSemantics.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                </select>
+                              </label>
+                              <label>Nhãn nội bộ
+                                <input maxLength={80} onChange={(event) => updateIntakeField(index, { label: event.target.value })} required value={field.label} />
+                              </label>
+                              <label className="check-option compact-check">
+                                <input checked={field.required} onChange={(event) => updateIntakeField(index, { required: event.target.checked })} type="checkbox" />
+                                <span>Bắt buộc</span>
+                              </label>
+                            </div>
+                            {(field.kind === "single_choice" || field.kind === "multiple_choice") && <label>Lựa chọn, phân cách bằng dấu phẩy
+                              <input
+                                onChange={(event) => updateIntakeField(index, {
+                                  options: event.target.value.split(",").map((label, optionIndex) => ({
+                                    key: field.options[optionIndex]?.key ?? null,
+                                    label: label.trim(),
+                                  })).filter((option) => option.label),
+                                })}
+                                value={field.options.map((option) => option.label).join(", ")}
+                              />
+                            </label>}
+                            <div className="intake-field-actions">
+                              <button aria-label={`Đưa ${field.label} lên`} className="icon-button" disabled={index === 0} onClick={() => moveIntakeField(index, -1)} type="button"><ChevronUp size={15} /></button>
+                              <button aria-label={`Đưa ${field.label} xuống`} className="icon-button" disabled={index === draft.intakeDefinition.fields.length - 1} onClick={() => moveIntakeField(index, 1)} type="button"><ChevronDown size={15} /></button>
+                              <button aria-label={`Xóa ${field.label}`} className="icon-button danger-icon" disabled={draft.intakeDefinition.fields.length === 1} onClick={() => updateIntakeDefinition({ fields: draft.intakeDefinition.fields.filter((_, fieldIndex) => fieldIndex !== index) })} type="button"><Trash2 size={15} /></button>
+                            </div>
+                          </div>)}
+                        </div>
+                        <button
+                          className="secondary-button compact-button"
+                          disabled={draft.intakeDefinition.fields.length >= 12}
+                          onClick={() => updateIntakeDefinition({ fields: [...draft.intakeDefinition.fields, fieldFor("context")] })}
+                          type="button"
+                        ><Plus size={15} /> Thêm thông tin cần hỏi</button>
+                      </div>}
                     </fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MessageSquareText aria-hidden="true" size={17} /> Nguồn tri thức</legend><p className="fieldset-help">Chỉ dữ liệu đã ingestion thành công mới được runtime truy xuất.</p><div className="scope-options">{knowledgeBases.map((base) => <label className="check-option" key={base.id}><input checked={draft.knowledgeBaseIds.includes(base.id)} onChange={() => toggleId("knowledgeBaseIds", base.id)} type="checkbox" /><span><strong>{base.name}</strong><small>{base.document_count} tài liệu · {base.kind}</small></span></label>)}{knowledgeBases.length === 0 && <p className="muted-copy">Chưa có kho tri thức.</p>}</div></fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MapPin aria-hidden="true" size={17} /> Phạm vi location</legend><label className="check-option"><input checked={draft.allLocations} onChange={(event) => updateDraft({ allLocations: event.target.checked })} type="checkbox" /><span><strong>Tất cả location đang hoạt động</strong><small>Tự động bao gồm location mới.</small></span></label>{!draft.allLocations && <div className="scope-options">{locations.map((location) => <label className="check-option" key={location.id}><input checked={draft.locationIds.includes(location.id)} onChange={() => toggleId("locationIds", location.id)} type="checkbox" /><span>{location.name}</span></label>)}</div>}</fieldset>

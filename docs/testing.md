@@ -41,6 +41,8 @@ A later centralized evaluation phase does not defer correctness. Every approved 
 
 The follow-up-action gate covers draft/published/live permission, server-bound revision/conversation/source-message context, Website contact requirements, Facebook/Zalo provider identity, compatible replay/conflict, cross-tenant denial, rollback/commit isolation, retention/redaction and operator provenance. Runtime tests use fake models and channels; the opt-in PostgreSQL migration rehearsal verifies upgrade and practical downgrade when a test database is configured.
 
+The structured-intake gate covers bounded definition validation and stable key materialization, published/live permission, current-message and takeover fences, Website reachability, complete typed payload validation, one atomic immutable submission, replay/conflict, answer-free evidence/projections, human-only versioned qualification and tenant denial. Fast deterministic service/API tests cover workflow behavior; the opt-in PostgreSQL rehearsal verifies migration upgrade/downgrade plus JSONB, tenant foreign-key and uniqueness constraints. Frontend tests cover existing Agent/Lead/Contact/Conversation compatibility and type-safe intake contracts without provider/model spend.
+
 PostgreSQL-specific behavior must be tested against PostgreSQL where SQLite semantics are insufficient. Import/parsing changes retain representative source-agnostic fixtures. Keep phase acceptance criteria measurable and coherent rather than splitting one capability into infrastructure-only fragments to avoid end-to-end verification.
 
 ## Omnichannel delivery gates

@@ -36,6 +36,7 @@ from agent_hub_api.channels.models import (
 )
 from agent_hub_api.channels.rendering import CapabilityAwareRenderer, ChannelRenderError
 from agent_hub_api.contacts.follow_up import FollowUpActionContext
+from agent_hub_api.contacts.intake import IntakeActionContext
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
@@ -650,6 +651,15 @@ class ChannelResponseRunner:
             context = replace(
                 context,
                 follow_up_action_context=FollowUpActionContext(
+                    workspace_id=claim.workspace_id,
+                    agent_id=claim.agent_id,
+                    revision_id=claim.revision_id,
+                    conversation_id=claim.conversation_id,
+                    source_message_id=claim.inbound_message_id,
+                    channel_connection_id=claim.connection_id,
+                    channel=claim.provider,
+                ),
+                intake_action_context=IntakeActionContext(
                     workspace_id=claim.workspace_id,
                     agent_id=claim.agent_id,
                     revision_id=claim.revision_id,

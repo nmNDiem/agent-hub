@@ -102,6 +102,13 @@ class ConversationFollowUpResponse(BaseModel):
     followup_status: Literal["new", "contacted", "closed"]
 
 
+class ConversationIntakeResponse(BaseModel):
+    submission_public_id: UUID
+    purpose: str
+    submitted_at: datetime
+    qualification_status: Literal["pending_review", "qualified", "not_qualified"]
+
+
 class InboxMemberResponse(BaseModel):
     id: int
     user_id: UUID
@@ -119,6 +126,7 @@ class ConversationDetailResponse(BaseModel):
     retention_until: datetime
     notes: list[ConversationNoteResponse] = Field(default_factory=list)
     follow_up: ConversationFollowUpResponse | None = None
+    intake: ConversationIntakeResponse | None = None
 
 
 class ConversationStateRequest(BaseModel):

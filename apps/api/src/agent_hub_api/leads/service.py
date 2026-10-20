@@ -13,7 +13,8 @@ from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.contacts.models import Contact, ContactIdentity
+from agent_hub_api.agents.schemas import IntakeDefinition
+from agent_hub_api.contacts.models import Contact, ContactIdentity, IntakeSubmission
 from agent_hub_api.conversations.models import Conversation
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
@@ -24,9 +25,15 @@ from agent_hub_api.leads.repository import LeadRepository, LeadRow
 from agent_hub_api.leads.schemas import (
     LeadCaptureRequest,
     LeadCaptureResponse,
+    LeadDetailResponse,
+    LeadIntakeAnswer,
+    LeadIntakeDetail,
+    LeadIntakeSummary,
     LeadListResponse,
+    LeadQualificationRequest,
     LeadResponse,
     LeadStatus,
+    QualificationStatus,
     contact_consent_version,
 )
 from agent_hub_api.widget.visitor_service import WidgetVisitorService
@@ -85,6 +92,9 @@ def _response(row: LeadRow) -> LeadResponse:
         revision_no,
         action_state,
         replay_count,
+        intake,
+        intake_action_state,
+        intake_replay_count,
     ) = row
     return LeadResponse(
         id=lead.id,
@@ -95,9 +105,7 @@ def _response(row: LeadRow) -> LeadResponse:
         email=lead.normalized_email,
         phone=lead.phone,
         source_channel=cast(Literal["web", "facebook", "zalo"], lead.source_channel),
-        capture_source=cast(
-            Literal["website_form", "agent_action"], lead.capture_source
-        ),
+        capture_source=cast(Literal["website_form", "agent_action"], lead.capture_source),
         revision_no=revision_no,
         action_status=cast(
             Literal["succeeded", "failed_retryable", "failed_terminal"] | None,
@@ -107,6 +115,24 @@ def _response(row: LeadRow) -> LeadResponse:
         consent_at=lead.consent_at,
         consent_text_version=lead.consent_text_version,
         followup_status=cast(LeadStatus, lead.followup_status),
+        qualification_status=cast(QualificationStatus | None, lead.qualification_status),
+        qualification_version=lead.qualification_version,
+        qualification_reason=lead.qualification_reason,
+        qualification_updated_at=lead.qualification_updated_at,
+        intake=(
+            LeadIntakeSummary(
+                public_id=intake.public_id,
+                purpose=intake.purpose,
+                submitted_at=intake.submitted_at,
+                action_status=cast(
+                    Literal["succeeded", "failed_retryable", "failed_terminal"],
+                    intake_action_state or "succeeded",
+                ),
+                action_replayed=bool(intake_replay_count),
+            )
+            if intake is not None
+            else None
+        ),
         retention_until=lead.retention_until,
         created_at=lead.created_at,
         updated_at=lead.updated_at,
@@ -116,6 +142,50 @@ def _response(row: LeadRow) -> LeadResponse:
 def _csv_cell(value: object | None) -> str:
     text = "" if value is None else str(value)
     return f"'{text}" if text.startswith(("=", "+", "-", "@", "\t", "\r")) else text
+
+
+def _intake_detail(
+    submission: IntakeSubmission,
+    action_state: str | None,
+    replay_count: int | None,
+) -> LeadIntakeDetail:
+    definition = IntakeDefinition.model_validate(submission.definition_json)
+    fields = {str(field.key): field for field in definition.fields if field.key is not None}
+    answers: list[LeadIntakeAnswer] = []
+    for key, value in submission.answers_json.items():
+        field = fields.get(key)
+        if field is None or field.key is None:
+            continue
+        rendered: str | list[str]
+        if field.kind in {"single_choice", "multiple_choice"}:
+            labels = {
+                str(option.key): option.label for option in field.options if option.key is not None
+            }
+            if isinstance(value, list):
+                rendered = [
+                    labels[item] for item in value if isinstance(item, str) and item in labels
+                ]
+            elif isinstance(value, str) and value in labels:
+                rendered = labels[value]
+            else:
+                continue
+        elif isinstance(value, str):
+            rendered = value
+        else:
+            continue
+        answers.append(LeadIntakeAnswer(field_key=field.key, label=field.label, value=rendered))
+    return LeadIntakeDetail(
+        public_id=submission.public_id,
+        purpose=submission.purpose,
+        submitted_at=submission.submitted_at,
+        action_status=cast(
+            Literal["succeeded", "failed_retryable", "failed_terminal"],
+            action_state or "succeeded",
+        ),
+        action_replayed=bool(replay_count),
+        disclosure_version=submission.disclosure_version,
+        answers=answers,
+    )
 
 
 class LeadService:
@@ -308,6 +378,62 @@ class LeadService:
             raise RuntimeError("Updated lead could not be reloaded")
         return _response(row)
 
+    async def detail(self, user: User, workspace_id: UUID, lead_id: int) -> LeadDetailResponse:
+        await self._authorize_admin(user, workspace_id)
+        row = await self.repository.detail(workspace_id, lead_id)
+        if row is None:
+            raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy lead.")
+        submission = row[7]
+        return LeadDetailResponse(
+            lead=_response(row),
+            intake=(_intake_detail(submission, row[8], row[9]) if submission is not None else None),
+        )
+
+    async def update_qualification(
+        self,
+        user: User,
+        workspace_id: UUID,
+        lead_id: int,
+        payload: LeadQualificationRequest,
+    ) -> LeadResponse:
+        async with self.session.begin():
+            await self._authorize_admin(user, workspace_id)
+            lead = await self.repository.get_for_update(workspace_id, lead_id)
+            if lead is None:
+                raise ApiError(status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy lead.")
+            has_intake = await self.session.scalar(
+                select(IntakeSubmission.id).where(
+                    IntakeSubmission.workspace_id == workspace_id,
+                    IntakeSubmission.lead_id == lead.id,
+                )
+            )
+            if has_intake is None or lead.qualification_status is None:
+                raise ApiError(
+                    status.HTTP_409_CONFLICT,
+                    "INTAKE_NOT_AVAILABLE",
+                    "Lead này không có intake để đánh giá.",
+                )
+            if lead.qualification_version != payload.qualification_version:
+                raise ApiError(
+                    status.HTTP_409_CONFLICT,
+                    "QUALIFICATION_VERSION_CONFLICT",
+                    "Đánh giá đã thay đổi. Hãy tải lại trước khi cập nhật.",
+                )
+            now = datetime.now(UTC)
+            lead.qualification_status = payload.qualification_status
+            lead.qualification_reason = payload.reason
+            lead.qualification_version += 1
+            lead.qualification_updated_by_user_id = user.id
+            lead.qualification_updated_at = now
+            lead.updated_at = now
+            contact = await self.session.get(Contact, lead.contact_id, with_for_update=True)
+            if contact is not None and contact.workspace_id == workspace_id:
+                contact.updated_at = now
+        row = await self.repository.detail(workspace_id, lead.id)
+        if row is None:
+            raise RuntimeError("Updated lead could not be reloaded")
+        return _response(row)
+
     async def export_csv(
         self,
         user: User,
@@ -343,6 +469,8 @@ class LeadService:
                 "action_status",
                 "action_replayed",
                 "followup_status",
+                "qualification_status",
+                "intake_purpose",
                 "consent_at",
                 "consent_text_version",
                 "retention_until",
@@ -356,6 +484,9 @@ class LeadService:
             revision_no,
             action_state,
             replay_count,
+            intake,
+            _intake_action_state,
+            _intake_replay_count,
         ) in rows:
             writer.writerow(
                 [
@@ -371,6 +502,8 @@ class LeadService:
                     action_state or "not_applicable",
                     bool(replay_count),
                     lead.followup_status,
+                    lead.qualification_status or "not_applicable",
+                    _csv_cell(intake.purpose if intake is not None else None),
                     lead.consent_at.isoformat() if lead.consent_at is not None else "",
                     lead.consent_text_version,
                     lead.retention_until.isoformat(),

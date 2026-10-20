@@ -14,6 +14,8 @@ from agent_hub_api.contacts.models import (
     ContactNote,
     ContactTagLink,
     FollowUpActionExecution,
+    IntakeActionExecution,
+    IntakeSubmission,
 )
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
@@ -34,6 +36,8 @@ from agent_hub_api.widget.models import (
 @dataclass(frozen=True, slots=True)
 class RetentionSweepResult:
     follow_up_executions_deleted: int = 0
+    intake_executions_deleted: int = 0
+    intake_submissions_deleted: int = 0
     sessions_revoked: int = 0
     conversations_revoked: int = 0
     leads_deleted: int = 0
@@ -75,6 +79,10 @@ class RetentionSweeper:
         follow_up_executions_deleted = await self._delete_expired_follow_up_executions(
             sweep_time, limit
         )
+        intake_executions_deleted = await self._delete_expired_intake_executions(sweep_time, limit)
+        intake_submissions_deleted = await self._delete_expired_intake_submissions(
+            sweep_time, limit
+        )
         sessions_revoked = await self._revoke_sessions(sweep_time, limit)
         conversations_revoked = await self._revoke_conversations(sweep_time, limit)
         leads_deleted = await self._delete_expired_leads(sweep_time, limit)
@@ -86,6 +94,8 @@ class RetentionSweeper:
         sessions_deleted = await self._delete_session_tombstones(sweep_time, limit)
         return RetentionSweepResult(
             follow_up_executions_deleted=follow_up_executions_deleted,
+            intake_executions_deleted=intake_executions_deleted,
+            intake_submissions_deleted=intake_submissions_deleted,
             sessions_revoked=sessions_revoked,
             conversations_revoked=conversations_revoked,
             leads_deleted=leads_deleted,
@@ -98,9 +108,7 @@ class RetentionSweeper:
             sessions_deleted=sessions_deleted,
         )
 
-    async def _delete_expired_follow_up_executions(
-        self, now: datetime, limit: int
-    ) -> int:
+    async def _delete_expired_follow_up_executions(self, now: datetime, limit: int) -> int:
         async with self.session_factory() as session, session.begin():
             ids = list(
                 await session.scalars(
@@ -116,10 +124,46 @@ class RetentionSweeper:
             )
             if ids:
                 await session.execute(
-                    delete(FollowUpActionExecution).where(
-                        FollowUpActionExecution.id.in_(ids)
-                    )
+                    delete(FollowUpActionExecution).where(FollowUpActionExecution.id.in_(ids))
                 )
+            return len(ids)
+
+    async def _delete_expired_intake_executions(self, now: datetime, limit: int) -> int:
+        async with self.session_factory() as session, session.begin():
+            ids = list(
+                await session.scalars(
+                    select(IntakeActionExecution.id)
+                    .where(IntakeActionExecution.retention_until <= now)
+                    .order_by(
+                        IntakeActionExecution.retention_until,
+                        IntakeActionExecution.id,
+                    )
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            if ids:
+                await session.execute(
+                    delete(IntakeActionExecution).where(IntakeActionExecution.id.in_(ids))
+                )
+            return len(ids)
+
+    async def _delete_expired_intake_submissions(self, now: datetime, limit: int) -> int:
+        async with self.session_factory() as session, session.begin():
+            ids = list(
+                await session.scalars(
+                    select(IntakeSubmission.id)
+                    .where(
+                        IntakeSubmission.retention_until <= now,
+                        ~exists().where(IntakeActionExecution.submission_id == IntakeSubmission.id),
+                    )
+                    .order_by(IntakeSubmission.retention_until, IntakeSubmission.id)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            if ids:
+                await session.execute(delete(IntakeSubmission).where(IntakeSubmission.id.in_(ids)))
             return len(ids)
 
     async def _revoke_sessions(self, now: datetime, limit: int) -> int:
@@ -169,6 +213,12 @@ class RetentionSweeper:
                 )
             )
             await session.execute(
+                delete(IntakeActionExecution).where(IntakeActionExecution.conversation_id.in_(ids))
+            )
+            await session.execute(
+                delete(IntakeSubmission).where(IntakeSubmission.conversation_id.in_(ids))
+            )
+            await session.execute(
                 delete(ConversationMessage).where(ConversationMessage.conversation_id.in_(ids))
             )
             await session.execute(
@@ -199,9 +249,13 @@ class RetentionSweeper:
             )
             if ids:
                 await session.execute(
-                    delete(FollowUpActionExecution).where(
-                        FollowUpActionExecution.lead_id.in_(ids)
-                    )
+                    delete(FollowUpActionExecution).where(FollowUpActionExecution.lead_id.in_(ids))
+                )
+                await session.execute(
+                    delete(IntakeActionExecution).where(IntakeActionExecution.lead_id.in_(ids))
+                )
+                await session.execute(
+                    delete(IntakeSubmission).where(IntakeSubmission.lead_id.in_(ids))
                 )
                 await session.execute(delete(Lead).where(Lead.id.in_(ids)))
             return len(ids)

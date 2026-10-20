@@ -21,6 +21,7 @@ from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
 from agent_hub_api.channels.contracts import CredentialVault
 from agent_hub_api.channels.vault import SupabaseCredentialVault
 from agent_hub_api.contacts.follow_up import FollowUpActionService
+from agent_hub_api.contacts.intake import IntakeActionService
 from agent_hub_api.contacts.router import router as contacts_router
 from agent_hub_api.conversations.router import router as conversations_router
 from agent_hub_api.core.config import Settings, get_settings
@@ -75,10 +76,7 @@ def create_app(
     email_delivery: EmailDelivery | None = None,
     catalog_storage: CatalogStorage | None = None,
     knowledge_storage: KnowledgeStorage | None = None,
-    knowledge_retrieval_factory: Callable[
-        [AsyncSession], KnowledgeRetrievalService
-    ]
-    | None = None,
+    knowledge_retrieval_factory: Callable[[AsyncSession], KnowledgeRetrievalService] | None = None,
     agent_runtime_factory: AgentRuntimeFactory | None = None,
     widget_image_storage: VisitorImageStorage | None = None,
     vision_gateway: VisionGateway | None = None,
@@ -170,9 +168,8 @@ def create_app(
                 embedding_provider=owned_embedding_provider,
                 vector_index=owned_vector_index,
                 budget=AgentRuntimeBudget.from_settings(runtime_settings),
-                follow_up_action_service=FollowUpActionService(
-                    session_factory, runtime_settings
-                ),
+                follow_up_action_service=FollowUpActionService(session_factory, runtime_settings),
+                intake_action_service=IntakeActionService(session_factory, runtime_settings),
             )
 
         agent_runtime_factory = configured_runtime_factory

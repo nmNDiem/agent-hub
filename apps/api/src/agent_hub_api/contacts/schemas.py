@@ -60,6 +60,10 @@ class ContactTimelineItem(BaseModel):
     revision_no: int | None = None
     action_status: Literal["succeeded", "failed_retryable", "failed_terminal"] | None = None
     action_replayed: bool = False
+    intake_purpose: str | None = None
+    qualification_status: Literal[
+        "pending_review", "qualified", "not_qualified"
+    ] | None = None
 
 
 class ContactDuplicateCandidate(BaseModel):

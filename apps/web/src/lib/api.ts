@@ -307,6 +307,33 @@ export type AgentIcon =
   | "briefcase-business"
   | "heart-handshake";
 
+export type IntakeFieldSemantic =
+  | "name"
+  | "email"
+  | "phone"
+  | "service_category"
+  | "service_area"
+  | "preferred_date"
+  | "preference"
+  | "context";
+
+export type IntakeField = {
+  key: string | null;
+  semantic: IntakeFieldSemantic;
+  label: string;
+  help_text: string | null;
+  kind: "short_text" | "long_text" | "email" | "phone" | "single_choice" | "multiple_choice" | "date";
+  required: boolean;
+  options: Array<{ key: string | null; label: string }>;
+};
+
+export type IntakeDefinition = {
+  purpose: string;
+  disclosure: string;
+  disclosure_version: string | null;
+  fields: IntakeField[];
+};
+
 export type Agent = {
   public_id: string;
   name: string;
@@ -317,6 +344,8 @@ export type Agent = {
   default_locale: string;
   status: "draft" | "published" | "paused";
   follow_up_action_enabled: boolean;
+  intake_action_enabled: boolean;
+  intake_definition: IntakeDefinition | null;
   catalog_scope: {
     location_ids: number[] | null;
     collection_ids: number[] | null;
@@ -417,6 +446,15 @@ export type ZaloConnection = {
 };
 
 export type LeadStatus = "new" | "contacted" | "closed";
+export type QualificationStatus = "pending_review" | "qualified" | "not_qualified";
+
+export type LeadIntakeSummary = {
+  public_id: string;
+  purpose: string;
+  submitted_at: string;
+  action_status: "succeeded" | "failed_retryable" | "failed_terminal";
+  action_replayed: boolean;
+};
 
 export type Lead = {
   id: number;
@@ -434,9 +472,22 @@ export type Lead = {
   consent_at: string | null;
   consent_text_version: string | null;
   followup_status: LeadStatus;
+  qualification_status: QualificationStatus | null;
+  qualification_version: number;
+  qualification_reason: string | null;
+  qualification_updated_at: string | null;
+  intake: LeadIntakeSummary | null;
   retention_until: string;
   created_at: string;
   updated_at: string;
+};
+
+export type LeadDetail = {
+  lead: Lead;
+  intake: (LeadIntakeSummary & {
+    disclosure_version: string;
+    answers: Array<{ field_key: string; label: string; value: string | string[] }>;
+  }) | null;
 };
 
 export type ConversationSummary = {
@@ -498,6 +549,8 @@ export type ContactDetail = {
     revision_no: number | null;
     action_status: "succeeded" | "failed_retryable" | "failed_terminal" | null;
     action_replayed: boolean;
+    intake_purpose: string | null;
+    qualification_status: QualificationStatus | null;
   }>;
   duplicate_candidates: Array<{
     public_id: string;
@@ -569,6 +622,12 @@ export type ConversationDetail = {
     action_replayed: boolean;
     requested_at: string;
     followup_status: LeadStatus;
+  } | null;
+  intake: {
+    submission_public_id: string;
+    purpose: string;
+    submitted_at: string;
+    qualification_status: QualificationStatus;
   } | null;
 };
 
@@ -1187,7 +1246,7 @@ export const api = {
     publicAgentId: string,
     payload: Partial<Pick<
       Agent,
-      "name" | "icon" | "color" | "greeting" | "safe_instructions" | "default_locale" | "follow_up_action_enabled"
+      "name" | "icon" | "color" | "greeting" | "safe_instructions" | "default_locale" | "follow_up_action_enabled" | "intake_action_enabled" | "intake_definition"
     >>,
   ) => request<Agent>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`, {
     method: "PATCH",
@@ -1244,6 +1303,22 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ followup_status: followupStatus }),
     }),
+  getLead: (workspaceId: string, leadId: number) =>
+    request<LeadDetail>(`/api/v1/workspaces/${workspaceId}/leads/${leadId}`),
+  updateLeadQualification: (
+    workspaceId: string,
+    leadId: number,
+    qualificationStatus: Exclude<QualificationStatus, "pending_review">,
+    qualificationVersion: number,
+    reason?: string,
+  ) => request<Lead>(`/api/v1/workspaces/${workspaceId}/leads/${leadId}/qualification`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      qualification_status: qualificationStatus,
+      qualification_version: qualificationVersion,
+      reason: reason || null,
+    }),
+  }),
   exportLeads: async (workspaceId: string, followupStatus?: LeadStatus) => {
     const params = new URLSearchParams();
     if (followupStatus) params.set("followup_status", followupStatus);

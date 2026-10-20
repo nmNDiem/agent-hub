@@ -9,7 +9,9 @@ from agent_hub_api.core.database import get_db_session
 from agent_hub_api.identity.dependencies import get_current_user, require_csrf
 from agent_hub_api.identity.models import User
 from agent_hub_api.leads.schemas import (
+    LeadDetailResponse,
     LeadListResponse,
+    LeadQualificationRequest,
     LeadResponse,
     LeadStatus,
     LeadStatusRequest,
@@ -62,6 +64,39 @@ async def export_leads(
             "Cache-Control": "no-store",
             "Content-Disposition": 'attachment; filename="agenthub-leads.csv"',
         },
+    )
+
+
+@router.get("/{lead_id}", response_model=LeadDetailResponse)
+async def get_lead(
+    workspace_id: UUID,
+    lead_id: int,
+    response: Response,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LeadDetailResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return await LeadService(session, settings).detail(user, workspace_id, lead_id)
+
+
+@router.patch(
+    "/{lead_id}/qualification",
+    response_model=LeadResponse,
+    dependencies=[Depends(require_csrf)],
+)
+async def update_lead_qualification(
+    workspace_id: UUID,
+    lead_id: int,
+    payload: LeadQualificationRequest,
+    response: Response,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LeadResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return await LeadService(session, settings).update_qualification(
+        user, workspace_id, lead_id, payload
     )
 
 

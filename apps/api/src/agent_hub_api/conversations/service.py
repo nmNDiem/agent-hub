@@ -21,7 +21,7 @@ from agent_hub_api.channels.models import (
     ChannelThreadMapping,
     OutboundDelivery,
 )
-from agent_hub_api.contacts.models import FollowUpActionExecution
+from agent_hub_api.contacts.models import FollowUpActionExecution, IntakeSubmission
 from agent_hub_api.conversations.models import (
     Conversation,
     ConversationAuditEvent,
@@ -37,6 +37,7 @@ from agent_hub_api.conversations.schemas import (
     ConversationDeliveryResponse,
     ConversationDetailResponse,
     ConversationFollowUpResponse,
+    ConversationIntakeResponse,
     ConversationListResponse,
     ConversationMessageResponse,
     ConversationNoteRequest,
@@ -328,6 +329,7 @@ class ConversationService:
                     AgentRevision.revision_no,
                     FollowUpActionExecution.state,
                     FollowUpActionExecution.replay_count,
+                    IntakeSubmission,
                 )
                 .join(
                     AgentRevision,
@@ -338,6 +340,11 @@ class ConversationService:
                 .outerjoin(
                     FollowUpActionExecution,
                     FollowUpActionExecution.id == latest_execution_id,
+                )
+                .outerjoin(
+                    IntakeSubmission,
+                    (IntakeSubmission.workspace_id == Lead.workspace_id)
+                    & (IntakeSubmission.lead_id == Lead.id),
                 )
                 .where(
                     Lead.workspace_id == workspace_id,
@@ -383,6 +390,21 @@ class ConversationService:
                     ),
                 )
                 if follow_up_row is not None
+                else None
+            ),
+            intake=(
+                ConversationIntakeResponse(
+                    submission_public_id=follow_up_row[4].public_id,
+                    purpose=follow_up_row[4].purpose,
+                    submitted_at=follow_up_row[4].submitted_at,
+                    qualification_status=cast(
+                        Literal["pending_review", "qualified", "not_qualified"],
+                        follow_up_row[0].qualification_status,
+                    ),
+                )
+                if follow_up_row is not None
+                and follow_up_row[4] is not None
+                and follow_up_row[0].qualification_status is not None
                 else None
             ),
         )

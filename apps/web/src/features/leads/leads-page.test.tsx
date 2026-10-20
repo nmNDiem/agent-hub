@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   getMe: vi.fn(),
   listLeads: vi.fn(),
   updateLeadStatus: vi.fn(),
+  getLead: vi.fn(),
+  updateLeadQualification: vi.fn(),
   exportLeads: vi.fn(),
 }));
 
@@ -25,6 +27,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
       getMe: mocks.getMe,
       listLeads: mocks.listLeads,
       updateLeadStatus: mocks.updateLeadStatus,
+      getLead: mocks.getLead,
+      updateLeadQualification: mocks.updateLeadQualification,
       exportLeads: mocks.exportLeads,
     },
   };
@@ -55,6 +59,17 @@ const lead = {
   consent_at: "2026-10-04T08:00:00Z",
   consent_text_version: "vi-VN:contact-v1:30d",
   followup_status: "new" as const,
+  qualification_status: "pending_review" as const,
+  qualification_version: 1,
+  qualification_reason: null,
+  qualification_updated_at: null,
+  intake: {
+    public_id: "01992f3c-4436-7000-8000-000000000077",
+    purpose: "Tư vấn giải pháp phù hợp",
+    submitted_at: "2026-10-04T08:00:00Z",
+    action_status: "succeeded" as const,
+    action_replayed: true,
+  },
   retention_until: "2026-11-03T08:00:00Z",
   created_at: "2026-10-04T08:00:00Z",
   updated_at: "2026-10-04T08:00:00Z",
@@ -69,9 +84,42 @@ describe("LeadsPage", () => {
     });
     mocks.listLeads.mockResolvedValue({ items: [lead], next_cursor: null });
     mocks.updateLeadStatus.mockResolvedValue({ ...lead, followup_status: "contacted" });
+    mocks.getLead.mockResolvedValue({
+      lead,
+      intake: {
+        ...lead.intake,
+        disclosure_version: "intake-v1-example",
+        answers: [
+          { field_key: "01992f3c-4436-7000-8000-000000000066", label: "Nhu cầu", value: "Tư vấn gói phù hợp" },
+        ],
+      },
+    });
+    mocks.updateLeadQualification.mockResolvedValue({
+      ...lead,
+      qualification_status: "qualified",
+      qualification_version: 2,
+    });
     mocks.exportLeads.mockResolvedValue(new Blob(["lead_id\n7"], { type: "text/csv" }));
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:leads");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+  });
+
+  it("expands intake answers and keeps qualification human-owned", async () => {
+    render(<LeadsPage />);
+    await screen.findByText("Nguyễn An");
+    fireEvent.click(screen.getByRole("button", { name: "Intake" }));
+
+    expect(await screen.findByText("Tư vấn gói phù hợp")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Đánh giá của nhân viên"), {
+      target: { value: "qualified" },
+    });
+
+    await waitFor(() => expect(mocks.updateLeadQualification).toHaveBeenCalledWith(
+      workspace.id,
+      lead.id,
+      "qualified",
+      1,
+    ));
   });
 
   it("shows consented contact data and updates follow-up status", async () => {

@@ -57,7 +57,9 @@ Evidence returned by the runtime is currently embedded in `conversation_messages
 
 ### Contacts and leads
 
-Contacts own a workspace-level human profile, channel identities, notes, tags, assignment, retention, contact audit events, reversible merge events and the narrow `contacts.follow_up.request` execution record. Leads preserve an originating conversion and link to a contact and conversation: Website form/action rows retain their contact-method/session rules, while Facebook/Zalo action rows rely on a verified provider Contact identity and Conversation. Action evidence stores server-bound references, hashes, safe state/outcome and timing rather than copied content or PII.
+Contacts own a workspace-level human profile, channel identities, notes, tags, assignment, retention, contact audit events, reversible merge events and action-specific execution records. Leads preserve an originating conversion and link to a contact and conversation: Website form/action rows retain their contact-method/session rules, while Facebook/Zalo action rows rely on a verified provider Contact identity and Conversation.
+
+`contact_intake_submissions` stores one complete immutable submission per Conversation with the published definition snapshot/hash, stable keyed answers, purpose/disclosure version and owning retention boundary. `intake_action_executions` stores only bound references, hashes, safe state/outcome and timing; answer values, contact values, messages, prompts and raw tool arguments are excluded. Intake Leads keep an independent human-owned qualification state/version, optional reason, actor and update time. Agent drafts and revisions store the bounded validated intake definition as JSON; it is not an arbitrary configuration bag.
 
 A Contact is channel/customer-service identity. It is not automatically a Commerce Customer: purchasing identity, addresses, tax data, and commercial history would have different rules and are not implemented.
 
@@ -70,7 +72,6 @@ A Contact is channel/customer-service identity. It is not automatically a Commer
 These concepts are approved boundaries, not existing tables:
 
 - A domain-neutral agent configuration with optional capability assignments; existing revision shapes remain compatible until deliberately migrated.
-- A durable, redacted execution record before the first tool can mutate business state. It should record the actor, authorized capability/action, idempotency key, status, safe request/result references, and timing without copying secrets or sensitive content.
 - Commerce aggregates for Customer, Order, Order Line, Payment reference/status, Return, Supplier, Purchase Order, and Stock Movement only when their workflows are scheduled.
 - An append-only stock movement ledger with a derived current balance before reservations, receipts, adjustments, sales, returns, or other operational stock mutations are introduced.
 

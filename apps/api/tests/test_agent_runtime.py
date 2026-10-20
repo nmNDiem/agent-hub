@@ -26,6 +26,7 @@ from agent_hub_api.agents.runtime import (
     AgentRuntimeService,
     GroundedAgentRuntime,
 )
+from agent_hub_api.agents.schemas import IntakeDefinition
 from agent_hub_api.agents.tool_schemas import (
     CatalogToolAvailability,
     CatalogToolAvailabilitySummary,
@@ -43,6 +44,11 @@ from agent_hub_api.contacts.follow_up import (
     FollowUpActionContext,
     FollowUpActionInput,
     FollowUpActionResult,
+)
+from agent_hub_api.contacts.intake import (
+    IntakeActionContext,
+    IntakeActionInput,
+    IntakeActionResult,
 )
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.core.identifiers import new_uuid_v7
@@ -104,14 +110,28 @@ class FakeFollowUpExecutor:
         )
 
 
+class FakeIntakeExecutor:
+    def __init__(self) -> None:
+        self.calls: list[tuple[IntakeActionContext, IntakeActionInput]] = []
+
+    async def submit(
+        self, context: IntakeActionContext, payload: IntakeActionInput
+    ) -> IntakeActionResult:
+        self.calls.append((context, payload))
+        return IntakeActionResult(
+            status="recorded",
+            action_id=UUID(int=10),
+            lead_id=18,
+            submission_id=UUID(int=11),
+        )
+
+
 class FakeCatalogTools:
     def __init__(self, product: CatalogToolProduct) -> None:
         self.product = product
         self.search_payloads: list[SearchProductsToolInput] = []
 
-    async def search_products(
-        self, payload: SearchProductsToolInput
-    ) -> SearchProductsToolResult:
+    async def search_products(self, payload: SearchProductsToolInput) -> SearchProductsToolResult:
         self.search_payloads.append(payload)
         return SearchProductsToolResult(items=[self.product])
 
@@ -120,9 +140,7 @@ class FakeCatalogTools:
     ) -> CatalogToolProduct | None:
         return self.product if payload.product_id == self.product.id else None
 
-    async def check_stock(
-        self, payload: CheckStockToolInput
-    ) -> CheckStockToolResult | None:
+    async def check_stock(self, payload: CheckStockToolInput) -> CheckStockToolResult | None:
         variant = next(
             (item for item in self.product.variants if item.id == payload.variant_id), None
         )
@@ -269,6 +287,86 @@ def test_runtime_maps_bounded_follow_up_tool_to_server_bound_action() -> None:
     asyncio.run(exercise())
 
 
+def test_runtime_collects_intake_naturally_and_submits_stable_keys() -> None:
+    async def exercise() -> None:
+        field_key = UUID(int=20)
+        context = IntakeActionContext(
+            workspace_id=UUID(int=1),
+            agent_id=2,
+            revision_id=3,
+            conversation_id=4,
+            source_message_id=5,
+            channel_connection_id=6,
+            channel="facebook",
+        )
+        definition = IntakeDefinition.model_validate(
+            {
+                "purpose": "Tư vấn",
+                "disclosure": "Ghi nhận để tư vấn",
+                "disclosure_version": "intake-v1-test",
+                "fields": [
+                    {
+                        "key": str(field_key),
+                        "semantic": "email",
+                        "label": "Email liên hệ",
+                        "kind": "email",
+                        "required": True,
+                        "options": [],
+                    }
+                ],
+            }
+        )
+        executor = FakeIntakeExecutor()
+        gateway = FakeGateway(
+            [
+                model_call(
+                    "submit_structured_intake",
+                    {"answers": {str(field_key): "customer@example.com"}},
+                    call_id="intake",
+                ),
+                model_call(
+                    "submit_grounded_answer",
+                    {
+                        "kind": "general",
+                        "message": "Mình đã ghi nhận, đội ngũ sẽ xem và hỗ trợ bạn.",
+                    },
+                    call_id="answer",
+                ),
+            ]
+        )
+        runtime = GroundedAgentRuntime(
+            gateway=gateway,
+            catalog_tools=None,
+            knowledge_searcher=FakeKnowledgeSearcher(),
+            budget=budget(),
+            locale="vi",
+            safe_instructions=None,
+            intake_action_service=executor,
+            intake_action_context=context,
+            intake_definition=definition,
+        )
+
+        result = await runtime.run("Thông tin trên đúng rồi, bạn ghi nhận giúp mình nhé")
+
+        assert result.text.startswith("Mình đã ghi nhận")
+        assert executor.calls == [
+            (
+                context,
+                IntakeActionInput(answers={str(field_key): "customer@example.com"}),
+            )
+        ]
+        assert [tool.name for tool in gateway.requests[0].tools] == [
+            "submit_structured_intake",
+            "submit_grounded_answer",
+        ]
+        prompt = gateway.requests[0].system_prompt
+        assert "ordinary language" in prompt
+        assert "rigid one-field-per-turn form" in prompt
+        assert str(field_key) in prompt
+
+    asyncio.run(exercise())
+
+
 def test_runtime_builds_schema_neutral_cards_from_authoritative_tools() -> None:
     async def exercise() -> None:
         product = product_fixture()
@@ -339,9 +437,7 @@ def test_runtime_supports_product_only_catalog_records() -> None:
                 "id": 8,
                 "sku": None,
                 "name": "Service item",
-                "price": CatalogToolPriceSummary(
-                    kind="unknown", minimum=None, maximum=None
-                ),
+                "price": CatalogToolPriceSummary(kind="unknown", minimum=None, maximum=None),
                 "availability": CatalogToolAvailabilitySummary(
                     total_locations=0,
                     in_stock_locations=0,
@@ -354,9 +450,7 @@ def test_runtime_supports_product_only_catalog_records() -> None:
         )
         gateway = FakeGateway(
             [
-                model_call(
-                    "search_products", {"query": "service"}, call_id="product-only"
-                ),
+                model_call("search_products", {"query": "service"}, call_id="product-only"),
                 model_call(
                     "submit_grounded_answer",
                     {
@@ -423,8 +517,7 @@ def test_runtime_returns_natural_catalog_message_with_grounded_product() -> None
         ).run("Có dầu ăn không?")
 
         assert response.text == (
-            "Có nhé! Mình tìm thấy một lựa chọn phù hợp. "
-            "Bạn muốn mình tư vấn thêm không?"
+            "Có nhé! Mình tìm thấy một lựa chọn phù hợp. Bạn muốn mình tư vấn thêm không?"
         )
         assert [card.product_id for card in response.product_cards] == [7]
         assert response.product_cards[0].name == "Dầu ăn Happi Koki 1 lít"
@@ -460,8 +553,7 @@ def test_runtime_keeps_natural_cannot_verify_message() -> None:
         ).run("Bạn có mẫu nào khác không?")
 
         assert response.text == (
-            "Mình chưa tìm thấy lựa chọn phù hợp. "
-            "Bạn có thể mô tả rõ hơn nhu cầu không?"
+            "Mình chưa tìm thấy lựa chọn phù hợp. Bạn có thể mô tả rõ hơn nhu cầu không?"
         )
         assert response.product_cards == []
         assert response.sources == []
@@ -697,9 +789,7 @@ def test_runtime_asks_model_to_repair_invalid_evidence_references() -> None:
         product = product_fixture()
         gateway = FakeGateway(
             [
-                model_call(
-                    "search_products", {"query": "linen"}, call_id="grounded-search"
-                ),
+                model_call("search_products", {"query": "linen"}, call_id="grounded-search"),
                 model_call(
                     "submit_grounded_answer",
                     {
@@ -857,7 +947,7 @@ def test_knowledge_only_runtime_excludes_catalog_prompt_tools_and_cards() -> Non
                         "source_ids": ["source_1"],
                     },
                     call_id="knowledge-only-final",
-                )
+                ),
             ]
         )
 
