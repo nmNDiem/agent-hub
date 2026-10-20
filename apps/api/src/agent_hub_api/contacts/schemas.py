@@ -55,6 +55,11 @@ class ContactTimelineItem(BaseModel):
     detail: str | None = None
     conversation_public_id: UUID | None = None
     lead_id: int | None = None
+    source_channel: Literal["web", "facebook", "zalo"] | None = None
+    capture_source: Literal["website_form", "agent_action"] | None = None
+    revision_no: int | None = None
+    action_status: Literal["succeeded", "failed_retryable", "failed_terminal"] | None = None
+    action_replayed: bool = False
 
 
 class ContactDuplicateCandidate(BaseModel):

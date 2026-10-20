@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import AgentRevision
+from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.agents.runtime import AgentExecutionContext
 from agent_hub_api.catalog.models import CatalogCollection, Location
 from agent_hub_api.catalog.read_models import AuthorizedCatalogScope
@@ -55,6 +55,13 @@ async def resolve_revision_execution_context(
         allowed_location_ids=location_ids,
         allowed_collection_ids=collection_ids,
     )
+    agent = await session.scalar(
+        select(Agent).where(
+            Agent.workspace_id == revision.workspace_id,
+            Agent.id == revision.agent_id,
+            Agent.archived_at.is_(None),
+        )
+    )
     return AgentExecutionContext(
         workspace_id=revision.workspace_id,
         catalog_scope=catalog_scope,
@@ -66,4 +73,10 @@ async def resolve_revision_execution_context(
         ),
         locale=revision.default_locale,
         safe_instructions=revision.safe_instructions,
+        follow_up_action_enabled=(
+            revision.follow_up_action_enabled
+            and agent is not None
+            and agent.status == "published"
+            and agent.follow_up_action_enabled
+        ),
     )

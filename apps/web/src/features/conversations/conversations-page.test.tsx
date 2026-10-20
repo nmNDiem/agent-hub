@@ -114,6 +114,16 @@ describe("ConversationsPage", () => {
         },
       ],
       notes: [],
+      follow_up: {
+        lead_id: 7,
+        source_channel: "web",
+        capture_source: "agent_action",
+        revision_no: 2,
+        action_status: "succeeded",
+        action_replayed: false,
+        requested_at: "2026-10-05T08:00:00Z",
+        followup_status: "new",
+      },
     });
   });
 
@@ -123,6 +133,9 @@ describe("ConversationsPage", () => {
     expect(await screen.findByText("Mình đã tìm thấy một số lựa chọn phù hợp.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tiếp quản" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Nội dung trả lời" })).toBeDisabled();
+    expect(screen.getByRole("region", { name: "Yêu cầu liên hệ" })).toHaveTextContent(
+      "Agent action · revision 2",
+    );
     await waitFor(() => expect(mocks.getConversation).toHaveBeenCalledWith(
       workspace.id,
       conversation.public_id,

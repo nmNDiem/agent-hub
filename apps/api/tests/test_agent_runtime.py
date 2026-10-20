@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -37,6 +38,11 @@ from agent_hub_api.agents.tool_schemas import (
     GetProductDetailToolInput,
     SearchProductsToolInput,
     SearchProductsToolResult,
+)
+from agent_hub_api.contacts.follow_up import (
+    FollowUpActionContext,
+    FollowUpActionInput,
+    FollowUpActionResult,
 )
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.core.identifiers import new_uuid_v7
@@ -80,6 +86,22 @@ class FakeKnowledgeSearcher:
 
     async def search(self, query: str, *, limit: int) -> list[RetrievedKnowledge]:
         return self.items[:limit]
+
+
+class FakeFollowUpExecutor:
+    def __init__(self) -> None:
+        self.calls: list[tuple[FollowUpActionContext, FollowUpActionInput]] = []
+
+    async def request(
+        self, context: FollowUpActionContext, payload: FollowUpActionInput
+    ) -> FollowUpActionResult:
+        self.calls.append((context, payload))
+        return FollowUpActionResult(
+            status="recorded",
+            action_id=UUID(int=9),
+            lead_id=17,
+            followup_status="new",
+        )
 
 
 class FakeCatalogTools:
@@ -192,6 +214,59 @@ def product_fixture() -> CatalogToolProduct:
         size_guide=None,
         updated_at=now,
     )
+
+
+def test_runtime_maps_bounded_follow_up_tool_to_server_bound_action() -> None:
+    async def exercise() -> None:
+        context = FollowUpActionContext(
+            workspace_id=UUID(int=1),
+            agent_id=2,
+            revision_id=3,
+            conversation_id=4,
+            source_message_id=5,
+            channel_connection_id=6,
+            channel="facebook",
+        )
+        executor = FakeFollowUpExecutor()
+        gateway = FakeGateway(
+            [
+                model_call(
+                    "request_human_follow_up",
+                    {"name": "Khách hàng"},
+                    call_id="follow-up",
+                ),
+                model_call(
+                    "submit_grounded_answer",
+                    {
+                        "kind": "general",
+                        "message": "Mình đã chuyển yêu cầu liên hệ của bạn.",
+                    },
+                    call_id="answer",
+                ),
+            ]
+        )
+        runtime = GroundedAgentRuntime(
+            gateway=gateway,
+            catalog_tools=None,
+            knowledge_searcher=FakeKnowledgeSearcher(),
+            budget=budget(),
+            locale="vi",
+            safe_instructions=None,
+            follow_up_action_service=executor,
+            follow_up_action_context=context,
+        )
+
+        result = await runtime.run("Hãy nhờ nhân viên gọi lại cho tôi")
+
+        assert result.text == "Mình đã chuyển yêu cầu liên hệ của bạn."
+        assert executor.calls == [(context, FollowUpActionInput(name="Khách hàng"))]
+        assert [tool.name for tool in gateway.requests[0].tools] == [
+            "request_human_follow_up",
+            "submit_grounded_answer",
+        ]
+        assert "Never promise response time" in gateway.requests[0].system_prompt
+
+    asyncio.run(exercise())
 
 
 def test_runtime_builds_schema_neutral_cards_from_authoritative_tools() -> None:

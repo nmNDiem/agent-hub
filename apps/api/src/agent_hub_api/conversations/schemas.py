@@ -91,6 +91,17 @@ class ConversationNoteResponse(BaseModel):
     created_at: datetime
 
 
+class ConversationFollowUpResponse(BaseModel):
+    lead_id: int
+    source_channel: Literal["web", "facebook", "zalo"]
+    capture_source: Literal["website_form", "agent_action"]
+    revision_no: int
+    action_status: Literal["succeeded", "failed_retryable", "failed_terminal"] | None = None
+    action_replayed: bool = False
+    requested_at: datetime
+    followup_status: Literal["new", "contacted", "closed"]
+
+
 class InboxMemberResponse(BaseModel):
     id: int
     user_id: UUID
@@ -107,6 +118,7 @@ class ConversationDetailResponse(BaseModel):
     messages: list[ConversationMessageResponse]
     retention_until: datetime
     notes: list[ConversationNoteResponse] = Field(default_factory=list)
+    follow_up: ConversationFollowUpResponse | None = None
 
 
 class ConversationStateRequest(BaseModel):

@@ -55,6 +55,7 @@ const agent = {
   safe_instructions: null,
   default_locale: "vi",
   status: "draft" as const,
+  follow_up_action_enabled: false,
   catalog_scope: { location_ids: null, collection_ids: null },
   created_at: "2026-09-30T00:00:00Z",
   updated_at: "2026-09-30T00:00:00Z",
@@ -149,6 +150,7 @@ describe("ChatbotsPage", () => {
       target: { value: "#2f5bea" },
     });
     fireEvent.click(screen.getByText("FAQ").closest("label")!.querySelector("input")!);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Cho phép Agent ghi nhận yêu cầu liên hệ/ }));
     fireEvent.click(screen.getByLabelText(/Tất cả location đang hoạt động/));
     fireEvent.click(screen.getByText("Hà Nội").closest("label")!.querySelector("input")!);
     fireEvent.click(screen.getByRole("button", { name: "Lưu cấu hình" }));
@@ -158,6 +160,7 @@ describe("ChatbotsPage", () => {
       agent.public_id,
       expect.objectContaining({
         safe_instructions: "Thân thiện",
+        follow_up_action_enabled: true,
         icon: "shopping-bag",
         color: "#2F5BEA",
       }),

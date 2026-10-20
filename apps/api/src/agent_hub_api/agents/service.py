@@ -88,6 +88,7 @@ class AgentService:
             safe_instructions=agent.safe_instructions,
             default_locale=agent.default_locale,
             status=cast(AgentStatus, agent.status),
+            follow_up_action_enabled=agent.follow_up_action_enabled,
             catalog_scope=AgentCatalogScopeResponse(
                 location_ids=None if agent.all_locations else location_ids,
                 collection_ids=None if agent.all_collections else collection_ids,
@@ -145,6 +146,7 @@ class AgentService:
                     greeting=greeting,
                     safe_instructions=safe_instructions,
                     default_locale=payload.default_locale,
+                    follow_up_action_enabled=payload.follow_up_action_enabled,
                     created_by_user_id=user.id,
                 )
                 self.session.add(agent)
@@ -169,7 +171,13 @@ class AgentService:
             agent = await self._agent(workspace_id, public_id)
             for field in payload.model_fields_set:
                 value = getattr(payload, field)
-                if field in {"name", "default_locale", "icon", "color"} and value is None:
+                if field in {
+                    "name",
+                    "default_locale",
+                    "icon",
+                    "color",
+                    "follow_up_action_enabled",
+                } and value is None:
                     raise ApiError(
                         status.HTTP_422_UNPROCESSABLE_CONTENT,
                         "VALIDATION_ERROR",

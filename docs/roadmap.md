@@ -40,7 +40,7 @@ Goal: make the Agent the primary product interaction and establish trustworthy K
 | [3.1 General-purpose Agent baseline](phases/3.1-general-purpose-agent-baseline.md) | Domain-neutral defaults/runtime behavior and permanent Knowledge-only plus Commerce regression scenarios | **Complete** |
 | [3.2 Agent workspace experience](phases/3.2-agent-workspace-experience.md) | An Agent-centric workspace for creating, configuring, grounding, testing, publishing, observing and operating Agents through a contextual World and accessible focused screens | **Approved for implementation** |
 | [3.3 Knowledge quality and freshness](phases/3.3-knowledge-quality-and-freshness.md) | Source freshness, immutable version visibility, ingestion recovery and retrieval diagnostics | **Complete** |
-| 3.4 Agent actions and real-work execution | The first concrete effectful workflow proves the minimum typed action, authorization, confirmation/approval, idempotency, execution-state, audit and failure boundary | **Planned; packet not written; requires a selected real workflow** |
+| [3.4 Agent actions and real-work execution](phases/3.4-agent-actions-and-follow-up-requests.md) | The typed `contacts.follow_up.request` workflow records explicit Website/Facebook/Zalo follow-up requests through a server-bound, idempotent Contacts transaction with redacted execution evidence | **Complete — 2026-10-20; privacy review remains a production release gate** |
 
 Phase 3.2 includes minimum guidance, honest empty/error/readiness state and capability-aware navigation. It does not absorb full guided onboarding. Phase 3.4 must grow from a real user workflow; it is not permission to build a universal action platform, capability registry or workflow engine.
 
@@ -115,7 +115,7 @@ Useful empty states, next-step suggestions, inline explanations, validation and 
 
 ## Cross-phase foundations introduced only when triggered
 
-- Before the first effectful action: typed input/output, server-side authorization, validation, Agent permission, confirmation/approval policy, idempotency, execution status, predictable errors, durable redacted audit evidence and reconciliation where external state exists.
+- Before each new effectful action: typed input/output, server-side authorization, validation, Agent permission, confirmation/approval policy, idempotency, execution status, predictable errors, durable redacted audit evidence and reconciliation where external state exists.
 - Before the first stock mutation: append-only stock movements and transactionally derived/reconciled balances.
 - Before payment, refund, electronic invoicing, digital signing, marketplace/platform behavior, regulated financial/accounting behavior or material sensitive-data/AI changes: load [`compliance.md`](compliance.md), identify AgentHub/provider roles and obtain any required legal/product/security approval.
 - Before automation: at least one stable real action and a real trigger, with scope, authorization, audit, retry, disable/pause, visibility and loop prevention.

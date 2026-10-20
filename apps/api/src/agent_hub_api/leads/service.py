@@ -6,7 +6,7 @@ import hashlib
 import io
 import json
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import status
@@ -77,7 +77,15 @@ def _decode_cursor(cursor: str | None) -> tuple[datetime | None, int | None]:
 
 
 def _response(row: LeadRow) -> LeadResponse:
-    lead, conversation_public_id, agent_public_id, agent_name = row
+    (
+        lead,
+        conversation_public_id,
+        agent_public_id,
+        agent_name,
+        revision_no,
+        action_state,
+        replay_count,
+    ) = row
     return LeadResponse(
         id=lead.id,
         conversation_public_id=conversation_public_id,
@@ -86,6 +94,16 @@ def _response(row: LeadRow) -> LeadResponse:
         name=lead.name,
         email=lead.normalized_email,
         phone=lead.phone,
+        source_channel=cast(Literal["web", "facebook", "zalo"], lead.source_channel),
+        capture_source=cast(
+            Literal["website_form", "agent_action"], lead.capture_source
+        ),
+        revision_no=revision_no,
+        action_status=cast(
+            Literal["succeeded", "failed_retryable", "failed_terminal"] | None,
+            action_state,
+        ),
+        action_replayed=bool(replay_count),
         consent_at=lead.consent_at,
         consent_text_version=lead.consent_text_version,
         followup_status=cast(LeadStatus, lead.followup_status),
@@ -215,10 +233,13 @@ class LeadService:
                 conversation_id=conversation.id,
                 session_id=context.session_id,
                 agent_id=context.agent_id,
+                revision_id=context.revision_id,
                 contact_id=contact.id,
                 name=payload.name,
                 normalized_email=normalized_email,
                 phone=payload.phone,
+                source_channel="web",
+                capture_source="website_form",
                 consent_at=now,
                 consent_text_version=payload.consent_text_version,
                 idempotency_key=idempotency_key,
@@ -316,13 +337,26 @@ class LeadService:
                 "name",
                 "email",
                 "phone",
+                "source_channel",
+                "capture_source",
+                "revision_no",
+                "action_status",
+                "action_replayed",
                 "followup_status",
                 "consent_at",
                 "consent_text_version",
                 "retention_until",
             ]
         )
-        for lead, conversation_public_id, _agent_public_id, agent_name in rows:
+        for (
+            lead,
+            conversation_public_id,
+            _agent_public_id,
+            agent_name,
+            revision_no,
+            action_state,
+            replay_count,
+        ) in rows:
             writer.writerow(
                 [
                     lead.id,
@@ -331,8 +365,13 @@ class LeadService:
                     _csv_cell(lead.name),
                     _csv_cell(lead.normalized_email),
                     _csv_cell(lead.phone),
+                    lead.source_channel,
+                    lead.capture_source,
+                    revision_no,
+                    action_state or "not_applicable",
+                    bool(replay_count),
                     lead.followup_status,
-                    lead.consent_at.isoformat(),
+                    lead.consent_at.isoformat() if lead.consent_at is not None else "",
                     lead.consent_text_version,
                     lead.retention_until.isoformat(),
                 ]

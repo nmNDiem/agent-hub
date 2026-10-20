@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Annotated, Protocol, cast
 from uuid import UUID
@@ -21,6 +22,7 @@ from agent_hub_api.agents.runtime import (
 )
 from agent_hub_api.catalog.models import ProductImage
 from agent_hub_api.catalog.storage import CatalogStorage, StorageError
+from agent_hub_api.contacts.follow_up import FollowUpActionContext
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.database import get_db_session
 from agent_hub_api.core.errors import ApiError
@@ -263,6 +265,18 @@ async def _event_stream(
     task: asyncio.Task[GroundedAgentResponse] | None = None
     try:
         context = await resolve_revision_execution_context(session, turn.context.revision)
+        context = replace(
+            context,
+            follow_up_action_context=FollowUpActionContext(
+                workspace_id=turn.context.workspace_id,
+                agent_id=turn.context.agent_id,
+                revision_id=turn.context.revision_id,
+                conversation_id=turn.conversation_id,
+                source_message_id=turn.inbound_message_id,
+                channel_connection_id=turn.context.channel_id,
+                channel="web",
+            ),
+        )
         await session.rollback()
         question = turn.question
         vision_result: VisionResult | None = None

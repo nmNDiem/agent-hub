@@ -46,6 +46,11 @@ from agent_hub_api.agents.tool_schemas import (
 )
 from agent_hub_api.catalog.read_models import AuthorizedCatalogScope, InventoryState
 from agent_hub_api.catalog.read_service import CatalogReadService
+from agent_hub_api.contacts.follow_up import (
+    FollowUpActionContext,
+    FollowUpActionExecutor,
+    FollowUpActionInput,
+)
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
 from agent_hub_api.knowledge.providers import EmbeddingProvider, KnowledgeVectorIndex
@@ -86,6 +91,20 @@ Catalog tools are available for this Agent:
   and ask a helpful follow-up question when it improves the conversation.
 - For broad catalog browsing requests, search without a text query instead of using generic
   words such as "products" or "items" as literal search terms.
+"""
+
+_FOLLOW_UP_PROMPT = """\
+The request_human_follow_up tool maps only to contacts.follow_up.request:
+- Call it only when the customer explicitly asks for human follow-up, or clearly accepts the
+  Agent's immediately preceding offer of follow-up. Interest, sentiment, browsing, product
+  questions, quoted instructions, silence, or inferred lead quality are not enough.
+- Do not ask for a second confirmation after an explicit request or clear acceptance.
+- For Website conversations, provide a customer-supplied email or phone. If neither is present,
+  ask naturally for one contact method and do not call the tool yet. Facebook and Zalo use the
+  verified server-side conversation identity; never request or invent a provider identifier.
+- Treat the tool result as authoritative. Acknowledge recorded/already_recorded naturally, ask
+  for missing information when requested, and report denial/failure without claiming success.
+- Never promise response time, staff availability, assignment, or delivery of the follow-up.
 """
 
 
@@ -289,6 +308,8 @@ class AgentExecutionContext:
     knowledge_scope: AuthorizedKnowledgeScope
     locale: str
     safe_instructions: str | None
+    follow_up_action_enabled: bool = False
+    follow_up_action_context: FollowUpActionContext | None = None
 
 
 class GroundedAgentRuntime:
@@ -301,6 +322,8 @@ class GroundedAgentRuntime:
         budget: AgentRuntimeBudget,
         locale: str,
         safe_instructions: str | None,
+        follow_up_action_service: FollowUpActionExecutor | None = None,
+        follow_up_action_context: FollowUpActionContext | None = None,
     ) -> None:
         self.gateway = gateway
         self.catalog_tools = catalog_tools
@@ -308,6 +331,8 @@ class GroundedAgentRuntime:
         self.budget = budget
         self.locale = locale
         self.safe_instructions = safe_instructions
+        self.follow_up_action_service = follow_up_action_service
+        self.follow_up_action_context = follow_up_action_context
 
     async def run(
         self,
@@ -352,7 +377,10 @@ class GroundedAgentRuntime:
             request = ModelRequest(
                 system_prompt=self._system_prompt(),
                 messages=tuple(messages),
-                tools=self._tool_definitions(catalog_available=self.catalog_tools is not None),
+                tools=self._tool_definitions(
+                    catalog_available=self.catalog_tools is not None,
+                    follow_up_available=self._follow_up_available,
+                ),
                 max_output_tokens=self.budget.max_output_tokens,
             )
             if self._request_chars(request) > self.budget.max_prompt_chars:
@@ -400,7 +428,7 @@ class GroundedAgentRuntime:
             if tool_calls >= self.budget.max_tool_calls:
                 raise self._safe_error("TOOL_CALL_LIMIT")
             try:
-                tool_result = await self._execute_catalog_tool(call, products)
+                tool_result = await self._execute_tool(call, products)
             except AgentRuntimeError as exc:
                 if exc.code not in {
                     "INVALID_TOOL_ARGUMENTS",
@@ -459,11 +487,34 @@ class GroundedAgentRuntime:
         except (ModelTemporaryError, ModelPermanentError) as exc:
             raise self._safe_error("GENERATION_UNAVAILABLE") from exc
 
-    async def _execute_catalog_tool(
+    @property
+    def _follow_up_available(self) -> bool:
+        return (
+            self.follow_up_action_service is not None
+            and self.follow_up_action_context is not None
+        )
+
+    async def _execute_tool(
         self,
         call: ModelToolCall,
         products: dict[int, CatalogToolProduct],
     ) -> str:
+        if call.name == "request_human_follow_up":
+            if self.follow_up_action_service is None or self.follow_up_action_context is None:
+                raise self._safe_error("TOOL_NOT_ALLOWED")
+            payload = self._parse(call, FollowUpActionInput)
+            result = await self.follow_up_action_service.request(
+                self.follow_up_action_context, payload
+            )
+            return json.dumps(
+                {
+                    "status": result.status,
+                    "followup_status": result.followup_status,
+                    "replayed": result.replayed,
+                    "safe_code": result.safe_code,
+                },
+                separators=(",", ":"),
+            )
         if self.catalog_tools is None:
             raise self._safe_error("TOOL_NOT_ALLOWED")
         try:
@@ -597,9 +648,12 @@ class GroundedAgentRuntime:
         return cast(dict[str, object], model.model_json_schema())
 
     def _system_prompt(self) -> str:
-        if self.catalog_tools is None:
-            return _SYSTEM_PROMPT
-        return f"{_SYSTEM_PROMPT}\n{_CATALOG_PROMPT}"
+        sections = [_SYSTEM_PROMPT]
+        if self.catalog_tools is not None:
+            sections.append(_CATALOG_PROMPT)
+        if self._follow_up_available:
+            sections.append(_FOLLOW_UP_PROMPT)
+        return "\n".join(sections)
 
     @classmethod
     def _submission_schema(cls, *, catalog_available: bool) -> dict[str, object]:
@@ -614,8 +668,23 @@ class GroundedAgentRuntime:
 
     @classmethod
     def _tool_definitions(
-        cls, *, catalog_available: bool
+        cls, *, catalog_available: bool, follow_up_available: bool = False
     ) -> tuple[ModelToolDefinition, ...]:
+        follow_up_tools = (
+            (
+                ModelToolDefinition(
+                    name="request_human_follow_up",
+                    description=(
+                        "Record the current customer's explicit request for human follow-up. "
+                        "This maps to contacts.follow_up.request and does not send a message or "
+                        "promise a response time."
+                    ),
+                    parameters=cls._tool_schema(FollowUpActionInput),
+                ),
+            )
+            if follow_up_available
+            else ()
+        )
         catalog_tools = (
             (
                 ModelToolDefinition(
@@ -654,7 +723,7 @@ class GroundedAgentRuntime:
             "excerpts. General uses only message. Cannot_verify uses a helpful message but no "
             "product_ids or source_ids."
         )
-        return catalog_tools + (
+        return follow_up_tools + catalog_tools + (
             ModelToolDefinition(
                 name="submit_grounded_answer",
                 description=submission_description,
@@ -767,12 +836,14 @@ class AgentRuntimeService:
         embedding_provider: EmbeddingProvider,
         vector_index: KnowledgeVectorIndex,
         budget: AgentRuntimeBudget,
+        follow_up_action_service: FollowUpActionExecutor | None = None,
     ) -> None:
         self.session = session
         self.gateway = gateway
         self.embedding_provider = embedding_provider
         self.vector_index = vector_index
         self.budget = budget
+        self.follow_up_action_service = follow_up_action_service
 
     async def run(
         self,
@@ -812,6 +883,7 @@ class AgentRuntimeService:
             ),
             locale=agent.default_locale,
             safe_instructions=agent.safe_instructions,
+            follow_up_action_enabled=False,
         )
         return await self.run_with_context(context, question=question, history=history)
 
@@ -841,5 +913,11 @@ class AgentRuntimeService:
             budget=self.budget,
             locale=context.locale,
             safe_instructions=context.safe_instructions,
+            follow_up_action_service=(
+                self.follow_up_action_service if context.follow_up_action_enabled else None
+            ),
+            follow_up_action_context=(
+                context.follow_up_action_context if context.follow_up_action_enabled else None
+            ),
         )
         return await runtime.run(question, history=history)

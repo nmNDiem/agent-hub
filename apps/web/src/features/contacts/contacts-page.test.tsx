@@ -107,6 +107,11 @@ describe("ContactsPage", () => {
           detail: "Trợ lý bán hàng",
           conversation_public_id: "01992f3c-4436-7000-8000-000000000099",
           lead_id: null,
+          source_channel: null,
+          capture_source: null,
+          revision_no: null,
+          action_status: null,
+          action_replayed: false,
         },
         {
           key: "lead:7",
@@ -116,6 +121,11 @@ describe("ContactsPage", () => {
           detail: "new",
           conversation_public_id: null,
           lead_id: 7,
+          source_channel: "facebook",
+          capture_source: "agent_action",
+          revision_no: 2,
+          action_status: "succeeded",
+          action_replayed: true,
         },
       ],
       duplicate_candidates: [
@@ -139,6 +149,7 @@ describe("ContactsPage", () => {
       "/app/fashion-shop/conversations/01992f3c-4436-7000-8000-000000000099",
     );
     expect(screen.getByText("Hồ sơ có thể trùng")).toBeInTheDocument();
+    expect(screen.getByText(/facebook · Agent action · revision 2 · succeeded · replay/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Trạng thái lead"), {
       target: { value: "contacted" },

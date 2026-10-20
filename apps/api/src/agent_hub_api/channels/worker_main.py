@@ -12,6 +12,7 @@ from agent_hub_api.channels.contracts import ChannelProvider, OutboundAdapter
 from agent_hub_api.channels.responses import ChannelResponseRunner, ChannelResponseService
 from agent_hub_api.channels.service import ChannelService, DeliveryRunner
 from agent_hub_api.channels.vault import SupabaseCredentialVault
+from agent_hub_api.contacts.follow_up import FollowUpActionService
 from agent_hub_api.core.config import get_settings
 from agent_hub_api.core.database import create_database_engine, create_session_factory
 from agent_hub_api.facebook.graph import HttpFacebookGraphGateway
@@ -86,6 +87,7 @@ async def main() -> None:
             embedding_provider=embedding,
             vector_index=vector_index,
             budget=AgentRuntimeBudget.from_settings(settings),
+            follow_up_action_service=FollowUpActionService(sessions, settings),
         )
 
     media_downloader = FacebookMediaDownloader(

@@ -35,6 +35,7 @@ class AgentCreateRequest(BaseModel):
     greeting: str | None = Field(default=None, max_length=2_000)
     safe_instructions: str | None = Field(default=None, max_length=10_000)
     default_locale: str = Field(default="vi", min_length=2, max_length=16)
+    follow_up_action_enabled: bool = False
 
     @field_validator("name")
     @classmethod
@@ -74,6 +75,7 @@ class AgentUpdateRequest(BaseModel):
     greeting: str | None = Field(default=None, max_length=2_000)
     safe_instructions: str | None = Field(default=None, max_length=10_000)
     default_locale: str | None = Field(default=None, min_length=2, max_length=16)
+    follow_up_action_enabled: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -140,6 +142,7 @@ class AgentResponse(BaseModel):
     safe_instructions: str | None
     default_locale: str
     status: AgentStatus
+    follow_up_action_enabled: bool
     catalog_scope: AgentCatalogScopeResponse
     created_at: datetime
     updated_at: datetime

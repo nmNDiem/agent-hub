@@ -39,6 +39,8 @@ Capability-aware UI tests assert that absent domains leave no broken route, requ
 
 A later centralized evaluation phase does not defer correctness. Every approved capability adds its business-critical tests in the same delivery: appointment Actions test scheduling/idempotency/conflicts, Order Actions test authoritative side effects and failure recovery, and retrieval changes add grounding/regression cases. Effectful Actions require authorization, confirmation/approval where applicable, idempotency, audit/attribution, failure and tenant-isolation coverage.
 
+The follow-up-action gate covers draft/published/live permission, server-bound revision/conversation/source-message context, Website contact requirements, Facebook/Zalo provider identity, compatible replay/conflict, cross-tenant denial, rollback/commit isolation, retention/redaction and operator provenance. Runtime tests use fake models and channels; the opt-in PostgreSQL migration rehearsal verifies upgrade and practical downgrade when a test database is configured.
+
 PostgreSQL-specific behavior must be tested against PostgreSQL where SQLite semantics are insufficient. Import/parsing changes retain representative source-agnostic fixtures. Keep phase acceptance criteria measurable and coherent rather than splitting one capability into infrastructure-only fragments to avoid end-to-end verification.
 
 ## Omnichannel delivery gates
@@ -47,6 +49,7 @@ PostgreSQL-specific behavior must be tested against PostgreSQL where SQLite sema
 - Duplicate/reordered provider events do not duplicate messages, model spend or delivery.
 - Provider identities are isolated by connection/workspace.
 - Revoked credentials and expired permissions stop processing safely.
+- Follow-up execution is fenced again at mutation time by connection health, provider window/opt-out, AI handling mode and the current inbound message; duplicate jobs/tool calls cannot create a second Lead.
 - Outbound retry is idempotent and terminal failure is visible.
 - Human reply/assignment/status/tag operations enforce role, CSRF and tenant scope.
 - AI/human handoff transitions cannot send overlapping duplicate replies.

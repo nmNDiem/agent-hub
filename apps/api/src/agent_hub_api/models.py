@@ -44,6 +44,7 @@ from agent_hub_api.contacts.models import (
     ContactMergeEvent,
     ContactNote,
     ContactTagLink,
+    FollowUpActionExecution,
 )
 from agent_hub_api.conversations.models import (
     Conversation,
@@ -146,6 +147,7 @@ __all__ = [
     "Contact",
     "ContactAuditEvent",
     "ContactIdentity",
+    "FollowUpActionExecution",
     "ContactMergeEvent",
     "ContactNote",
     "ContactTagLink",

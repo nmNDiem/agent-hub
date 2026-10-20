@@ -9,6 +9,7 @@ An Agent is a workspace-owned operational actor: identity, instructions, assigne
 - Draft agents with name, greeting, locale, safe instructions, knowledge assignments, and catalog location/collection scope.
 - Immutable published revisions, publish/pause/archive behavior, authenticated Playground, Website publication, and social-channel bindings.
 - A bounded OpenAI runtime with knowledge retrieval and capability-aware typed Catalog read tools.
+- An opt-in `contacts.follow_up.request` action for real published Website/Facebook/Zalo conversations. The permission is snapshotted into each immutable revision and rechecked on the live Agent so disable takes effect immediately; Playground never receives the effectful tool.
 - Owner/admin Knowledge diagnostics may resolve an Agent's current Knowledge assignment server-side but do not call the chat model, create conversations, publish revisions or change bindings.
 - Server-validated source/product evidence and usage accounting.
 - A bounded multi-Agent World projection with lifecycle, published revision, assigned Knowledge, Channel, Catalog scope, Conversation activity and safe attention summaries. The World links back to existing focused mutation surfaces.
@@ -37,13 +38,13 @@ The Agent workspace should let an operator understand who the Agent is, what it 
 
 Publish is not a decorative toggle. It selects an immutable executable revision. Readiness should be derived from real configuration—such as instructions, assigned Knowledge, valid Channel/provider state and future Action dependencies—and must distinguish blocking, optional, unavailable and unauthorized states. Full guided onboarding remains later work, but useful inline guidance is required earlier.
 
-Before an effectful action exists, introduce a minimum typed action boundary: Agent → authorized action/tool → owning domain or external service → authoritative state, with typed input/output, validation, server-derived workspace and Agent permission, confirmation/approval where needed, idempotency, execution status, predictable errors, safe retries, attribution, durable redacted evidence and external-state reconciliation where applicable.
+The first effectful action uses the minimum typed boundary: Agent → authorized action/tool → Contacts service → authoritative state. Runtime context supplies workspace, Agent, revision, Conversation, source message and Channel connection; model input is limited to bounded contact details and cannot grant permission or choose identity/provenance.
 
 Evaluation suites, feedback, regression comparison and rollout evidence remain future phase 6.1 work. Quality tests specific to each new Agent capability remain part of that capability and are not deferred.
 
 ## NOT IMPLEMENTED
 
-No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger, effectful Agent Action or autonomous payment/order/stock action exists. The current World includes only the approved System/Agents slice; separate Catalog/Customer projections remain deferred.
+No generic plugin registry, workflow engine, arbitrary-code tools, general tool-call ledger or autonomous payment/order/stock action exists. The current World includes only the approved System/Agents slice; separate Catalog/Customer projections remain deferred.
 
 ## Change trigger
 

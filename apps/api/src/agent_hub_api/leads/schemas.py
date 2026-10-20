@@ -70,8 +70,13 @@ class LeadResponse(BaseModel):
     name: str | None
     email: str | None
     phone: str | None
-    consent_at: datetime
-    consent_text_version: str
+    source_channel: Literal["web", "facebook", "zalo"]
+    capture_source: Literal["website_form", "agent_action"]
+    revision_no: int
+    action_status: Literal["succeeded", "failed_retryable", "failed_terminal"] | None = None
+    action_replayed: bool = False
+    consent_at: datetime | None
+    consent_text_version: str | None
     followup_status: LeadStatus
     retention_until: datetime
     created_at: datetime

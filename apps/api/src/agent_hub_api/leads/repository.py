@@ -1,14 +1,15 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent
+from agent_hub_api.agents.models import Agent, AgentRevision
+from agent_hub_api.contacts.models import FollowUpActionExecution
 from agent_hub_api.conversations.models import Conversation
 from agent_hub_api.leads.models import Lead
 
-LeadRow = tuple[Lead, UUID, UUID, str]
+LeadRow = tuple[Lead, UUID, UUID, str, int, str | None, int | None]
 
 
 class LeadRepository:
@@ -41,8 +42,25 @@ class LeadRepository:
         cursor_id: int | None = None,
         followup_status: str | None = None,
     ) -> list[LeadRow]:
+        latest_execution_id = (
+            select(func.max(FollowUpActionExecution.id))
+            .where(
+                FollowUpActionExecution.workspace_id == Lead.workspace_id,
+                FollowUpActionExecution.lead_id == Lead.id,
+            )
+            .correlate(Lead)
+            .scalar_subquery()
+        )
         statement = (
-            select(Lead, Conversation.public_id, Agent.public_id, Agent.name)
+            select(
+                Lead,
+                Conversation.public_id,
+                Agent.public_id,
+                Agent.name,
+                AgentRevision.revision_no,
+                FollowUpActionExecution.state,
+                FollowUpActionExecution.replay_count,
+            )
             .join(
                 Conversation,
                 (Conversation.workspace_id == Lead.workspace_id)
@@ -52,6 +70,13 @@ class LeadRepository:
                 Agent,
                 (Agent.workspace_id == Lead.workspace_id) & (Agent.id == Lead.agent_id),
             )
+            .join(
+                AgentRevision,
+                (AgentRevision.workspace_id == Lead.workspace_id)
+                & (AgentRevision.agent_id == Lead.agent_id)
+                & (AgentRevision.id == Lead.revision_id),
+            )
+            .outerjoin(FollowUpActionExecution, FollowUpActionExecution.id == latest_execution_id)
             .where(Lead.workspace_id == workspace_id)
         )
         if followup_status is not None:
@@ -78,8 +103,25 @@ class LeadRepository:
         ).one_or_none()
 
     async def detail(self, workspace_id: UUID, lead_id: int) -> LeadRow | None:
+        latest_execution_id = (
+            select(func.max(FollowUpActionExecution.id))
+            .where(
+                FollowUpActionExecution.workspace_id == Lead.workspace_id,
+                FollowUpActionExecution.lead_id == Lead.id,
+            )
+            .correlate(Lead)
+            .scalar_subquery()
+        )
         result = await self.session.execute(
-            select(Lead, Conversation.public_id, Agent.public_id, Agent.name)
+            select(
+                Lead,
+                Conversation.public_id,
+                Agent.public_id,
+                Agent.name,
+                AgentRevision.revision_no,
+                FollowUpActionExecution.state,
+                FollowUpActionExecution.replay_count,
+            )
             .join(
                 Conversation,
                 (Conversation.workspace_id == Lead.workspace_id)
@@ -89,6 +131,13 @@ class LeadRepository:
                 Agent,
                 (Agent.workspace_id == Lead.workspace_id) & (Agent.id == Lead.agent_id),
             )
+            .join(
+                AgentRevision,
+                (AgentRevision.workspace_id == Lead.workspace_id)
+                & (AgentRevision.agent_id == Lead.agent_id)
+                & (AgentRevision.id == Lead.revision_id),
+            )
+            .outerjoin(FollowUpActionExecution, FollowUpActionExecution.id == latest_execution_id)
             .where(Lead.workspace_id == workspace_id, Lead.id == lead_id)
         )
         row = result.one_or_none()

@@ -12,7 +12,7 @@ from fastapi import status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent
+from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.channels.models import ChannelConnection
 from agent_hub_api.contacts.models import (
     Contact,
@@ -21,6 +21,7 @@ from agent_hub_api.contacts.models import (
     ContactMergeEvent,
     ContactNote,
     ContactTagLink,
+    FollowUpActionExecution,
 )
 from agent_hub_api.contacts.repository import ContactRepository, ContactRow
 from agent_hub_api.contacts.schemas import (
@@ -355,10 +356,32 @@ class ContactService:
                     conversation_public_id=conversation.public_id,
                 )
             )
-        leads = await self.session.scalars(
-            select(Lead).where(Lead.workspace_id == workspace_id, Lead.contact_id.in_(contact_ids))
+        latest_execution_id = (
+            select(func.max(FollowUpActionExecution.id))
+            .where(
+                FollowUpActionExecution.workspace_id == Lead.workspace_id,
+                FollowUpActionExecution.lead_id == Lead.id,
+            )
+            .correlate(Lead)
+            .scalar_subquery()
         )
-        for lead in leads:
+        leads = await self.session.execute(
+            select(
+                Lead,
+                AgentRevision.revision_no,
+                FollowUpActionExecution.state,
+                FollowUpActionExecution.replay_count,
+            )
+            .join(
+                AgentRevision,
+                (AgentRevision.workspace_id == Lead.workspace_id)
+                & (AgentRevision.agent_id == Lead.agent_id)
+                & (AgentRevision.id == Lead.revision_id),
+            )
+            .outerjoin(FollowUpActionExecution, FollowUpActionExecution.id == latest_execution_id)
+            .where(Lead.workspace_id == workspace_id, Lead.contact_id.in_(contact_ids))
+        )
+        for lead, revision_no, action_state, replay_count in leads.all():
             items.append(
                 ContactTimelineItem(
                     key=f"lead:{lead.id}",
@@ -367,6 +390,18 @@ class ContactService:
                     title="Yêu cầu liên hệ",
                     detail=lead.followup_status,
                     lead_id=lead.id,
+                    source_channel=cast(
+                        Literal["web", "facebook", "zalo"], lead.source_channel
+                    ),
+                    capture_source=cast(
+                        Literal["website_form", "agent_action"], lead.capture_source
+                    ),
+                    revision_no=revision_no,
+                    action_status=cast(
+                        Literal["succeeded", "failed_retryable", "failed_terminal"] | None,
+                        action_state,
+                    ),
+                    action_replayed=bool(replay_count),
                 )
             )
         audits = await self.session.scalars(

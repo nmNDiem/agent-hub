@@ -20,6 +20,7 @@ from agent_hub_api.catalog.scope_router import router as catalog_scope_router
 from agent_hub_api.catalog.storage import CatalogStorage, SupabaseCatalogStorage
 from agent_hub_api.channels.contracts import CredentialVault
 from agent_hub_api.channels.vault import SupabaseCredentialVault
+from agent_hub_api.contacts.follow_up import FollowUpActionService
 from agent_hub_api.contacts.router import router as contacts_router
 from agent_hub_api.conversations.router import router as conversations_router
 from agent_hub_api.core.config import Settings, get_settings
@@ -162,12 +163,16 @@ def create_app(
             assert owned_generation_gateway is not None
             assert owned_embedding_provider is not None
             assert owned_vector_index is not None
+            assert session_factory is not None
             return AgentRuntimeService(
                 session,
                 gateway=owned_generation_gateway,
                 embedding_provider=owned_embedding_provider,
                 vector_index=owned_vector_index,
                 budget=AgentRuntimeBudget.from_settings(runtime_settings),
+                follow_up_action_service=FollowUpActionService(
+                    session_factory, runtime_settings
+                ),
             )
 
         agent_runtime_factory = configured_runtime_factory

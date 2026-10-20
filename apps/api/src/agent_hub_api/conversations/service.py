@@ -12,7 +12,7 @@ from fastapi import status
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agent_hub_api.agents.models import Agent
+from agent_hub_api.agents.models import Agent, AgentRevision
 from agent_hub_api.channels.models import (
     ChannelAgentBinding,
     ChannelConnection,
@@ -21,6 +21,7 @@ from agent_hub_api.channels.models import (
     ChannelThreadMapping,
     OutboundDelivery,
 )
+from agent_hub_api.contacts.models import FollowUpActionExecution
 from agent_hub_api.conversations.models import (
     Conversation,
     ConversationAuditEvent,
@@ -35,6 +36,7 @@ from agent_hub_api.conversations.schemas import (
     ConversationAttachment,
     ConversationDeliveryResponse,
     ConversationDetailResponse,
+    ConversationFollowUpResponse,
     ConversationListResponse,
     ConversationMessageResponse,
     ConversationNoteRequest,
@@ -310,6 +312,39 @@ class ConversationService:
             )
         tags = await self.repository.tags_for_conversations(workspace_id, [conversation.id])
         notes = await self.repository.notes(workspace_id, conversation.id)
+        latest_execution_id = (
+            select(func.max(FollowUpActionExecution.id))
+            .where(
+                FollowUpActionExecution.workspace_id == Lead.workspace_id,
+                FollowUpActionExecution.lead_id == Lead.id,
+            )
+            .correlate(Lead)
+            .scalar_subquery()
+        )
+        follow_up_row = (
+            await self.session.execute(
+                select(
+                    Lead,
+                    AgentRevision.revision_no,
+                    FollowUpActionExecution.state,
+                    FollowUpActionExecution.replay_count,
+                )
+                .join(
+                    AgentRevision,
+                    (AgentRevision.workspace_id == Lead.workspace_id)
+                    & (AgentRevision.agent_id == Lead.agent_id)
+                    & (AgentRevision.id == Lead.revision_id),
+                )
+                .outerjoin(
+                    FollowUpActionExecution,
+                    FollowUpActionExecution.id == latest_execution_id,
+                )
+                .where(
+                    Lead.workspace_id == workspace_id,
+                    Lead.conversation_id == conversation.id,
+                )
+            )
+        ).one_or_none()
         return ConversationDetailResponse(
             conversation=_summary(row, tags.get(conversation.id)),
             messages=response_messages,
@@ -324,6 +359,32 @@ class ConversationService:
                 )
                 for note, email in notes
             ],
+            follow_up=(
+                ConversationFollowUpResponse(
+                    lead_id=follow_up_row[0].id,
+                    source_channel=cast(
+                        Literal["web", "facebook", "zalo"],
+                        follow_up_row[0].source_channel,
+                    ),
+                    capture_source=cast(
+                        Literal["website_form", "agent_action"],
+                        follow_up_row[0].capture_source,
+                    ),
+                    revision_no=follow_up_row[1],
+                    action_status=cast(
+                        Literal["succeeded", "failed_retryable", "failed_terminal"] | None,
+                        follow_up_row[2],
+                    ),
+                    action_replayed=bool(follow_up_row[3]),
+                    requested_at=follow_up_row[0].created_at,
+                    followup_status=cast(
+                        Literal["new", "contacted", "closed"],
+                        follow_up_row[0].followup_status,
+                    ),
+                )
+                if follow_up_row is not None
+                else None
+            ),
         )
 
     async def members(self, user: User, workspace_id: UUID) -> InboxMemberListResponse:

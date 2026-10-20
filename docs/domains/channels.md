@@ -8,6 +8,7 @@ Channels adapt external transports to the shared conversation model. Website, Fa
 
 - Website publication, exact-origin policy, anonymous scoped sessions, streaming/replay, images, evidence cards, and consented lead capture.
 - Tenant-scoped Website/Facebook/Zalo connections with one active agent/revision binding.
+- Real Website turns and claimed Facebook/Zalo response jobs bind the current inbound message and connection into the follow-up-action context. Revocation, provider response-window expiry, opt-out and human takeover fail closed before the Contacts mutation.
 - Verified webhooks, connection-scoped deduplication/mappings, durable outbound delivery, bounded retries, health/revocation, and capability-aware fallback.
 - Facebook Page validation, Graph API messaging, 24-hour response-window enforcement, opt-out handling, and bounded private image quarantine.
 - Zalo OA OAuth v4 with PKCE/rotating refresh, separately stored webhook secret, signature verification, and 48-hour customer-service window enforcement.

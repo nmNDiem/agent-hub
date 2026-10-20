@@ -316,6 +316,7 @@ export type Agent = {
   safe_instructions: string | null;
   default_locale: string;
   status: "draft" | "published" | "paused";
+  follow_up_action_enabled: boolean;
   catalog_scope: {
     location_ids: number[] | null;
     collection_ids: number[] | null;
@@ -425,8 +426,13 @@ export type Lead = {
   name: string | null;
   email: string | null;
   phone: string | null;
-  consent_at: string;
-  consent_text_version: string;
+  source_channel: "web" | "facebook" | "zalo";
+  capture_source: "website_form" | "agent_action";
+  revision_no: number;
+  action_status: "succeeded" | "failed_retryable" | "failed_terminal" | null;
+  action_replayed: boolean;
+  consent_at: string | null;
+  consent_text_version: string | null;
   followup_status: LeadStatus;
   retention_until: string;
   created_at: string;
@@ -487,6 +493,11 @@ export type ContactDetail = {
     detail: string | null;
     conversation_public_id: string | null;
     lead_id: number | null;
+    source_channel: "web" | "facebook" | "zalo" | null;
+    capture_source: "website_form" | "agent_action" | null;
+    revision_no: number | null;
+    action_status: "succeeded" | "failed_retryable" | "failed_terminal" | null;
+    action_replayed: boolean;
   }>;
   duplicate_candidates: Array<{
     public_id: string;
@@ -549,6 +560,16 @@ export type ConversationDetail = {
     } | null;
   }>;
   notes: Array<{ id: number; author_member_id: number; author_email: string; body: string; created_at: string }>;
+  follow_up: {
+    lead_id: number;
+    source_channel: "web" | "facebook" | "zalo";
+    capture_source: "website_form" | "agent_action";
+    revision_no: number;
+    action_status: "succeeded" | "failed_retryable" | "failed_terminal" | null;
+    action_replayed: boolean;
+    requested_at: string;
+    followup_status: LeadStatus;
+  } | null;
 };
 
 export type UsageSummary = {
@@ -1166,7 +1187,7 @@ export const api = {
     publicAgentId: string,
     payload: Partial<Pick<
       Agent,
-      "name" | "icon" | "color" | "greeting" | "safe_instructions" | "default_locale"
+      "name" | "icon" | "color" | "greeting" | "safe_instructions" | "default_locale" | "follow_up_action_enabled"
     >>,
   ) => request<Agent>(`/api/v1/workspaces/${workspaceId}/agents/${publicAgentId}`, {
     method: "PATCH",

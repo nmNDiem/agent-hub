@@ -47,6 +47,11 @@ const lead = {
   name: "Nguyễn An",
   email: "an@example.com",
   phone: null,
+  source_channel: "web" as const,
+  capture_source: "agent_action" as const,
+  revision_no: 2,
+  action_status: "succeeded" as const,
+  action_replayed: true,
   consent_at: "2026-10-04T08:00:00Z",
   consent_text_version: "vi-VN:contact-v1:30d",
   followup_status: "new" as const,
@@ -73,6 +78,8 @@ describe("LeadsPage", () => {
     render(<LeadsPage />);
     expect(await screen.findByText("Nguyễn An")).toBeInTheDocument();
     expect(screen.getByText("an@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/Agent action · revision 2/)).toBeInTheDocument();
+    expect(screen.getByText(/succeeded · replay/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Trạng thái của Nguyễn An"), {
       target: { value: "contacted" },
     });

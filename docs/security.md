@@ -49,11 +49,12 @@ These rules apply to every phase and override convenience or UI assumptions. A p
 
 - User messages, documents, websites, image metadata and provider payloads are untrusted data and cannot override system/tool policy.
 - Current read tools use allowlisted typed inputs, server-injected tenant scope, independent authorization, bounded results and persisted usage facts.
+- The `contacts.follow_up.request` write tool is exposed only in eligible real published conversations. Workspace, Agent/revision, Conversation, current inbound message, Channel connection and provider identity are server-bound; live permission, AI handling mode, lifecycle, message ordering/age and channel reachability are revalidated in the Contacts transaction. Playground has no write tool.
 - Current catalog records own price, SKU, options and inventory. The model cannot invent availability, discount, shipping guarantees or order outcomes.
 - Token, tool-call, provider-call, concurrency and workspace quotas are enforced before external spend where possible.
 - No autonomous payment, order, refund or stock mutation is authorized.
 
-Before the first effectful tool, define its owning domain action, server-side permission and approval policy, typed input, idempotency/concurrency behavior, and durable redacted execution evidence. Do not pass model output directly to a database or regulated provider, and do not claim a general tool audit system exists today.
+Each effectful tool must define its owning domain action, server-side permission and approval policy, typed input, idempotency/concurrency behavior, and durable redacted execution evidence. The follow-up action stores references, hashes, safe status/codes and timing only; it never records raw messages, contact values, provider IDs, prompts or tool arguments in execution evidence. Do not pass model output directly to a database or regulated provider, and do not claim a general tool audit system exists.
 
 ## Uploads and retention
 
@@ -61,6 +62,7 @@ Before the first effectful tool, define its owning domain action, server-side pe
 - Knowledge documents and visitor images stay private; public product media requires deliberate publication.
 - Knowledge version history exposes provenance hashes and processing state but not manual source bodies, private object keys or signed URLs. Replacement reuses current file/type/size/quota validation.
 - Local defaults are 24-hour visitor sessions/transcripts, 30-minute unattached images, one-hour attached images and 30-day consented leads. A change requires an explicit retention decision.
+- Follow-up execution evidence expires at the shorter applicable Conversation/Lead boundary and is removed before the referenced sensitive records, so it cannot preserve access to expired content or identity data.
 - Expiry revokes authoritative database access before best-effort external cleanup; failed Storage deletion remains retryable.
 
 ## Logging and errors

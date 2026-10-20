@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,8 +33,15 @@ from agent_hub_api.channels.models import (
 )
 from agent_hub_api.channels.rendering import CapabilityAwareRenderer, ChannelRenderError
 from agent_hub_api.channels.service import ChannelService, ChannelStateError
+from agent_hub_api.contacts.follow_up import (
+    FollowUpActionContext,
+    FollowUpActionInput,
+    FollowUpActionService,
+)
 from agent_hub_api.contacts.models import Contact, ContactIdentity
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
+from agent_hub_api.core.config import Settings
+from agent_hub_api.leads.models import Lead
 from agent_hub_api.models import Base
 from agent_hub_api.workspaces.models import Workspace
 
@@ -94,6 +102,7 @@ async def seed_connection(
     workspace_id: UUID,
     slug: str,
     external_account_id: str,
+    provider: Literal["facebook", "zalo"] = "facebook",
 ) -> ChannelConnection:
     user_id = uuid4()
     async with factory() as session, session.begin():
@@ -121,7 +130,7 @@ async def seed_connection(
         )
         connection = ChannelConnection(
             workspace_id=workspace_id,
-            provider="facebook",
+            provider=provider,
             display_name=slug,
             external_account_id=external_account_id,
         )
@@ -146,10 +155,11 @@ def inbound_event(
     message_id: str,
     thread_id: str = "thread-shared",
     occurred_at: datetime | None = None,
+    provider: Literal["facebook", "zalo"] = "facebook",
 ) -> VerifiedInboundEvent:
     fingerprint = hashlib.sha256(f"{account}:{event_id}:{message_id}".encode()).hexdigest()
     return VerifiedInboundEvent(
-        provider="facebook",
+        provider=provider,
         external_account_id=account,
         external_event_id=event_id,
         payload_fingerprint=fingerprint,
@@ -160,6 +170,92 @@ def inbound_event(
             occurred_at=occurred_at,
         ),
     )
+
+
+@pytest.mark.parametrize("provider", ["facebook", "zalo"])
+def test_social_follow_up_uses_verified_provider_identity(
+    channel_database: tuple[async_sessionmaker[AsyncSession], AsyncEngine],
+    provider: Literal["facebook", "zalo"],
+) -> None:
+    factory, _ = channel_database
+    workspace_id = uuid4()
+    now = datetime.now(UTC)
+
+    async def scenario() -> None:
+        connection = await seed_connection(
+            factory,
+            workspace_id=workspace_id,
+            slug=f"{provider}-follow-up",
+            external_account_id=f"{provider}-account",
+            provider=provider,
+        )
+        async with factory() as session, session.begin():
+            agent = await session.scalar(
+                select(Agent).where(Agent.workspace_id == workspace_id)
+            )
+            revision = await session.scalar(
+                select(AgentRevision).where(AgentRevision.workspace_id == workspace_id)
+            )
+            stored_connection = await session.get(ChannelConnection, connection.id)
+            assert agent is not None
+            assert revision is not None
+            assert stored_connection is not None
+            agent.follow_up_action_enabled = True
+            revision.follow_up_action_enabled = True
+            stored_connection.health_state = "healthy"
+
+        event = inbound_event(
+            account=f"{provider}-account",
+            event_id="follow-up-event",
+            message_id="follow-up-message",
+            occurred_at=now,
+            provider=provider,
+        )
+        async with factory() as session:
+            inbound = await ChannelService(session).ingest_verified(
+                event, retention_until=now + timedelta(days=30)
+            )
+        async with factory() as session:
+            conversation = await session.get(Conversation, inbound.conversation_id)
+            binding = await session.scalar(
+                select(ChannelAgentBinding).where(
+                    ChannelAgentBinding.connection_id == connection.id
+                )
+            )
+            assert conversation is not None
+            assert binding is not None
+            assert binding.active_revision_id is not None
+            context = FollowUpActionContext(
+                workspace_id=workspace_id,
+                agent_id=binding.agent_id,
+                revision_id=binding.active_revision_id,
+                conversation_id=conversation.id,
+                source_message_id=inbound.message_id,
+                channel_connection_id=connection.id,
+                channel=provider,
+            )
+
+        result = await FollowUpActionService(
+            factory,
+            Settings(
+                app_env="test",
+                jwt_signing_key="test-signing-key-with-at-least-32-bytes",
+            ),
+        ).request(context, FollowUpActionInput())
+
+        assert result.status == "recorded"
+        async with factory() as session:
+            lead = await session.scalar(
+                select(Lead).where(Lead.conversation_id == inbound.conversation_id)
+            )
+            assert lead is not None
+            assert lead.session_id is None
+            assert lead.normalized_email is None
+            assert lead.phone is None
+            assert lead.source_channel == provider
+            assert lead.capture_source == "agent_action"
+
+    asyncio.run(scenario())
 
 
 def test_verified_inbound_is_connection_scoped_deduplicated_and_mode_aware(

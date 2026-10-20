@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
 from uuid import UUID
@@ -35,6 +35,7 @@ from agent_hub_api.channels.models import (
     OutboundDelivery,
 )
 from agent_hub_api.channels.rendering import CapabilityAwareRenderer, ChannelRenderError
+from agent_hub_api.contacts.follow_up import FollowUpActionContext
 from agent_hub_api.conversations.models import Conversation, ConversationMessage
 from agent_hub_api.core.config import Settings
 from agent_hub_api.core.errors import ApiError
@@ -646,6 +647,18 @@ class ChannelResponseRunner:
             if revision is None or revision.workspace_id != claim.workspace_id:
                 raise ChannelResponseError("RESPONSE_CONTEXT_MISSING", retryable=False)
             context = await resolve_revision_execution_context(self.service.session, revision)
+            context = replace(
+                context,
+                follow_up_action_context=FollowUpActionContext(
+                    workspace_id=claim.workspace_id,
+                    agent_id=claim.agent_id,
+                    revision_id=claim.revision_id,
+                    conversation_id=claim.conversation_id,
+                    source_message_id=claim.inbound_message_id,
+                    channel_connection_id=claim.connection_id,
+                    channel=claim.provider,
+                ),
+            )
             runtime = self.runtime_factory(self.service.session)
             response = await runtime.run_with_context(
                 context, question=question, history=claim.history

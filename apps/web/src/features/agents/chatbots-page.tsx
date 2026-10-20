@@ -8,6 +8,7 @@ import {
   MapPin,
   MessagesSquare,
   MessageSquareText,
+  PhoneForwarded,
   Plus,
   Save,
   Trash2,
@@ -50,6 +51,7 @@ type AgentDraft = {
   allCollections: boolean;
   collectionIds: number[];
   knowledgeBaseIds: number[];
+  followUpActionEnabled: boolean;
 };
 
 function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
@@ -65,6 +67,7 @@ function draftFrom(agent: Agent, knowledgeBaseIds: number[] = []): AgentDraft {
     allCollections: agent.catalog_scope.collection_ids === null,
     collectionIds: agent.catalog_scope.collection_ids ?? [],
     knowledgeBaseIds,
+    followUpActionEnabled: agent.follow_up_action_enabled,
   };
 }
 
@@ -235,6 +238,7 @@ export function ChatbotsPage() {
         greeting: draft.greeting || null,
         safe_instructions: draft.safeInstructions || null,
         default_locale: draft.defaultLocale,
+        follow_up_action_enabled: draft.followUpActionEnabled,
       });
       completedWrites += 1;
       await api.replaceAgentCatalogScope(workspace.id, selectedAgent.public_id, {
@@ -400,6 +404,13 @@ export function ChatbotsPage() {
                       </div>
                       <label className="full-field">Lời chào<textarea maxLength={2000} onChange={(event) => updateDraft({ greeting: event.target.value })} rows={3} value={draft.greeting} /></label>
                       <label className="full-field">Tính cách và phong cách trả lời<small className="agent-field-help">Agent mới đã có cấu hình thân thiện để dùng ngay. Bạn có thể chỉnh cách xưng hô, độ dài và phong cách hỗ trợ tại đây.</small><textarea maxLength={10000} onChange={(event) => updateDraft({ safeInstructions: event.target.value })} placeholder="Ví dụ: Xưng hô gần gũi, trả lời ngắn gọn và luôn hỏi thêm nhu cầu của người dùng." rows={5} value={draft.safeInstructions} /></label>
+                    </fieldset>
+                    <fieldset className="agent-fieldset" disabled={!canWrite}>
+                      <legend><PhoneForwarded aria-hidden="true" size={17} /> Yêu cầu liên hệ lại</legend>
+                      <label className="check-option">
+                        <input checked={draft.followUpActionEnabled} onChange={(event) => updateDraft({ followUpActionEnabled: event.target.checked })} type="checkbox" />
+                        <span><strong>Cho phép Agent ghi nhận yêu cầu liên hệ</strong><small>Chỉ chạy trong hội thoại Website, Facebook hoặc Zalo đã xuất bản khi khách yêu cầu rõ ràng. Bật cần xuất bản revision mới; tắt sẽ chặn thực thi ngay sau khi lưu. Playground không tạo Lead.</small></span>
+                      </label>
                     </fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MessageSquareText aria-hidden="true" size={17} /> Nguồn tri thức</legend><p className="fieldset-help">Chỉ dữ liệu đã ingestion thành công mới được runtime truy xuất.</p><div className="scope-options">{knowledgeBases.map((base) => <label className="check-option" key={base.id}><input checked={draft.knowledgeBaseIds.includes(base.id)} onChange={() => toggleId("knowledgeBaseIds", base.id)} type="checkbox" /><span><strong>{base.name}</strong><small>{base.document_count} tài liệu · {base.kind}</small></span></label>)}{knowledgeBases.length === 0 && <p className="muted-copy">Chưa có kho tri thức.</p>}</div></fieldset>
                     <fieldset className="agent-fieldset" disabled={!canWrite}><legend><MapPin aria-hidden="true" size={17} /> Phạm vi location</legend><label className="check-option"><input checked={draft.allLocations} onChange={(event) => updateDraft({ allLocations: event.target.checked })} type="checkbox" /><span><strong>Tất cả location đang hoạt động</strong><small>Tự động bao gồm location mới.</small></span></label>{!draft.allLocations && <div className="scope-options">{locations.map((location) => <label className="check-option" key={location.id}><input checked={draft.locationIds.includes(location.id)} onChange={() => toggleId("locationIds", location.id)} type="checkbox" /><span>{location.name}</span></label>)}</div>}</fieldset>

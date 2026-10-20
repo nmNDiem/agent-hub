@@ -7,6 +7,8 @@ A Contact is a workspace-level identity and customer-service relationship assemb
 ## CURRENT
 
 - Website callback consent creates a contact identity and lead linked to trusted conversation/session ownership.
+- An explicit conversational follow-up request can create or reuse one Lead per Conversation through the Contacts-owned `contacts.follow_up.request` service. Website requires email or phone; Facebook/Zalo use the already verified, connection-scoped provider Contact identity without fabricated Website data.
+- Narrow action execution evidence records server-bound Agent revision, Conversation, source message, request hash, safe outcome/status and timing without copying messages, PII, provider IDs, prompts or raw tool arguments.
 - First verified Facebook/Zalo inbound creates a distinct connection-namespaced provider identity.
 - Search, cursor pagination, shared tags, assignment, role-aware detail, notes, conversation/lead history, and bounded CSV export.
 - Exact normalized email/phone duplicate suggestions plus owner/admin, reasoned, version-checked, auditable, reversible logical merge.

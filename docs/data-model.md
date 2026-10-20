@@ -57,7 +57,7 @@ Evidence returned by the runtime is currently embedded in `conversation_messages
 
 ### Contacts and leads
 
-Contacts own a workspace-level human profile, channel identities, notes, tags, assignment, retention, contact audit events, and reversible merge events. Leads preserve an originating consented conversion and link to a contact and conversation.
+Contacts own a workspace-level human profile, channel identities, notes, tags, assignment, retention, contact audit events, reversible merge events and the narrow `contacts.follow_up.request` execution record. Leads preserve an originating conversion and link to a contact and conversation: Website form/action rows retain their contact-method/session rules, while Facebook/Zalo action rows rely on a verified provider Contact identity and Conversation. Action evidence stores server-bound references, hashes, safe state/outcome and timing rather than copied content or PII.
 
 A Contact is channel/customer-service identity. It is not automatically a Commerce Customer: purchasing identity, addresses, tax data, and commercial history would have different rules and are not implemented.
 
@@ -86,6 +86,6 @@ New domain tables must own their invariants and expose actions through their dom
 
 ## Change triggers
 
-- Before the first effectful agent action: define the minimum action contract, authorization policy, idempotency behavior, approval boundary, and durable execution evidence.
+- Before each new effectful Agent action: define its concrete action contract, authorization policy, idempotency behavior, approval boundary, durable execution evidence and any external-effect reconciliation it needs.
 - Before the first operational inventory mutation: add the ledger, balance derivation, transaction rules, concurrency strategy, and migration/backfill plan.
 - Before regulated payment or identity data: select an external provider, minimize retained data, and document webhook, reconciliation, failure, and deletion behavior.

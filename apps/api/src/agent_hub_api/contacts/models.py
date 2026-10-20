@@ -128,6 +128,87 @@ class ContactIdentity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class FollowUpActionExecution(Base):
+    __tablename__ = "follow_up_action_executions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id"],
+            ["agents.workspace_id", "agents.id"],
+            name="fk_follow_up_executions_workspace_agent",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "agent_id", "revision_id"],
+            ["agent_revisions.workspace_id", "agent_revisions.agent_id", "agent_revisions.id"],
+            name="fk_follow_up_executions_workspace_revision",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["conversations.workspace_id", "conversations.id"],
+            name="fk_follow_up_executions_workspace_conversation",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "source_message_id"],
+            ["conversation_messages.workspace_id", "conversation_messages.id"],
+            name="fk_follow_up_executions_workspace_message",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["contacts.workspace_id", "contacts.id"],
+            name="fk_follow_up_executions_workspace_contact",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "lead_id"],
+            ["leads.workspace_id", "leads.id"],
+            name="fk_follow_up_executions_workspace_lead",
+        ),
+        UniqueConstraint("workspace_id", "id", name="uq_follow_up_executions_workspace_id"),
+        UniqueConstraint("source_message_id", name="uq_follow_up_executions_source_message"),
+        UniqueConstraint(
+            "workspace_id", "idempotency_key", name="uq_follow_up_executions_idempotency"
+        ),
+        CheckConstraint(
+            "action_identifier = 'contacts.follow_up.request'",
+            name="ck_follow_up_executions_action",
+        ),
+        CheckConstraint("length(request_hash) = 64", name="ck_follow_up_executions_hash"),
+        CheckConstraint(
+            "state IN ('executing','succeeded','failed_retryable','failed_terminal')",
+            name="ck_follow_up_executions_state",
+        ),
+        CheckConstraint("replay_count >= 0", name="ck_follow_up_executions_replay_count"),
+        Index(
+            "ix_follow_up_executions_workspace_conversation",
+            "workspace_id",
+            "conversation_id",
+            "created_at",
+        ),
+        Index("ix_follow_up_executions_retention", "retention_until", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY, primary_key=True, autoincrement=True)
+    action_id: Mapped[UUID] = mapped_column(unique=True)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    action_identifier: Mapped[str] = mapped_column(
+        String(64), default="contacts.follow_up.request"
+    )
+    agent_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    revision_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    conversation_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    source_message_id: Mapped[int] = mapped_column(BIGINT_PRIMARY_KEY)
+    contact_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    lead_id: Mapped[int | None] = mapped_column(BIGINT_PRIMARY_KEY, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(24), default="executing")
+    safe_outcome: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    safe_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    replay_count: Mapped[int] = mapped_column(Integer(), default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retention_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ContactNote(Base):
     __tablename__ = "contact_notes"
     __table_args__ = (

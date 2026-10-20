@@ -116,6 +116,7 @@ class WidgetAdminService:
                     catalog_scope_json=cast(dict[str, object], snapshot["catalog_scope"]),
                     knowledge_base_ids_json=cast(list[int], snapshot["knowledge_base_ids"]),
                     widget_config_json=cast(dict[str, object], snapshot["widget"]),
+                    follow_up_action_enabled=agent.follow_up_action_enabled,
                     config_hash=config_hash,
                     created_by_user_id=user.id,
                 )
@@ -156,6 +157,7 @@ class WidgetAdminService:
             "default_locale": agent.default_locale,
             "catalog_scope": catalog_scope,
             "knowledge_base_ids": await self.repository.knowledge_base_ids(agent),
+            "follow_up_action_enabled": agent.follow_up_action_enabled,
             "widget": {
                 "brand_color": channel.brand_color,
                 "launcher_position": channel.launcher_position,

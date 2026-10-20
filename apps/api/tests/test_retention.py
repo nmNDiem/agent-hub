@@ -180,6 +180,7 @@ def test_sweeper_revokes_retries_and_preserves_live_workspace_data(
                 conversation_id=expired_conversation.id,
                 session_id=expired_session.id,
                 agent_id=1,
+                revision_id=1,
                 contact_id=expired_contact.id,
                 name="Private visitor",
                 normalized_email="private@example.com",

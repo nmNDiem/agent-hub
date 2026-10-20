@@ -24,6 +24,7 @@ const agent: Agent = {
   safe_instructions: "Trả lời ngắn gọn.",
   default_locale: "vi",
   status: "draft",
+  follow_up_action_enabled: false,
   catalog_scope: { location_ids: null, collection_ids: null },
   created_at: "2026-09-30T00:00:00Z",
   updated_at: "2026-09-30T00:00:00Z",

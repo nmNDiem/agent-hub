@@ -2,7 +2,7 @@
 
 FastAPI publishes the executable OpenAPI contract. Load this reference only when an external HTTP, SSE, DTO, error, pagination, authentication or idempotency contract may change. Current paths remain defined by generated OpenAPI and existing clients.
 
-All route families below are **CURRENT** unless explicitly labeled otherwise. AgentHub has no generic capability-registration or effectful-Agent-action API today.
+All route families below are **CURRENT** unless explicitly labeled otherwise. AgentHub has no generic capability-registration or arbitrary effectful-action HTTP API; the one implemented follow-up action is invoked internally by eligible published runtimes.
 
 ## General conventions
 
@@ -28,7 +28,7 @@ All route families below are **CURRENT** unless explicitly labeled otherwise. Ag
 | Knowledge | bases, immutable document replacement/history/review, ingestion retry/rebuild, ephemeral retrieval diagnostics, archive and Agent assignments |
 | Channels | Website/Facebook/Zalo connection management, health, authorization/revocation and provider webhooks |
 | Conversations | scoped Inbox list/detail, members, read state, workflow, notes, tags and human replies |
-| Contacts/leads | scoped contact timeline/merge/export and consented Website lead creation |
+| Contacts/leads | scoped contact timeline/merge/export, consented Website form capture, and safe omnichannel follow-up provenance |
 | Usage/analytics | bounded factual usage, quota and owner/admin operational metrics |
 | Widget | published config/session, messages, SSE, images, product-image grants and lead creation |
 
@@ -92,8 +92,10 @@ Provider response windows, opt-out state, content limits and message classes are
 - Test tenant denial, stable pagination, idempotency mismatch, duplicate webhooks, provider outage, partial stream and cancellation.
 - Do not add alias routes for superseded speculative names.
 
-## APPROVED DIRECTION: domain actions
+## Domain actions
 
-When the first effectful Agent action is approved, expose the owning domain's concrete action rather than a universal arbitrary-tool endpoint. Define server-derived actor/workspace scope, typed validation, authorization, approval if required, idempotency/request hashing, concurrency, durable redacted execution state, safe errors and reconciliation of ambiguous external effects.
+The implemented `contacts.follow_up.request` action is an internal typed runtime contract, not a public arbitrary-tool endpoint. The server binds workspace, Agent/revision, Conversation, source message and Channel connection; the Contacts service independently revalidates them, hashes normalized bounded input, provides compatible replay, rejects conflicts and records redacted execution state in the same transaction as Contact/Lead mutation. Agent configuration DTOs expose `follow_up_action_enabled`, while Lead, Contact timeline and Conversation detail DTOs expose only safe provenance and outcome fields.
+
+Future effectful actions must keep the same owning-domain discipline and separately define authorization, approval where required, idempotency/concurrency, safe errors and reconciliation for ambiguous external effects.
 
 This is a design trigger, not a current route family.

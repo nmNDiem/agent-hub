@@ -81,6 +81,7 @@ class PreparedTurn:
     conversation_id: int
     conversation_public_id: UUID
     assistant_message_id: int
+    inbound_message_id: int
     response_id: UUID
     question: str
     history: tuple[AgentConversationTurn, ...]
@@ -470,6 +471,7 @@ class WidgetVisitorService:
                         conversation_id=conversation.id,
                         conversation_public_id=conversation.public_id,
                         assistant_message_id=0,
+                        inbound_message_id=existing.id,
                         response_id=new_uuid_v7(),
                         question=question,
                         history=(),
@@ -494,6 +496,7 @@ class WidgetVisitorService:
                     conversation_id=conversation.id,
                     conversation_public_id=conversation.public_id,
                     assistant_message_id=assistant.id,
+                    inbound_message_id=existing.id,
                     response_id=assistant.response_id,
                     question=question,
                     history=(),
@@ -581,38 +584,7 @@ class WidgetVisitorService:
             )
             visitor_sequence = int(last_sequence or 0) + 1
             if conversation.handling_mode != "ai":
-                self.session.add(
-                    ConversationMessage(
-                        workspace_id=context.workspace_id,
-                        conversation_id=conversation.id,
-                        sequence_no=visitor_sequence,
-                        actor="visitor",
-                        direction="inbound",
-                        text=question,
-                        status="completed",
-                        request_key=request_key,
-                        request_hash=request_digest,
-                        completed_at=now,
-                    )
-                )
-                conversation.last_message_at = now
-                return PreparedTurn(
-                    context=context,
-                    conversation_id=conversation.id,
-                    conversation_public_id=conversation.public_id,
-                    assistant_message_id=0,
-                    response_id=new_uuid_v7(),
-                    question=question,
-                    history=history,
-                    attachment=attachment,
-                    waiting_human=True,
-                )
-            await TelemetryService(self.session, self.settings).reserve_generation_turn(
-                context.workspace_id, context.agent_id
-            )
-            response_id = new_uuid_v7()
-            self.session.add(
-                ConversationMessage(
+                inbound = ConversationMessage(
                     workspace_id=context.workspace_id,
                     conversation_id=conversation.id,
                     sequence_no=visitor_sequence,
@@ -624,7 +596,38 @@ class WidgetVisitorService:
                     request_hash=request_digest,
                     completed_at=now,
                 )
+                self.session.add(inbound)
+                await self.session.flush()
+                conversation.last_message_at = now
+                return PreparedTurn(
+                    context=context,
+                    conversation_id=conversation.id,
+                    conversation_public_id=conversation.public_id,
+                    assistant_message_id=0,
+                    inbound_message_id=inbound.id,
+                    response_id=new_uuid_v7(),
+                    question=question,
+                    history=history,
+                    attachment=attachment,
+                    waiting_human=True,
+                )
+            await TelemetryService(self.session, self.settings).reserve_generation_turn(
+                context.workspace_id, context.agent_id
             )
+            response_id = new_uuid_v7()
+            inbound = ConversationMessage(
+                workspace_id=context.workspace_id,
+                conversation_id=conversation.id,
+                sequence_no=visitor_sequence,
+                actor="visitor",
+                direction="inbound",
+                text=question,
+                status="completed",
+                request_key=request_key,
+                request_hash=request_digest,
+                completed_at=now,
+            )
+            self.session.add(inbound)
             assistant = ConversationMessage(
                 workspace_id=context.workspace_id,
                 conversation_id=conversation.id,
@@ -645,6 +648,7 @@ class WidgetVisitorService:
             conversation_id=conversation.id,
             conversation_public_id=conversation.public_id,
             assistant_message_id=assistant.id,
+            inbound_message_id=inbound.id,
             response_id=response_id,
             question=question,
             history=history,
@@ -815,6 +819,7 @@ class WidgetVisitorService:
             conversation_id=conversation.id,
             conversation_public_id=conversation.public_id,
             assistant_message_id=assistant.id,
+            inbound_message_id=visitor.id,
             response_id=assistant.response_id,
             question=visitor.text,
             history=(),
