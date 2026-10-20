@@ -46,13 +46,13 @@ Phase 3.2 includes minimum guidance, honest empty/error/readiness state and capa
 
 ## 4 — General-purpose real-world workflows
 
-Status: **Planned direction; no implementation packets**
+Status: **4.1 packet proposed; no implementation approved**
 
 These phases prove that AgentHub is useful outside Commerce. They are named after work completed for a user, not the internal primitives used to implement it. Each phase reuses the action safety boundary introduced by the first approved effectful workflow and adds only infrastructure demonstrated by that workflow.
 
 | Phase | User-visible outcome | Dependency gate |
 |---|---|---|
-| 4.1 Qualified contact and structured intake | An Agent can collect, validate and persist the information needed to qualify a contact or service request, building on current Contacts/leads and consent rules | Requires the minimum effectful-action boundary; must not replace current Contacts or handover |
+| [4.1 Qualified contact and structured intake](phases/4.1-qualified-contact-and-structured-intake.md) | An Agent can collect, validate and persist the information needed to qualify a contact or service request, building on current Contacts/leads and consent rules | **Proposed; not approved for implementation.** Requires the minimum effectful-action boundary; must not replace current Contacts or handover |
 | 4.2 Information and document delivery | An Agent can select and send an authorized document or information package with attributable delivery state | Requires a concrete delivery channel/provider, content authorization and failure/audit policy |
 | 4.3 Email, calendar and appointment workflows | An Agent can arrange, confirm, reschedule and cancel an appointment against authoritative availability and approved provider state | Requires typed actions, resource/timezone rules, idempotency, confirmation and reconciliation |
 | 4.4 External and internal system actions | An Agent can invoke explicitly configured, typed and allowlisted business operations without arbitrary URL or arbitrary-code execution | Requires concrete target APIs, credential ownership, authorization and safe failure semantics |
